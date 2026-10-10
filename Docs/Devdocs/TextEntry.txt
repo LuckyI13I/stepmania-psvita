@@ -1,0 +1,10 @@
+Code that uses ScreenTextEntry::TextEntry()
+-------------------------------------------
+ScreenEdit.cpp
+ScreenEditMenu.cpp
+ScreenOptionsCourseOverview.cpp
+ScreenOptionsManageCourses.cpp
+ScreenOptionsManageEditSteps.cpp
+ScreenOptionsManageProfiles.cpp
+ScreenOptionsReviewWorkout.cpp
+ScreenTestFonts.cpp

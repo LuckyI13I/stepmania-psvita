@@ -1,0 +1,8 @@
+StepMania has a few compile flags that are helpful to know, as well as one
+inherited from sm-ssc that should be nuked.
+
+================================================================================
+sm-ssc:
+================================================================================
+SSC_FUTURES
+A highly deprecated thing. Anything related to this flag should be removed.
