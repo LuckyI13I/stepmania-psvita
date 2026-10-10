@@ -1,6 +1,9 @@
 StepMania
 =========
 
+> PS Vita port: see [VITA-README.md](VITA-README.md) for build instructions,
+> controls and current status. (Порт на PS Vita: сборка и статус — в VITA-README.md.)
+
 StepMania is an advanced cross-platform rhythm game for home and arcade use.
 
 [![Continuous integration](https://github.com/stepmania/stepmania/actions/workflows/ci.yml/badge.svg?branch=5_1-new)](https://github.com/stepmania/stepmania/actions/workflows/ci.yml)
