@@ -77,15 +77,7 @@ void ScreenReloadSongs::Update( float fDeltaTime )
 
 	ASSERT( !IsFirstUpdate() );
 
-	bool onlyLoadAdditions = THEME->GetMetricB(m_sName, "OnlyLoadAdditions");
-	if (onlyLoadAdditions)
-	{
-		SONGMAN->LoadAdditions( m_pLoadingWindow );
-	}
-	else
-	{
-		SONGMAN->Reload( false, m_pLoadingWindow );
-	}
+	SONGMAN->Reload( false, m_pLoadingWindow );
 
 	SCREENMAN->PostMessageToTopScreen( SM_GoToNextScreen, 0 );
 }

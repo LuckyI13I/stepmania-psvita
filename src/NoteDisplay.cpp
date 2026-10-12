@@ -1,30 +1,21 @@
 #include "global.h"
-
 #include "NoteDisplay.h"
-
-#include "ActorUtil.h"
-#include "ArrowEffects.h"
 #include "GameState.h"
 #include "GhostArrowRow.h"
-#include "LuaBinding.h"
 #include "NoteData.h"
 #include "NoteSkinManager.h"
-#include "NoteTypes.h"
-#include "PlayerState.h"
-#include "Preference.h"
-#include "RageDisplay.h"
+#include "ArrowEffects.h"
 #include "RageLog.h"
-#include "RageMath.h"
+#include "RageDisplay.h"
 #include "ReceptorArrowRow.h"
-#include "Sprite.h"
+#include "ActorUtil.h"
 #include "Style.h"
-
-#include <cmath>
-#include <cstdint>
-#include <vector>
-
-
-static Preference<bool> g_bRenderEarlierNotesOnTop( "RenderEarlierNotesOnTop", false );
+#include "PlayerState.h"
+#include "Sprite.h"
+#include "NoteTypes.h"
+#include "LuaBinding.h"
+#include "Foreach.h"
+#include "RageMath.h"
 
 static const double PI_180= PI / 180.0;
 static const double PI_180R= 180.0 / PI;
@@ -50,7 +41,6 @@ LuaXType( NotePart );
 static const char *NoteColorTypeNames[] = {
 	"Denominator",
 	"Progress",
-	"ProgressAlternate"
 };
 XToString( NoteColorType );
 StringToX( NoteColorType );
@@ -184,7 +174,7 @@ struct NoteResource
 	NoteResource( const NoteSkinAndPath &nsap ): m_nsap(nsap)
 	{
 		m_iRefCount = 0;
-		m_pActor = nullptr;
+		m_pActor = NULL;
 	}
 
 	~NoteResource()
@@ -197,14 +187,14 @@ struct NoteResource
 	Actor *m_pActor; // todo: AutoActor me? -aj
 };
 
-static std::map<NoteSkinAndPath, NoteResource *> g_NoteResource;
+static map<NoteSkinAndPath, NoteResource *> g_NoteResource;
 
 static NoteResource *MakeNoteResource( const RString &sButton, const RString &sElement, PlayerNumber pn, GameController gc, bool bSpriteOnly )
 {
 	RString sElementAndType = ssprintf( "%s, %s", sButton.c_str(), sElement.c_str() );
 	NoteSkinAndPath nsap( NOTESKIN->GetCurrentNoteSkin(), sElementAndType, pn, gc );
 
-	std::map<NoteSkinAndPath, NoteResource *>::iterator it = g_NoteResource.find( nsap );
+	map<NoteSkinAndPath, NoteResource *>::iterator it = g_NoteResource.find( nsap );
 	if( it == g_NoteResource.end() )
 	{
 		NoteResource *pRes = new NoteResource( nsap );
@@ -212,8 +202,8 @@ static NoteResource *MakeNoteResource( const RString &sButton, const RString &sE
 		NOTESKIN->SetPlayerNumber( pn );
 		NOTESKIN->SetGameController( gc );
 
-		pRes->m_pActor = NOTESKIN->LoadActor( sButton, sElement, nullptr, bSpriteOnly );
-		ASSERT( pRes->m_pActor != nullptr );
+		pRes->m_pActor = NOTESKIN->LoadActor( sButton, sElement, NULL, bSpriteOnly );
+		ASSERT( pRes->m_pActor != NULL );
 
 		g_NoteResource[nsap] = pRes;
 		it = g_NoteResource.find( nsap );
@@ -226,7 +216,7 @@ static NoteResource *MakeNoteResource( const RString &sButton, const RString &sE
 
 static void DeleteNoteResource( NoteResource *pRes )
 {
-	ASSERT( pRes != nullptr );
+	ASSERT( pRes != NULL );
 
 	ASSERT_M( pRes->m_iRefCount > 0, ssprintf("RefCount %i > 0", pRes->m_iRefCount) );
 	--pRes->m_iRefCount;
@@ -241,7 +231,7 @@ static void DeleteNoteResource( NoteResource *pRes )
 
 NoteColorActor::NoteColorActor()
 {
-	m_p = nullptr;
+	m_p = NULL;
 }
 
 NoteColorActor::~NoteColorActor()
@@ -265,7 +255,7 @@ Actor *NoteColorActor::Get()
 
 NoteColorSprite::NoteColorSprite()
 {
-	m_p = nullptr;
+	m_p = NULL;
 }
 
 NoteColorSprite::~NoteColorSprite()
@@ -375,15 +365,15 @@ void NoteColumnRenderArgs::spae_pos_for_beat(const PlayerState* player_state,
 	}
 }
 void NoteColumnRenderArgs::spae_zoom_for_beat(const PlayerState* state, float beat,
-	RageVector3& sp_zoom, RageVector3& ae_zoom, int col_num, float y_offset) const
+	RageVector3& sp_zoom, RageVector3& ae_zoom) const
 {
 	switch(zoom_handler->m_spline_mode)
 	{
 		case NCSM_Disabled:
-			ae_zoom.x= ae_zoom.y= ae_zoom.z= ArrowEffects::GetZoom(state, y_offset, col_num);
+			ae_zoom.x= ae_zoom.y= ae_zoom.z= ArrowEffects::GetZoom(state);
 			break;
 		case NCSM_Offset:
-			ae_zoom.x= ae_zoom.y= ae_zoom.z= ArrowEffects::GetZoom(state, y_offset, col_num);
+			ae_zoom.x= ae_zoom.y= ae_zoom.z= ArrowEffects::GetZoom(state);
 			zoom_handler->EvalForBeat(song_beat, beat, sp_zoom);
 			break;
 		case NCSM_Position:
@@ -426,7 +416,7 @@ void NoteDisplay::Load( int iColNum, const PlayerState* pPlayerState, float fYRe
 	m_fYReverseOffsetPixels = fYReverseOffsetPixels;
 
 	const PlayerNumber pn = m_pPlayerState->m_PlayerNumber;
-	std::vector<GameInput> GameI;
+	vector<GameInput> GameI;
 	GAMESTATE->GetCurrentStyle(pPlayerState->m_PlayerNumber)->StyleInputToGameInput( iColNum, pn, GameI );
 
 	const RString &sButton = GAMESTATE->GetCurrentStyle(pPlayerState->m_PlayerNumber)->ColToButtonName( iColNum );
@@ -478,10 +468,10 @@ bool NoteDisplay::IsOnScreen( float fBeat, int iCol, int iDrawDistanceAfterTarge
 
 bool NoteDisplay::DrawHoldsInRange(const NoteFieldRenderArgs& field_args,
 	const NoteColumnRenderArgs& column_args,
-	const std::vector<NoteData::TrackMap::const_iterator>& tap_set)
+	const vector<NoteData::TrackMap::const_iterator>& tap_set)
 {
 	bool any_upcoming = false;
-	for(std::vector<NoteData::TrackMap::const_iterator>::const_iterator tapit=
+	for(vector<NoteData::TrackMap::const_iterator>::const_iterator tapit=
 		tap_set.begin(); tapit != tap_set.end(); ++tapit)
 	{
 		const TapNote& tn= (*tapit)->second;
@@ -544,14 +534,15 @@ bool NoteDisplay::DrawHoldsInRange(const NoteFieldRenderArgs& field_args,
 
 bool NoteDisplay::DrawTapsInRange(const NoteFieldRenderArgs& field_args,
 	const NoteColumnRenderArgs& column_args,
-	const std::vector<NoteData::TrackMap::const_iterator>& tap_set)
+	const vector<NoteData::TrackMap::const_iterator>& tap_set)
 {
 	bool any_upcoming= false;
-
-	auto loop_body = [this, &field_args, &column_args, &any_upcoming](const NoteData::TrackMap::const_iterator& tapit)
+	// draw notes from furthest to closest
+	for(vector<NoteData::TrackMap::const_iterator>::const_iterator tapit=
+		tap_set.begin(); tapit != tap_set.end(); ++tapit)
 	{
-		int tap_row= tapit->first;
-		const TapNote& tn= tapit->second;
+		int tap_row= (*tapit)->first;
+		const TapNote& tn= (*tapit)->second;
 
 		// TRICKY: If boomerang is on, then all notes in the range
 		// [first_row,last_row] aren't necessarily visible.
@@ -559,7 +550,7 @@ bool NoteDisplay::DrawTapsInRange(const NoteFieldRenderArgs& field_args,
 		if(!IsOnScreen(NoteRowToBeat(tap_row), column_args.column,
 				field_args.draw_pixels_after_targets, field_args.draw_pixels_before_targets))
 		{
-			return; // skip
+			continue; // skip
 		}
 
 		// Hm, this assert used to pass the first and last rows to draw, when it
@@ -626,19 +617,7 @@ bool NoteDisplay::DrawTapsInRange(const NoteFieldRenderArgs& field_args,
 		{
 			DISPLAY->ClearZBuffer();
 		}
-	};
-
-	if (g_bRenderEarlierNotesOnTop.Get())
-	{
-		// draw notes from closest to furthest
-		std::for_each(tap_set.rbegin(), tap_set.rend(), loop_body);
 	}
-	else
-	{
-		// draw notes from furthest to closest
-		std::for_each(tap_set.begin(), tap_set.end(), loop_body);
-	}
-
 	return any_upcoming;
 }
 
@@ -656,7 +635,7 @@ void NoteDisplay::Update( float fDeltaTime )
 {
 	/* This function is static: it's called once per game loop, not once per
 	 * NoteDisplay.  Update each cached item exactly once. */
-	std::map<NoteSkinAndPath, NoteResource *>::iterator it;
+	map<NoteSkinAndPath, NoteResource *>::iterator it;
 	for( it = g_NoteResource.begin(); it != g_NoteResource.end(); ++it )
 	{
 		NoteResource *pRes = it->second;
@@ -669,13 +648,13 @@ void NoteDisplay::SetActiveFrame( float fNoteBeat, Actor &actorToSet, float fAni
 	/* -inf ... inf */
 	float fBeatOrSecond = cache->m_bAnimationBasedOnBeats ? m_pPlayerState->m_Position.m_fSongBeat : m_pPlayerState->m_Position.m_fMusicSeconds;
 	/* -len ... +len */
-	float fPercentIntoAnimation = std::fmod( fBeatOrSecond, fAnimationLength );
+	float fPercentIntoAnimation = fmodf( fBeatOrSecond, fAnimationLength );
 	/* -1 ... 1 */
 	fPercentIntoAnimation /= fAnimationLength;
 
 	if( bVivid )
 	{
-		float fNoteBeatFraction = std::fmod( fNoteBeat, 1.0f );
+		float fNoteBeatFraction = fmodf( fNoteBeat, 1.0f );
 
 		const float fInterval = 1.f / fAnimationLength;
 		fPercentIntoAnimation += QuantizeDown( fNoteBeatFraction, fInterval );
@@ -718,9 +697,9 @@ Sprite *NoteDisplay::GetHoldSprite( NoteColorSprite ncs[NUM_HoldType][NUM_Active
 static float ArrowGetAlphaOrGlow( bool bGlow, const PlayerState* pPlayerState, int iCol, float fYOffset, float fPercentFadeToFail, float fYReverseOffsetPixels, float fDrawDistanceBeforeTargetsPixels, float fFadeInPercentOfDrawFar )
 {
 	if( bGlow )
-		return ArrowEffects::GetGlow(pPlayerState, iCol, fYOffset, fPercentFadeToFail, fYReverseOffsetPixels, fDrawDistanceBeforeTargetsPixels, fFadeInPercentOfDrawFar);
+		return ArrowEffects::GetGlow(iCol, fYOffset, fPercentFadeToFail, fYReverseOffsetPixels, fDrawDistanceBeforeTargetsPixels, fFadeInPercentOfDrawFar);
 	else
-		return ArrowEffects::GetAlpha(pPlayerState, iCol, fYOffset, fPercentFadeToFail, fYReverseOffsetPixels, fDrawDistanceBeforeTargetsPixels, fFadeInPercentOfDrawFar);
+		return ArrowEffects::GetAlpha(iCol, fYOffset, fPercentFadeToFail, fYReverseOffsetPixels, fDrawDistanceBeforeTargetsPixels, fFadeInPercentOfDrawFar);
 }
 
 struct StripBuffer
@@ -757,20 +736,20 @@ enum hold_part_type
 	hpt_bottom,
 };
 
-void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
+void NoteDisplay::DrawHoldPart(vector<Sprite*> &vpSpr,
 	const NoteFieldRenderArgs& field_args,
 	const NoteColumnRenderArgs& column_args,
 	const draw_hold_part_args& part_args, bool glow, int part_type)
 {
 	ASSERT(!vpSpr.empty());
 
-	float ae_zoom= ArrowEffects::GetZoom(m_pPlayerState, 0, column_args.column);
+	float ae_zoom= ArrowEffects::GetZoom(m_pPlayerState);
 	Sprite *pSprite = vpSpr.front();
 
 	// draw manually in small segments
 	RectF rect = *pSprite->GetCurrentTextureCoordRect();
 	if(part_args.flip_texture_vertically)
-		std::swap(rect.top, rect.bottom);
+		swap(rect.top, rect.bottom);
 	const float fFrameWidth		= pSprite->GetUnzoomedWidth();
 	const float unzoomed_frame_height= pSprite->GetUnzoomedHeight();
 
@@ -778,12 +757,12 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 	 * very long, don't process or draw the part outside of the range.  Don't change
 	 * part_args.y_top or part_args.y_bottom; they need to be left alone to calculate texture coordinates. */
 	// If hold body, draw texture to the outside screen.(fix by A.C)
-	float y_start_pos = (part_type == hpt_body) ? part_args.y_top : std::max(part_args.y_top, part_args.y_start_pos);
+	float y_start_pos = (part_type == hpt_body) ? part_args.y_top : max(part_args.y_top, part_args.y_start_pos);
 	if (part_args.y_top < part_args.y_start_pos - unzoomed_frame_height)
 	{
-		y_start_pos = std::fmod((y_start_pos - part_args.y_start_pos), unzoomed_frame_height) + part_args.y_start_pos;
+		y_start_pos = fmod((y_start_pos - part_args.y_start_pos), unzoomed_frame_height) + part_args.y_start_pos;
 	}
-	float y_end_pos = std::min(part_args.y_bottom, part_args.y_end_pos);
+	float y_end_pos = min(part_args.y_bottom, part_args.y_end_pos);
 	const float color_scale= glow ? 1 : part_args.color_scale;
 	if(part_type == hpt_body)
 	{
@@ -805,7 +784,7 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 		{
 			float tex_coord_bottom= SCALE(part_args.y_bottom - part_args.y_top,
 				0, unzoomed_frame_height, rect.top, rect.bottom);
-			float want_tex_coord_bottom	= std::ceil(tex_coord_bottom - 0.0001f);
+			float want_tex_coord_bottom	= ceilf(tex_coord_bottom - 0.0001f);
 			add_to_tex_coord = want_tex_coord_bottom - tex_coord_bottom;
 		}
 
@@ -816,7 +795,7 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 			const float fDistFromTop = y_start_pos - part_args.y_top;
 			float fTexCoordTop = SCALE(fDistFromTop, 0, unzoomed_frame_height, rect.top, rect.bottom);
 			fTexCoordTop += add_to_tex_coord;
-			add_to_tex_coord -= std::floor(fTexCoordTop);
+			add_to_tex_coord -= floorf(fTexCoordTop);
 		}
 	}
 	// The bottom caps mysteriously hate me and their texture coords need to be
@@ -858,8 +837,6 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 		}
 
 		const float fYOffset= ArrowEffects::GetYOffsetFromYPos(column_args.column, fY, m_fYReverseOffsetPixels);
-
-		ae_zoom = ArrowEffects::GetZoom(m_pPlayerState, fYOffset, column_args.column);
 
 		float cur_beat= part_args.top_beat;
 		if(part_args.top_beat != part_args.bottom_beat)
@@ -907,10 +884,10 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 		switch(column_args.pos_handler->m_spline_mode)
 		{
 			case NCSM_Disabled:
-				ae_pos.y= fY + ArrowEffects::GetMoveY(column_args.column);
+				ae_pos.y= fY;
 				break;
 			case NCSM_Offset:
-				ae_pos.y= fY + ArrowEffects::GetMoveY(column_args.column);
+				ae_pos.y= fY;
 				column_args.pos_handler->EvalDerivForBeat(column_args.song_beat, cur_beat, sp_pos_forward);
 				RageVec3Normalize(&sp_pos_forward, &sp_pos_forward);
 				break;
@@ -960,10 +937,10 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 		{
 			case NCSM_Disabled:
 				// XXX: Actor rotations use degrees, Math uses radians. Convert here.
-				ae_rot.y= ArrowEffects::GetRotationY(m_pPlayerState, fYOffset, column_args.column) * -PI_180;
+				ae_rot.y= ArrowEffects::GetRotationY(fYOffset) * PI_180;
 				break;
 			case NCSM_Offset:
-				ae_rot.y= ArrowEffects::GetRotationY(m_pPlayerState, fYOffset, column_args.column) * -PI_180;
+				ae_rot.y= ArrowEffects::GetRotationY(fYOffset) * PI_180;
 				column_args.rot_handler->EvalForBeat(column_args.song_beat, cur_beat, sp_rot);
 				break;
 			case NCSM_Position:
@@ -988,7 +965,7 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 
 		// (step 2 of vector handling)
 		RageVector3 render_left;
-		if(std::abs(render_forward.z) > 0.9f) // 0.9 arbitrariliy picked.
+		if(abs(render_forward.z) > 0.9f) // 0.9 arbitrariliy picked.
 		{
 			RageVec3Cross(&render_left, &pos_y_vec, &render_forward);
 		}
@@ -1007,13 +984,8 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 		const RageVector3 right_vert(center_vert.x - render_left.x,
 			center_vert.y - render_left.y, center_vert.z - render_left.z);
 
-		// Hack: because some mods mess with the zoom, we need to compensate accordingly,
-		// or else hold ends don't look right.
-		const float fPulseInnerAdj	= ArrowEffects::GetPulseInner();
-		const float fVariableZoom	= ArrowEffects::GetZoomVariable(fYOffset, column_args.column, 1) / fPulseInnerAdj;
-
 		const float fDistFromTop	= (fY - y_start_pos) / ae_zoom;
-		float fTexCoordTop		= SCALE(fDistFromTop, 0, unzoomed_frame_height, rect.top, rect.bottom * fVariableZoom);
+		float fTexCoordTop		= SCALE(fDistFromTop, 0, unzoomed_frame_height, rect.top, rect.bottom);
 		fTexCoordTop += add_to_tex_coord;
 
 		const float fAlpha		= ArrowGetAlphaOrGlow(glow, m_pPlayerState, column_args.column, fYOffset, part_args.percent_fade_to_fail, m_fYReverseOffsetPixels, field_args.draw_pixels_before_targets, field_args.fade_before_targets);
@@ -1037,12 +1009,11 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 			 * start off the strip again. */
 			if(!bAllAreTransparent)
 			{
-				int i = 0;
-				for (Sprite *spr : vpSpr)
+				FOREACH(Sprite*, vpSpr, spr)
 				{
-					RageTexture* pTexture = spr->GetTexture();
+					RageTexture* pTexture = (*spr)->GetTexture();
 					DISPLAY->SetTexture(TextureUnit_1, pTexture->GetTexHandle());
-					DISPLAY->SetBlendMode((i++ == 0) ? BLEND_NORMAL : BLEND_ADD);
+					DISPLAY->SetBlendMode(spr == vpSpr.begin() ? BLEND_NORMAL : BLEND_ADD);
 					DISPLAY->SetCullMode(CULL_NONE);
 					DISPLAY->SetTextureWrapping(TextureUnit_1, part_args.wrapping);
 					queue.Draw();
@@ -1056,8 +1027,8 @@ void NoteDisplay::DrawHoldPart(std::vector<Sprite*> &vpSpr,
 	}
 }
 
-void NoteDisplay::DrawHoldBodyInternal(std::vector<Sprite*>& sprite_top,
-	std::vector<Sprite*>& sprite_body, std::vector<Sprite*>& sprite_bottom,
+void NoteDisplay::DrawHoldBodyInternal(vector<Sprite*>& sprite_top,
+	vector<Sprite*>& sprite_body, vector<Sprite*>& sprite_bottom,
 	const NoteFieldRenderArgs& field_args,
 	const NoteColumnRenderArgs& column_args,
 	draw_hold_part_args& part_args,
@@ -1066,25 +1037,24 @@ void NoteDisplay::DrawHoldBodyInternal(std::vector<Sprite*>& sprite_top,
 	const float bottom_beat, bool glow)
 {
 	// Draw the top cap
-	part_args.y_top = head_minus_top;
-	part_args.y_bottom = y_head;
-	part_args.top_beat = top_beat;
-	part_args.bottom_beat = top_beat;
-	part_args.wrapping = false;
+	part_args.y_top= head_minus_top;
+	part_args.y_bottom= y_head;
+	part_args.top_beat= top_beat;
+	part_args.bottom_beat= top_beat;
+	part_args.wrapping= false;
 	DrawHoldPart(sprite_top, field_args, column_args, part_args, glow, hpt_top);
 	// Draw the body
-	part_args.y_top = y_head;
-	part_args.y_bottom = y_tail;
-	part_args.bottom_beat = bottom_beat;
-	part_args.wrapping = true;
+	part_args.y_top= y_head;
+	part_args.y_bottom= y_tail;
+	part_args.bottom_beat= bottom_beat;
+	part_args.wrapping= true;
 	DrawHoldPart(sprite_body, field_args, column_args, part_args, glow, hpt_body);
 	// Draw the bottom cap
-	float overlap_hack = 1.0f;
-	part_args.y_top = y_tail + overlap_hack;
-	part_args.y_bottom = tail_plus_bottom + overlap_hack;
+	part_args.y_top= y_tail;
+	part_args.y_bottom = tail_plus_bottom;
 	part_args.top_beat = bottom_beat;
-	part_args.y_start_pos = std::fmax(part_args.y_start_pos, y_head);
-	part_args.wrapping = false;
+	part_args.y_start_pos = max(part_args.y_start_pos, y_head);
+	part_args.wrapping= false;
 	DrawHoldPart(sprite_bottom, field_args, column_args, part_args, glow, hpt_bottom);
 }
 
@@ -1098,15 +1068,15 @@ void NoteDisplay::DrawHoldBody(const TapNote& tn,
 	part_args.percent_fade_to_fail= percent_fade_to_fail;
 	part_args.color_scale= color_scale;
 	part_args.overlapped_time= tn.HoldResult.fOverlappedTime;
-	std::vector<Sprite*> vpSprTop;
+	vector<Sprite*> vpSprTop;
 	Sprite *pSpriteTop = GetHoldSprite( m_HoldTopCap, NotePart_HoldTopCap, beat, tn.subType == TapNoteSubType_Roll, being_held && !cache->m_bHoldActiveIsAddLayer );
 	vpSprTop.push_back( pSpriteTop );
 
-	std::vector<Sprite*> vpSprBody;
+	vector<Sprite*> vpSprBody;
 	Sprite *pSpriteBody = GetHoldSprite( m_HoldBody, NotePart_HoldBody, beat, tn.subType == TapNoteSubType_Roll, being_held && !cache->m_bHoldActiveIsAddLayer );
 	vpSprBody.push_back( pSpriteBody );
 
-	std::vector<Sprite*> vpSprBottom;
+	vector<Sprite*> vpSprBottom;
 	Sprite *pSpriteBottom = GetHoldSprite( m_HoldBottomCap, NotePart_HoldBottomCap, beat, tn.subType == TapNoteSubType_Roll, being_held && !cache->m_bHoldActiveIsAddLayer );
 	vpSprBottom.push_back( pSpriteBottom );
 
@@ -1124,8 +1094,8 @@ void NoteDisplay::DrawHoldBody(const TapNote& tn,
 	part_args.flip_texture_vertically = reverse && cache->m_bFlipHoldBodyWhenReverse;
 	if(part_args.flip_texture_vertically)
 	{
-		std::swap( vpSprTop, vpSprBottom );
-		std::swap( pSpriteTop, pSpriteBottom );
+		swap( vpSprTop, vpSprBottom );
+		swap( pSpriteTop, pSpriteBottom );
 	}
 
 	const bool bWavyPartsNeedZBuffer = ArrowEffects::NeedZBuffer();
@@ -1146,17 +1116,17 @@ void NoteDisplay::DrawHoldBody(const TapNote& tn,
 		y_tail += cache->m_iStopDrawingHoldBodyOffsetFromTail;
 	}
 
-	float ae_zoom= ArrowEffects::GetZoom(m_pPlayerState, 0, column_args.column);
+	float ae_zoom= ArrowEffects::GetZoom(m_pPlayerState);
 	const float frame_height_top= pSpriteTop->GetUnzoomedHeight() * ae_zoom;
 	const float frame_height_bottom= pSpriteBottom->GetUnzoomedHeight() * ae_zoom;
 
-	part_args.y_start_pos= ArrowEffects::GetYPos(m_pPlayerState, column_args.column,
+	part_args.y_start_pos= ArrowEffects::GetYPos(column_args.column,
 		field_args.draw_pixels_after_targets, m_fYReverseOffsetPixels);
-	part_args.y_end_pos= ArrowEffects::GetYPos(m_pPlayerState, column_args.column,
+	part_args.y_end_pos= ArrowEffects::GetYPos(column_args.column,
 		field_args.draw_pixels_before_targets, m_fYReverseOffsetPixels);
 	if(reverse)
 	{
-		std::swap(part_args.y_start_pos, part_args.y_end_pos);
+		swap(part_args.y_start_pos, part_args.y_end_pos);
 	}
 	// So that part_args.y_start_pos can be changed when drawing the bottom.
 	const float original_y_start_pos= part_args.y_start_pos;
@@ -1194,7 +1164,7 @@ void NoteDisplay::DrawHold(const TapNote& tn,
 	// bDrawGlowOnly is a little hacky.  We need to draw the diffuse part and the glow part one pass at a time to minimize state changes
 
 	bool bReverse = m_pPlayerState->m_PlayerOptions.GetCurrent().GetReversePercentForColumn(column_args.column) > 0.5f;
-	float fStartBeat = NoteRowToBeat( std::max(tn.HoldResult.iLastHeldRow, iRow) );
+	float fStartBeat = NoteRowToBeat( max(tn.HoldResult.iLastHeldRow, iRow) );
 	float fThrowAway = 0;
 
 	// HACK: If life > 0, don't set YOffset to 0 so that it doesn't jiggle around the receptor.
@@ -1204,24 +1174,24 @@ void NoteDisplay::DrawHold(const TapNote& tn,
 		;	// use the default values filled in above
 	else
 		fStartYOffset = ArrowEffects::GetYOffset( m_pPlayerState, column_args.column, fStartBeat, fThrowAway, bStartIsPastPeak );
-
+	
 	float fEndPeakYOffset	= 0;
 	bool bEndIsPastPeak = false;
 	float fEndYOffset	= ArrowEffects::GetYOffset( m_pPlayerState, column_args.column, NoteRowToBeat(iEndRow), fEndPeakYOffset, bEndIsPastPeak );
 
-	// In boomerang, the arrows reverse direction at Y offset value fPeakAtYOffset.
-	// If fPeakAtYOffset lies inside of the hold we're drawing, then the we
-	// want to draw the tail at that max Y offset, or else the hold will appear
+	// In boomerang, the arrows reverse direction at Y offset value fPeakAtYOffset.  
+	// If fPeakAtYOffset lies inside of the hold we're drawing, then the we 
+	// want to draw the tail at that max Y offset, or else the hold will appear 
 	// to magically grow as the tail approaches the max Y offset.
 	if( bStartIsPastPeak && !bEndIsPastPeak )
 		fEndYOffset	= fEndPeakYOffset;	// use the calculated PeakYOffset so that long holds don't appear to grow
-
+	
 	// Swap in reverse, so fStartYOffset is always the offset higher on the screen.
 	if( bReverse )
-		std::swap( fStartYOffset, fEndYOffset );
+		swap( fStartYOffset, fEndYOffset );
 
-	const float fYHead= ArrowEffects::GetYPos(m_pPlayerState, column_args.column, fStartYOffset, m_fYReverseOffsetPixels);
-	const float fYTail= ArrowEffects::GetYPos(m_pPlayerState, column_args.column, fEndYOffset, m_fYReverseOffsetPixels);
+	const float fYHead= ArrowEffects::GetYPos(column_args.column, fStartYOffset, m_fYReverseOffsetPixels);
+	const float fYTail= ArrowEffects::GetYPos(column_args.column, fEndYOffset, m_fYReverseOffsetPixels);
 
 	const float fColorScale		= SCALE( tn.HoldResult.fLife, 0.0f, 1.0f, cache->m_fHoldLetGoGrayPercent, 1.0f );
 
@@ -1277,8 +1247,8 @@ void NoteDisplay::DrawActor(const TapNote& tn, Actor* pActor, NotePart part,
 	float spline_beat= fBeat;
 	if(is_being_held) { spline_beat= column_args.song_beat; }
 
-	const float fAlpha= ArrowEffects::GetAlpha(m_pPlayerState, column_args.column, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels, field_args.draw_pixels_before_targets, field_args.fade_before_targets);
-	const float fGlow= ArrowEffects::GetGlow(m_pPlayerState, column_args.column, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels, field_args.draw_pixels_before_targets, field_args.fade_before_targets);
+	const float fAlpha= ArrowEffects::GetAlpha(column_args.column, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels, field_args.draw_pixels_before_targets, field_args.fade_before_targets);
+	const float fGlow= ArrowEffects::GetGlow(column_args.column, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels, field_args.draw_pixels_before_targets, field_args.fade_before_targets);
 	const RageColor diffuse	= RageColor(
 		column_args.diffuse.r * fColorScale,
 		column_args.diffuse.g * fColorScale,
@@ -1321,14 +1291,20 @@ void NoteDisplay::DrawActor(const TapNote& tn, Actor* pActor, NotePart part,
 	switch(column_args.rot_handler->m_spline_mode)
 	{
 		case NCSM_Disabled:
-			ae_rot.x= ArrowEffects::GetRotationX(m_pPlayerState, fYOffset, bIsHoldCap, column_args.column);
-			ae_rot.y= ArrowEffects::GetRotationY(m_pPlayerState, fYOffset, column_args.column);
-			ae_rot.z= ArrowEffects::GetRotationZ(m_pPlayerState, fBeat, bIsHoldHead, column_args.column);
+			if(!bIsHoldCap)
+			{
+				ae_rot.x= ArrowEffects::GetRotationX(fYOffset);
+			}
+			ae_rot.y= ArrowEffects::GetRotationY(fYOffset);
+			ae_rot.z= ArrowEffects::GetRotationZ(m_pPlayerState, fBeat, bIsHoldHead);
 			break;
 		case NCSM_Offset:
-			ae_rot.x= ArrowEffects::GetRotationX(m_pPlayerState, fYOffset, bIsHoldCap, column_args.column);
-			ae_rot.y= ArrowEffects::GetRotationY(m_pPlayerState, fYOffset, column_args.column);
-			ae_rot.z= ArrowEffects::GetRotationZ(m_pPlayerState, fBeat, bIsHoldHead, column_args.column);
+			if(!bIsHoldCap)
+			{
+				ae_rot.x= ArrowEffects::GetRotationX(fYOffset);
+			}
+			ae_rot.y= ArrowEffects::GetRotationY(fYOffset);
+			ae_rot.z= ArrowEffects::GetRotationZ(m_pPlayerState, fBeat, bIsHoldHead);
 			column_args.rot_handler->EvalForBeat(column_args.song_beat, spline_beat, sp_rot);
 			break;
 		case NCSM_Position:
@@ -1337,7 +1313,7 @@ void NoteDisplay::DrawActor(const TapNote& tn, Actor* pActor, NotePart part,
 		default:
 			break;
 	}
-	column_args.spae_zoom_for_beat(m_pPlayerState, spline_beat, sp_zoom, ae_zoom, column_args.column, fYOffset);
+	column_args.spae_zoom_for_beat(m_pPlayerState, spline_beat, sp_zoom, ae_zoom);
 	column_args.SetPRZForActor(pActor, sp_pos, ae_pos, sp_rot, ae_rot, sp_zoom, ae_zoom);
 	// [AJ] this two lines (and how they're handled) piss off many people:
 	pActor->SetDiffuse( diffuse );
@@ -1348,24 +1324,14 @@ void NoteDisplay::DrawActor(const TapNote& tn, Actor* pActor, NotePart part,
 	{
 		DISPLAY->TexturePushMatrix();
 		float color = 0.0f;
-		//this is only used for ProgressAlternate but must be declared here
-		float fScaledBeat = 0.0f;
 		switch( cache->m_NoteColorType[part] )
 		{
 		case NoteColorType_Denominator:
 			color = float( BeatToNoteType( fBeat ) );
-			color = std::clamp( color, 0.0f, (float) (cache->m_iNoteColorCount[part]-1) );
+			color = clamp( color, 0, (cache->m_iNoteColorCount[part]-1) );
 			break;
 		case NoteColorType_Progress:
-			color = std::fmod( std::ceil( fBeat * cache->m_iNoteColorCount[part] ), (float)cache->m_iNoteColorCount[part] );
-			break;
-		case NoteColorType_ProgressAlternate:
-			fScaledBeat = fBeat * cache->m_iNoteColorCount[part];
-			if( fScaledBeat - std::int64_t(fScaledBeat) == 0.0f )
-				//we're on a boundary, so move to the previous frame.
-				//doing it this way ensures that fScaledBeat is never negative so std::fmod works.
-				fScaledBeat += cache->m_iNoteColorCount[part] - 1;
-			color = std::fmod( std::ceil( fScaledBeat ), (float)cache->m_iNoteColorCount[part] );
+			color = fmodf( ceilf( fBeat * cache->m_iNoteColorCount[part] ), (float)cache->m_iNoteColorCount[part] );
 			break;
 		default:
 			FAIL_M(ssprintf("Invalid NoteColorType: %i", cache->m_NoteColorType[part]));
@@ -1387,7 +1353,7 @@ void NoteDisplay::DrawTap(const TapNote& tn,
 	bool bOnSameRowAsHoldStart, bool bOnSameRowAsRollStart,
 	bool bIsAddition, float fPercentFadeToFail)
 {
-	Actor* pActor = nullptr;
+	Actor* pActor = NULL;
 	NotePart part = NotePart_Tap;
 	/*
 	if( tn.source == TapNoteSource_Addition )
@@ -1434,17 +1400,17 @@ void NoteDisplay::DrawTap(const TapNote& tn,
 			pActor = GetHoldActor( m_HoldHead, NotePart_HoldHead, fBeat, true, false );
 		}
 	}
-
+	
 	else if( bOnSameRowAsHoldStart  &&  cache->m_bDrawHoldHeadForTapsOnSameRow )
 	{
 		pActor = GetHoldActor( m_HoldHead, NotePart_HoldHead, fBeat, false, false );
 	}
-
+	
 	else if( bOnSameRowAsRollStart  &&  cache->m_bDrawRollHeadForTapsOnSameRow )
 	{
 		pActor = GetHoldActor( m_HoldHead, NotePart_HoldHead, fBeat, true, false );
 	}
-
+	
 	else
 	{
 		pActor = GetTapActor( m_TapNote, NotePart_Tap, fBeat );
@@ -1499,14 +1465,10 @@ void NoteColumnRenderer::UpdateReceptorGhostStuff(Actor* receptor) const
 	switch(NCR_current.m_rot_handler.m_spline_mode)
 	{
 		case NCSM_Disabled:
-			ae_rot.z= ArrowEffects::ReceptorGetRotationZ(player_state, m_column);
-			ae_rot.x= ArrowEffects::ReceptorGetRotationX(player_state, m_column);
-			ae_rot.y= ArrowEffects::ReceptorGetRotationY(player_state, m_column);
+			ae_rot.z= ArrowEffects::ReceptorGetRotationZ(player_state);
 			break;
 		case NCSM_Offset:
-			ae_rot.z= ArrowEffects::ReceptorGetRotationZ(player_state, m_column);
-			ae_rot.x= ArrowEffects::ReceptorGetRotationX(player_state, m_column);
-			ae_rot.y= ArrowEffects::ReceptorGetRotationY(player_state, m_column);
+			ae_rot.z= ArrowEffects::ReceptorGetRotationZ(player_state);
 			NCR_current.m_rot_handler.EvalForReceptor(song_beat, sp_rot);
 			break;
 		case NCSM_Position:
@@ -1518,10 +1480,10 @@ void NoteColumnRenderer::UpdateReceptorGhostStuff(Actor* receptor) const
 	switch(NCR_current.m_zoom_handler.m_spline_mode)
 	{
 		case NCSM_Disabled:
-			ae_zoom.x= ae_zoom.y= ae_zoom.z= ArrowEffects::GetZoom(player_state, 0, m_column);
+			ae_zoom.x= ae_zoom.y= ae_zoom.z= ArrowEffects::GetZoom(player_state);
 			break;
 		case NCSM_Offset:
-			ae_zoom.x= ae_zoom.y= ae_zoom.z= ArrowEffects::GetZoom(player_state, 0, m_column);
+			ae_zoom.x= ae_zoom.y= ae_zoom.z= ArrowEffects::GetZoom(player_state);
 			NCR_current.m_zoom_handler.EvalForReceptor(song_beat, sp_zoom);
 			break;
 		case NCSM_Position:
@@ -1550,8 +1512,8 @@ void NoteColumnRenderer::DrawPrimitives()
 	// lists to the displays to draw.
 	// The vector in the NUM_PlayerNumber slot should stay empty, not worth
 	// optimizing it out. -Kyz
-	std::vector<std::vector<NoteData::TrackMap::const_iterator> > holds(PLAYER_INVALID+1);
-	std::vector<std::vector<NoteData::TrackMap::const_iterator> > taps(PLAYER_INVALID+1);
+	vector<vector<NoteData::TrackMap::const_iterator> > holds(PLAYER_INVALID+1);
+	vector<vector<NoteData::TrackMap::const_iterator> > taps(PLAYER_INVALID+1);
 	NoteData::TrackMap::const_iterator begin, end;
 	m_field_render_args->note_data->GetTapNoteRangeInclusive(m_column,
 		m_field_render_args->first_row, m_field_render_args->last_row+1, begin, end);
@@ -1594,7 +1556,6 @@ void NoteColumnRenderer::DrawPrimitives()
 	{ \
 		DTS_INNER(pn, tap_set, draw_func, m_displays[pn]); \
 	}
-
 	DRAW_TAP_SET(holds, DrawHoldsInRange);
 	DTS_INNER(PLAYER_INVALID, holds, DrawHoldsInRange, m_displays[PLAYER_INVALID]);
 	DRAW_TAP_SET(taps, DrawTapsInRange);
@@ -1748,7 +1709,7 @@ LUA_REGISTER_DERIVED_CLASS(NoteColumnRenderer, Actor)
  * NoteColumnRenderer and associated spline stuff (c) Eric Reese 2014-2015
  * (c) 2001-2006 Brian Bugh, Ben Nordstrom, Chris Danford, Steve Checkoway
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -1758,7 +1719,7 @@ LUA_REGISTER_DERIVED_CLASS(NoteColumnRenderer, Actor)
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -1,5 +1,5 @@
 /*
-** $Id: print.c,v 1.55a 2006/05/31 13:30:05 lhf Exp $
+** $Id: print.c 23036 2006-09-25 07:35:34Z gmaynard $
 ** print bytecodes
 ** See Copyright Notice in lua.h
 */
@@ -23,7 +23,8 @@
 static void PrintString(const TString* ts)
 {
  const char* s=getstr(ts);
- size_t i,n=ts->tsv.len;
+ int n=ts->tsv.len;
+ int i;
  putchar('"');
  for (i=0; i<n; i++)
  {
@@ -31,7 +32,6 @@ static void PrintString(const TString* ts)
   switch (c)
   {
    case '"': printf("\\\""); break;
-   case '\\': printf("\\\\"); break;
    case '\a': printf("\\a"); break;
    case '\b': printf("\\b"); break;
    case '\f': printf("\\f"); break;

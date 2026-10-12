@@ -14,10 +14,10 @@ MessageWindow::MessageWindow( const RString &sClassName )
 		0,				/* cbClsExtra */
 		0,				/* cbWndExtra */
 		inst,				/* hInstance */
-		nullptr,				/* set icon later */
-		LoadCursor( nullptr, IDC_ARROW ),	/* default cursor */
-		nullptr,				/* hbrBackground */
-		nullptr,				/* lpszMenuName */
+		NULL,				/* set icon later */
+		LoadCursor( NULL, IDC_ARROW ),	/* default cursor */
+		NULL,				/* hbrBackground */
+		NULL,				/* lpszMenuName */
 		sClassName			/* lpszClassName */
 	}; 
 
@@ -25,8 +25,8 @@ MessageWindow::MessageWindow( const RString &sClassName )
 		RageException::Throw( "%s", werr_ssprintf( GetLastError(), "RegisterClass" ).c_str() );
 
 	// XXX: on 2k/XP, use HWND_MESSAGE as parent
-	m_hWnd = CreateWindow( sClassName, sClassName, WS_DISABLED, 0, 0, 0, 0, nullptr, nullptr, inst, nullptr );
-	ASSERT( m_hWnd != nullptr );
+	m_hWnd = CreateWindow( sClassName, sClassName, WS_DISABLED, 0, 0, 0, 0, NULL, NULL, inst, NULL );
+	ASSERT( m_hWnd != NULL );
 
 	SetProp( m_hWnd, "MessageWindow", this );
 }
@@ -60,7 +60,7 @@ void MessageWindow::StopRunning()
 LRESULT CALLBACK MessageWindow::WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
 	MessageWindow *pThis = (MessageWindow *) GetProp( hWnd, "MessageWindow" );
-	if( pThis != nullptr && pThis->HandleMessage(msg, wParam, lParam) )
+	if( pThis != NULL && pThis->HandleMessage(msg, wParam, lParam) )
 		return 0;
 
 	return DefWindowProc( hWnd, msg, wParam, lParam );

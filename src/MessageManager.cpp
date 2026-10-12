@@ -1,5 +1,6 @@
 #include "global.h"
 #include "MessageManager.h"
+#include "Foreach.h"
 #include "RageUtil.h"
 #include "RageThreads.h"
 #include "EnumHelper.h"
@@ -9,7 +10,7 @@
 #include <set>
 #include <map>
 
-MessageManager*	MESSAGEMAN = nullptr;	// global and accessible from anywhere in our program
+MessageManager*	MESSAGEMAN = NULL;	// global and accessible from anywhere in our program
 
 
 static const char *MessageIDNames[] = {
@@ -57,7 +58,6 @@ static const char *MessageIDNames[] = {
 	"MenuSelectionChanged",
 	"PlayerJoined",
 	"PlayerUnjoined",
-	"PlayerProfileSet",
 	"AutosyncChanged",
 	"PreferredSongGroupChanged",
 	"PreferredCourseGroupChanged",
@@ -92,8 +92,8 @@ XToString( MessageID );
 
 static RageMutex g_Mutex( "MessageManager" );
 
-typedef std::set<IMessageSubscriber*> SubscribersSet;
-static std::map<RString,SubscribersSet> g_MessageToSubscribers;
+typedef set<IMessageSubscriber*> SubscribersSet;
+static map<RString,SubscribersSet> g_MessageToSubscribers;
 
 Message::Message( const RString &s )
 {
@@ -207,7 +207,8 @@ void MessageManager::Unsubscribe( IMessageSubscriber* pSubscriber, MessageID m )
 
 void MessageManager::Broadcast( Message &msg ) const
 {
-	if(m_Logging)
+	// GAMESTATE is created before MESSAGEMAN, and has several BroadcastOnChangePtr members, so they all broadcast when they're initialized.
+	if(this != NULL && m_Logging)
 	{
 		LOG->Trace("MESSAGEMAN:Broadcast: %s", msg.GetName().c_str());
 	}
@@ -215,13 +216,14 @@ void MessageManager::Broadcast( Message &msg ) const
 
 	LockMut(g_Mutex);
 
-	std::map<RString, SubscribersSet>::const_iterator iter = g_MessageToSubscribers.find( msg.GetName() );
+	map<RString,SubscribersSet>::const_iterator iter = g_MessageToSubscribers.find( msg.GetName() );
 	if( iter == g_MessageToSubscribers.end() )
 		return;
 
-	for (IMessageSubscriber *subscriber : iter->second)
+	FOREACHS_CONST( IMessageSubscriber*, iter->second, p )
 	{
-		subscriber->HandleMessage( msg );
+		IMessageSubscriber *pSub = *p;
+		pSub->HandleMessage( msg );
 	}
 }
 
@@ -250,8 +252,8 @@ void IMessageSubscriber::ClearMessages( const RString sMessage )
 MessageSubscriber::MessageSubscriber( const MessageSubscriber &cpy ):
 	IMessageSubscriber(cpy)
 {
-	for (RString const &msg : cpy.m_vsSubscribedTo)
-		this->SubscribeToMessage( msg );
+	FOREACH_CONST( RString, cpy.m_vsSubscribedTo, msg )
+		this->SubscribeToMessage( *msg );
 }
 
 MessageSubscriber &MessageSubscriber::operator=(const MessageSubscriber &cpy)
@@ -261,8 +263,8 @@ MessageSubscriber &MessageSubscriber::operator=(const MessageSubscriber &cpy)
 
 	UnsubscribeAll();
 
-	for (RString const &msg : cpy.m_vsSubscribedTo)
-		this->SubscribeToMessage( msg );
+	FOREACH_CONST( RString, cpy.m_vsSubscribedTo, msg )
+		this->SubscribeToMessage( *msg );
 
 	return *this;
 }
@@ -281,8 +283,8 @@ void MessageSubscriber::SubscribeToMessage( MessageID message )
 
 void MessageSubscriber::UnsubscribeAll()
 {
-	for (RString const &s : m_vsSubscribedTo)
-		MESSAGEMAN->Unsubscribe( this, s );
+	FOREACH_CONST( RString, m_vsSubscribedTo, s )
+		MESSAGEMAN->Unsubscribe( this, *s );
 	m_vsSubscribedTo.clear();
 }
 

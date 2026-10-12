@@ -5,10 +5,8 @@
 #include "RageThreads.h"
 
 #include <cstdarg>
-#include <cstdint>
 
-#if defined(_WIN32) && defined(DEBUG)
-#define WIN32_LEAN_AND_MEAN
+#if defined(_WINDOWS) && defined(DEBUG)
 #include <windows.h>
 #elif defined(MACOSX)
 #include "archutils/Darwin/Crash.h"
@@ -16,8 +14,8 @@ using CrashHandler::IsDebuggerPresent;
 using CrashHandler::DebugBreak;
 #endif
 
-static std::uint64_t g_HandlerThreadID = RageThread::GetInvalidThreadID();
-static void (*g_CleanupHandler)( const RString &sError ) = nullptr;
+static uint64_t g_HandlerThreadID = RageThread::GetInvalidThreadID();
+static void (*g_CleanupHandler)( const RString &sError ) = NULL;
 void RageException::SetCleanupHandler( void (*pHandler)(const RString &sError) )
 {
 	g_HandlerThreadID = RageThread::GetCurrentThreadID();
@@ -57,7 +55,7 @@ void RageException::Throw( const char *sFmt, ... )
 
 	ASSERT_M( g_HandlerThreadID == RageThread::GetInvalidThreadID() || g_HandlerThreadID == RageThread::GetCurrentThreadID(),
 		  ssprintf("RageException::Throw() on another thread: %s", error.c_str()) );
-	if( g_CleanupHandler != nullptr )
+	if( g_CleanupHandler != NULL )
 		g_CleanupHandler( error );
 
 	exit(1);

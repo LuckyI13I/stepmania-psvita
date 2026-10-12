@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "smpackage.h"
 #include "CreateLanguageDlg.h"
+#include "Foreach.h"
 #include "RageUtil.h"
 #include "SMPackageUtil.h"
 #include ".\createlanguagedlg.h"

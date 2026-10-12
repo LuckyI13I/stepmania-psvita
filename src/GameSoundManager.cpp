@@ -20,18 +20,13 @@
 
 #include "arch/Sound/RageSoundDriver.h"
 
-#include <cmath>
-#include <cstddef>
-#include <vector>
-
-
-GameSoundManager *SOUND = nullptr;
+GameSoundManager *SOUND = NULL;
 
 /*
  * When playing music, automatically search for an SM file for timing data.  If one is
  * found, automatically handle GAMESTATE->m_fSongBeat, etc.
  *
- * std::modf(GAMESTATE->m_fSongBeat) should always be continuously moving from 0 to 1.  To do
+ * modf(GAMESTATE->m_fSongBeat) should always be continuously moving from 0 to 1.  To do
  * this, wait before starting a sound until the fractional portion of the beat will be
  * the same.
  *
@@ -85,11 +80,9 @@ static MusicPlaying *g_Playing;
 
 static RageThread MusicThread;
 
-std::vector<RString> g_SoundsToPlayOnce;
-std::vector<RString> g_SoundsToPlayOnceFromDir;
-std::vector<RString> g_SoundsToPlayOnceFromAnnouncer;
-// This should get updated to unordered_map when once C++11 is supported
-std::map<RString, std::vector<int>> g_DirSoundOrder;
+vector<RString> g_SoundsToPlayOnce;
+vector<RString> g_SoundsToPlayOnceFromDir;
+vector<RString> g_SoundsToPlayOnceFromAnnouncer;
 
 struct MusicToPlay
 {
@@ -105,7 +98,7 @@ struct MusicToPlay
 		HasTiming = false;
 	}
 };
-std::vector<MusicToPlay> g_MusicsToPlay;
+vector<MusicToPlay> g_MusicsToPlay;
 static GameSoundManager::PlayMusicParams g_FallbackMusicParams;
 
 static void StartMusic( MusicToPlay &ToPlay )
@@ -189,7 +182,7 @@ static void StartMusic( MusicToPlay &ToPlay )
 		float fStartBeat = NewMusic->m_NewTiming.GetBeatFromElapsedTimeNoOffset( ToPlay.fStartSecond );
 		float fEndSec = ToPlay.fStartSecond + ToPlay.fLengthSeconds;
 		float fEndBeat = NewMusic->m_NewTiming.GetBeatFromElapsedTimeNoOffset( fEndSec );
-
+		
 		const float fStartBeatFraction = fmodfp( fStartBeat, 1 );
 		const float fEndBeatFraction = fmodfp( fEndBeat, 1 );
 
@@ -241,13 +234,13 @@ static void StartMusic( MusicToPlay &ToPlay )
 		const float fStartBeat = NewMusic->m_NewTiming.GetBeatFromElapsedTimeNoOffset( ToPlay.fStartSecond );
 		const float fStartBeatFraction = fmodfp( fStartBeat, 1 );
 
-		float fCurBeatToStartOn = std::trunc(fCurBeat) + fStartBeatFraction;
+		float fCurBeatToStartOn = truncf(fCurBeat) + fStartBeatFraction;
 		if( fCurBeatToStartOn < fCurBeat )
 			fCurBeatToStartOn += 1.0f;
 
 		const float fSecondToStartOn = g_Playing->m_Timing.GetElapsedTimeFromBeatNoOffset( fCurBeatToStartOn );
 		const float fMaximumDistance = 2;
-		const float fDistance = std::min( fSecondToStartOn - GAMESTATE->m_Position.m_fMusicSeconds, fMaximumDistance );
+		const float fDistance = min( fSecondToStartOn - GAMESTATE->m_Position.m_fMusicSeconds, fMaximumDistance );
 
 		when = GAMESTATE->m_Position.m_LastBeatUpdate + fDistance;
 	}
@@ -298,38 +291,16 @@ static void DoPlayOnceFromDir( RString sPath )
 	if( sPath.Right(1) != "/" )
 		sPath += "/";
 
-	std::vector<RString> arraySoundFiles;
+	vector<RString> arraySoundFiles;
 	GetDirListing( sPath + "*.mp3", arraySoundFiles );
 	GetDirListing( sPath + "*.wav", arraySoundFiles );
 	GetDirListing( sPath + "*.ogg", arraySoundFiles );
 	GetDirListing( sPath + "*.oga", arraySoundFiles );
 
 	if( arraySoundFiles.empty() )
-	{
 		return;
-	}
-	else if (arraySoundFiles.size() == 1)
-	{
-		DoPlayOnce(  sPath + arraySoundFiles[0]  );
-		return;
-	}
 
-	g_Mutex->Lock();
-	std::vector<int> &order = g_DirSoundOrder.insert({sPath, std::vector<int>()}).first->second;
-	// If order is exhausted, repopulate and reshuffle
-	if (order.size() == 0)
-	{
-		for (int i = 0; i < (int)arraySoundFiles.size(); ++i)
-		{
-			order.push_back(i);
-		}
-		std::shuffle( order.begin(), order.end(), g_RandomNumberGenerator );
-	}
-
-	int index = order.back();
-	order.pop_back();
-	g_Mutex->Unlock();
-
+	int index = RandomInt( arraySoundFiles.size( ));
 	DoPlayOnce(  sPath + arraySoundFiles[index]  );
 }
 
@@ -345,13 +316,13 @@ static bool SoundWaiting()
 static void StartQueuedSounds()
 {
 	g_Mutex->Lock();
-	std::vector<RString> aSoundsToPlayOnce = g_SoundsToPlayOnce;
+	vector<RString> aSoundsToPlayOnce = g_SoundsToPlayOnce;
 	g_SoundsToPlayOnce.clear();
-	std::vector<RString> aSoundsToPlayOnceFromDir = g_SoundsToPlayOnceFromDir;
+	vector<RString> aSoundsToPlayOnceFromDir = g_SoundsToPlayOnceFromDir;
 	g_SoundsToPlayOnceFromDir.clear();
-	std::vector<RString> aSoundsToPlayOnceFromAnnouncer = g_SoundsToPlayOnceFromAnnouncer;
+	vector<RString> aSoundsToPlayOnceFromAnnouncer = g_SoundsToPlayOnceFromAnnouncer;
 	g_SoundsToPlayOnceFromAnnouncer.clear();
-	std::vector<MusicToPlay> aMusicsToPlay = g_MusicsToPlay;
+	vector<MusicToPlay> aMusicsToPlay = g_MusicsToPlay;
 	g_MusicsToPlay.clear();
 	g_Mutex->Unlock();
 
@@ -441,7 +412,7 @@ int MusicThread_start( void *p )
 GameSoundManager::GameSoundManager()
 {
 	/* Init RageSoundMan first: */
-	ASSERT( SOUNDMAN != nullptr );
+	ASSERT( SOUNDMAN != NULL );
 
 	g_Mutex = new RageEvent("GameSoundManager");
 	g_Playing = new MusicPlaying( new RageSound );
@@ -508,11 +479,11 @@ float GameSoundManager::GetFrameTimingAdjustment( float fDeltaTime )
 
 	const float fExpectedDelay = 1.0f / iThisFPS;
 	const float fExtraDelay = fDeltaTime - fExpectedDelay;
-	if( std::abs(fExtraDelay) >= fExpectedDelay/2 )
+	if( fabsf(fExtraDelay) >= fExpectedDelay/2 )
 		return 0;
 
 	/* Subtract the extra delay. */
-	return std::min( -fExtraDelay, 0.0f );
+	return min( -fExtraDelay, 0 );
 }
 
 void GameSoundManager::Update( float fDeltaTime )
@@ -554,13 +525,8 @@ void GameSoundManager::Update( float fDeltaTime )
 		{
 		case FADE_NONE: break;
 		case FADE_OUT:
-			if( fFadeOutSpeed > 0.0 ) {
-				fapproach( fVolume, g_fDimVolume, fDeltaTime/fFadeOutSpeed );
-			} else {
-				// Treat an invalid fade speed as instant
-				fVolume = g_fDimVolume;
-			}
-			if( std::abs(fVolume-g_fDimVolume) < 0.001f )
+			fapproach( fVolume, g_fDimVolume, fDeltaTime/fFadeOutSpeed );
+			if( fabsf(fVolume-g_fDimVolume) < 0.001f )
 				g_FadeState = FADE_WAIT;
 			break;
 		case FADE_WAIT:
@@ -569,17 +535,12 @@ void GameSoundManager::Update( float fDeltaTime )
 				g_FadeState = FADE_IN;
 			break;
 		case FADE_IN:
-			if( fFadeInSpeed > 0.0 ) {
-				fapproach( fVolume, g_fOriginalVolume, fDeltaTime/fFadeInSpeed );
-			} else {
-				// Treat an invalid fade speed as instant
-				fVolume = g_fOriginalVolume;
-			}
-			if( std::abs(fVolume-g_fOriginalVolume) < 0.001f )
+			fapproach( fVolume, g_fOriginalVolume, fDeltaTime/fFadeInSpeed );
+			if( fabsf(fVolume-g_fOriginalVolume) < 0.001f )
 				g_FadeState = FADE_NONE;
 			break;
 		}
-
+		
 		RageSoundParams p = g_Playing->m_Music->GetParams();
 		if( p.m_Volume != fVolume )
 		{
@@ -619,7 +580,7 @@ void GameSoundManager::Update( float fDeltaTime )
 		const RString ThisFile = g_Playing->m_Music->GetLoadedFilePath();
 
 		/* If fSoundTimePassed < 0, the sound has probably looped. */
-		if( sLastFile == ThisFile && fSoundTimePassed >= 0 && std::abs(fDiff) > 0.003f )
+		if( sLastFile == ThisFile && fSoundTimePassed >= 0 && fabsf(fDiff) > 0.003f )
 			LOG->Trace("Song position skip in %s: expected %.3f, got %.3f (cur %f, prev %f) (%.3f difference)",
 				Basename(ThisFile).c_str(), fExpectedTimePassed, fSoundTimePassed, fSeconds, GAMESTATE->m_Position.m_fMusicSeconds, fDiff );
 		sLastFile = ThisFile;
@@ -653,7 +614,7 @@ void GameSoundManager::Update( float fDeltaTime )
 		float fSongBeat = GAMESTATE->m_Position.m_fSongBeat;
 
 		int iRowNow = BeatToNoteRowNotRounded( fSongBeat );
-		iRowNow = std::max( 0, iRowNow );
+		iRowNow = max( 0, iRowNow );
 
 		int iBeatNow = iRowNow / ROWS_PER_BEAT;
 
@@ -677,7 +638,7 @@ void GameSoundManager::Update( float fDeltaTime )
 		static int iRowLastCrossed = 0;
 
 		FOREACH_CabinetLight( cl )
-		{
+		{	
 			// Are we "holding" the light?
 			if( lights.IsHoldNoteAtRow( cl, iSongRow ) )
 			{
@@ -707,14 +668,14 @@ RString GameSoundManager::GetMusicPath() const
 	return g_Playing->m_Music->GetLoadedFilePath();
 }
 
-void GameSoundManager::PlayMusic(
-	RString sFile,
-	const TimingData *pTiming,
+void GameSoundManager::PlayMusic( 
+	RString sFile, 
+	const TimingData *pTiming, 
 	bool bForceLoop,
-	float fStartSecond,
-	float fLengthSeconds,
-	float fFadeInLengthSeconds,
-	float fFadeOutLengthSeconds,
+	float fStartSecond, 
+	float fLengthSeconds, 
+	float fFadeInLengthSeconds, 
+	float fFadeOutLengthSeconds, 
 	bool bAlignBeat,
 	bool bApplyMusicRate
 	)
@@ -827,7 +788,7 @@ float GameSoundManager::GetPlayerBalance( PlayerNumber pn )
 
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the GameSoundManager. */
+/** @brief Allow Lua to have access to the GameSoundManager. */ 
 class LunaGameSoundManager: public Luna<GameSoundManager>
 {
 public:
@@ -890,14 +851,14 @@ public:
 		{
 			alignBeat = BArg(8);
 		}
-		p->PlayMusic(musicPath, nullptr, loop, musicStart, musicLength,
+		p->PlayMusic(musicPath, NULL, loop, musicStart, musicLength,
 			fadeIn, fadeOut, alignBeat, applyRate);
 		COMMON_RETURN_SELF;
 	}
 
 	static int StopMusic( T* p, lua_State *L )			{ p->StopMusic(); COMMON_RETURN_SELF; }
 	static int IsTimingDelayed( T* p, lua_State *L )	{ lua_pushboolean( L, g_Playing->m_bTimingDelayed ); return 1; }
-
+	
 	LunaGameSoundManager()
 	{
 		ADD_METHOD( DimMusic );
@@ -915,10 +876,10 @@ LUA_REGISTER_CLASS(GameSoundManager);
 int LuaFunc_get_sound_driver_list(lua_State* L);
 int LuaFunc_get_sound_driver_list(lua_State* L)
 {
-	std::vector<RString> driver_names;
+	vector<RString> driver_names;
 	split(RageSoundDriver::GetDefaultSoundDriverList(), ",", driver_names, true);
 	lua_createtable(L, driver_names.size(), 0);
-	for(std::size_t n= 0; n < driver_names.size(); ++n)
+	for(size_t n= 0; n < driver_names.size(); ++n)
 	{
 		lua_pushstring(L, driver_names[n].c_str());
 		lua_rawseti(L, -2, n+1);

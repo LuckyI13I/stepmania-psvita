@@ -4,10 +4,7 @@
 #include "RageLog.h"
 #include "RageSound.h"
 #include "RageSoundManager.h"
-
-#include <cerrno>
-#include <cstdint>
-#include <cstring>
+#include "RageUtil.h"
 
 #if defined(HAVE_UNISTD_H)
 #include <unistd.h>
@@ -15,10 +12,11 @@
 #if defined(HAVE_FCNTL_H)
 #include <fcntl.h>
 #endif
+#include <errno.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
 #include <sys/select.h>
-#include <sys/stat.h>
 
 REGISTER_SOUND_DRIVER_CLASS( OSS );
 
@@ -60,7 +58,7 @@ void RageSoundDriver_OSS::MixerThread()
 		usleep( 10000 );
 
 		struct timeval tv = { 0, 10000 };
-		select(fd+1, nullptr, &f, nullptr, &tv);
+		select(fd+1, NULL, &f, NULL, &tv);
 	}
 }
 
@@ -80,12 +78,12 @@ bool RageSoundDriver_OSS::GetData()
 
 	if( !ab.fragments )
 		return false;
-
+		
 	const int chunksize = ab.fragsize;
-
-	static std::int16_t *buf = nullptr;
+	
+	static int16_t *buf = NULL;
 	if(!buf)
-		buf = new std::int16_t[chunksize / sizeof(std::int16_t)];
+		buf = new int16_t[chunksize / sizeof(int16_t)];
 
 	this->Mix( buf, chunksize/bytes_per_frame, last_cursor_pos, GetPosition() );
 
@@ -101,10 +99,10 @@ bool RageSoundDriver_OSS::GetData()
 
 /* XXX: There's a race on last_cursor_pos here: new data might be written after the
  * ioctl returns, incrementing last_cursor_pos. */
-std::int64_t RageSoundDriver_OSS::GetPosition() const
+int64_t RageSoundDriver_OSS::GetPosition() const
 {
 	ASSERT( fd != -1 );
-
+	
 	int delay;
 	if(ioctl(fd, SNDCTL_DSP_GETODELAY, &delay) == -1)
 		FAIL_M( ssprintf("RageSoundDriver_OSS: ioctl(SNDCTL_DSP_GETODELAY): %s", strerror(errno)) );
@@ -140,8 +138,7 @@ RString RageSoundDriver_OSS::CheckOSSVersion( int fd )
 	 */
 #ifndef FORCE_OSS
 #define ALSA_SNDRV_OSS_VERSION         ((3<<16)|(8<<8)|(1<<4)|(0))
-	struct stat st;
-	if( version == ALSA_SNDRV_OSS_VERSION && stat("/proc/asound", &st) && (st.st_mode & S_IFDIR) )
+	if( version == ALSA_SNDRV_OSS_VERSION && IsADirectory("/rootfs/proc/asound") )
 		return "RageSoundDriver_OSS: ALSA detected.  ALSA OSS emulation is buggy; use ALSA natively.";
 #endif
 	if( version )
@@ -192,7 +189,7 @@ RString RageSoundDriver_OSS::Init()
 		return ssprintf( "RageSoundDriver_OSS: ioctl(SNDCTL_DSP_CHANNELS, %i): %s", i, strerror(errno) );
 	if(i != channels)
 		return ssprintf( "RageSoundDriver_OSS: Wanted %i channels, got %i instead", channels, i );
-
+		
 	i = 44100;
 	if(ioctl(fd, SNDCTL_DSP_SPEED, &i) == -1 )
 		return ssprintf( "RageSoundDriver_OSS: ioctl(SNDCTL_DSP_SPEED, %i): %s", i, strerror(errno) );
@@ -202,7 +199,7 @@ RString RageSoundDriver_OSS::Init()
 	if(ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &i) == -1)
 		return ssprintf( "RageSoundDriver_OSS: ioctl(SNDCTL_DSP_SETFRAGMENT, %i): %s", i, strerror(errno) );
 	StartDecodeThread();
-
+	
 	MixingThread.SetName( "RageSoundDriver_OSS" );
 	MixingThread.Create( MixerThread_start, this );
 
@@ -232,7 +229,7 @@ float RageSoundDriver_OSS::GetPlayLatency() const
 /*
  * (c) 2002-2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -242,7 +239,7 @@ float RageSoundDriver_OSS::GetPlayLatency() const
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

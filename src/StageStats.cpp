@@ -1,6 +1,7 @@
 #include "global.h"
 #include "StageStats.h"
 #include "GameState.h"
+#include "Foreach.h"
 #include "Steps.h"
 #include "Song.h"
 #include "RageLog.h"
@@ -10,10 +11,7 @@
 #include "Profile.h"
 #include "ProfileManager.h"
 
-#include <vector>
-
-
-/* Arcade:	for the current stage (one song).
+/* Arcade:	for the current stage (one song).  
  * Nonstop/Oni/Endless:	 for current course (which usually contains multiple songs)
  */
 
@@ -53,7 +51,7 @@ void StageStats::AssertValid( PlayerNumber pn ) const
 		CHECKPOINT_M( m_vpPlayedSongs[0]->GetTranslitFullTitle() );
 	ASSERT( m_player[pn].m_iStepsPlayed > 0 );
 	ASSERT( m_player[pn].m_vpPossibleSteps.size() != 0 );
-	ASSERT( m_player[pn].m_vpPossibleSteps[0] != nullptr );
+	ASSERT( m_player[pn].m_vpPossibleSteps[0] != NULL );
 	ASSERT_M( m_playMode < NUM_PlayMode, ssprintf("playmode %i", m_playMode) );
 	ASSERT_M( m_player[pn].m_vpPossibleSteps[0]->GetDifficulty() < NUM_Difficulty, ssprintf("Invalid Difficulty %i", m_player[pn].m_vpPossibleSteps[0]->GetDifficulty()) );
 	ASSERT_M( (int) m_vpPlayedSongs.size() == m_player[pn].m_iStepsPlayed, ssprintf("%i Songs Played != %i Steps Played for player %i", (int)m_vpPlayedSongs.size(), (int)m_player[pn].m_iStepsPlayed, pn) );
@@ -67,7 +65,7 @@ void StageStats::AssertValid( MultiPlayer pn ) const
 	if( m_vpPlayedSongs[0] )
 		CHECKPOINT_M( m_vpPlayedSongs[0]->GetTranslitFullTitle() );
 	ASSERT( m_multiPlayer[pn].m_vpPossibleSteps.size() != 0 );
-	ASSERT( m_multiPlayer[pn].m_vpPossibleSteps[0] != nullptr );
+	ASSERT( m_multiPlayer[pn].m_vpPossibleSteps[0] != NULL );
 	ASSERT_M( m_playMode < NUM_PlayMode, ssprintf("playmode %i", m_playMode) );
 	ASSERT_M( m_player[pn].m_vpPossibleSteps[0]->GetDifficulty() < NUM_Difficulty, ssprintf("difficulty %i", m_player[pn].m_vpPossibleSteps[0]->GetDifficulty()) );
 	ASSERT( (int) m_vpPlayedSongs.size() == m_player[pn].m_iStepsPlayed );
@@ -93,10 +91,10 @@ int StageStats::GetAverageMeter( PlayerNumber pn ) const
 void StageStats::AddStats( const StageStats& other )
 {
 	ASSERT( !other.m_vpPlayedSongs.empty() );
-	for (Song *s : other.m_vpPlayedSongs)
-		m_vpPlayedSongs.push_back( s );
-	for (Song *s : other.m_vpPossibleSongs)
-		m_vpPossibleSongs.push_back( s );
+	FOREACH_CONST( Song*, other.m_vpPlayedSongs, s )
+		m_vpPlayedSongs.push_back( *s );
+	FOREACH_CONST( Song*, other.m_vpPossibleSongs, s )
+		m_vpPossibleSongs.push_back( *s );
 	m_Stage = Stage_Invalid; // meaningless
 	m_iStageIndex = -1; // meaningless
 
@@ -129,8 +127,8 @@ bool StageStats::AllFailed() const
 float StageStats::GetTotalPossibleStepsSeconds() const
 {
 	float fSecs = 0;
-	for (Song const *s : m_vpPlayedSongs)
-		fSecs += s->GetStepsSeconds();
+	FOREACH_CONST( Song*, m_vpPossibleSongs, s )
+		fSecs += (*s)->GetStepsSeconds();
 	return fSecs / m_fMusicRate;
 }
 
@@ -146,7 +144,7 @@ static HighScore FillInHighScore( const PlayerStageStats &pss, const PlayerState
 	hs.SetStageAward( pss.m_StageAward );
 	hs.SetPeakComboAward( pss.m_PeakComboAward );
 
-	std::vector<RString> asModifiers;
+	vector<RString> asModifiers;
 	{
 		RString sPlayerOptions = ps.m_PlayerOptions.GetStage().GetString();
 		if( !sPlayerOptions.empty() )
@@ -231,7 +229,7 @@ void StageStats::FinalizeScores( bool bSummary )
 		if( bSummary )
 		{
 			// don't save scores if any stage was failed
-			if( m_player[p].m_bFailed )
+			if( m_player[p].m_bFailed ) 
 				continue;
 
 			int iAverageMeter = GetAverageMeter(p);
@@ -246,21 +244,21 @@ void StageStats::FinalizeScores( bool bSummary )
 		{
 			// Save this stage to recent scores
 			Course* pCourse = GAMESTATE->m_pCurCourse;
-			ASSERT( pCourse != nullptr );
+			ASSERT( pCourse != NULL );
 			Trail* pTrail = GAMESTATE->m_pCurTrail[p];
 
 			PROFILEMAN->AddCourseScore( pCourse, pTrail, p, hs, m_player[p].m_iPersonalHighScoreIndex, m_player[p].m_iMachineHighScoreIndex );
 		}
 		else
 		{
-			ASSERT( pSteps != nullptr );
+			ASSERT( pSteps != NULL );
 
 			PROFILEMAN->AddStepsScore( pSong, pSteps, p, hs, m_player[p].m_iPersonalHighScoreIndex, m_player[p].m_iMachineHighScoreIndex );
 		}
 	}
 
 	// If both players get a machine high score in the same HighScoreList,
-	// then one player's score may have bumped the other player. Look in
+	// then one player's score may have bumped the other player. Look in 
 	// the HighScoreList and re-get the high score index.
 	FOREACH_HumanPlayer( p )
 	{
@@ -271,7 +269,7 @@ void StageStats::FinalizeScores( bool bSummary )
 		Profile* pProfile = PROFILEMAN->GetMachineProfile();
 		StepsType st = GAMESTATE->GetCurrentStyle(p)->m_StepsType;
 
-		const HighScoreList *pHSL = nullptr;
+		const HighScoreList *pHSL = NULL;
 		if( bSummary )
 		{
 			pHSL = &pProfile->GetCategoryHighScoreList( st, m_player[p].m_rc );
@@ -279,9 +277,9 @@ void StageStats::FinalizeScores( bool bSummary )
 		else if( GAMESTATE->IsCourseMode() )
 		{
 			Course* pCourse = GAMESTATE->m_pCurCourse;
-			ASSERT( pCourse != nullptr );
+			ASSERT( pCourse != NULL );
 			Trail *pTrail = GAMESTATE->m_pCurTrail[p];
-			ASSERT( pTrail != nullptr );
+			ASSERT( pTrail != NULL );
 			pHSL = &pProfile->GetCourseHighScoreList( pCourse, pTrail );
 		}
 		else
@@ -291,7 +289,7 @@ void StageStats::FinalizeScores( bool bSummary )
 			pHSL = &pProfile->GetStepsHighScoreList( pSong, pSteps );
 		}
 
-		std::vector<HighScore>::const_iterator iter = find( pHSL->vHighScores.begin(), pHSL->vHighScores.end(), hs );
+		vector<HighScore>::const_iterator iter = find( pHSL->vHighScores.begin(), pHSL->vHighScores.end(), hs );
 		if( iter == pHSL->vHighScores.end() )
 			m_player[p].m_iMachineHighScoreIndex = -1;
 		else
@@ -312,18 +310,18 @@ bool StageStats::PlayerHasHighScore( PlayerNumber pn ) const
 	if( pSong->IsTutorial() == Song::SHOW_NEVER )
 		return false;
 
-	const HighScoreList &hsl =
+	const HighScoreList &hsl = 
 		GAMESTATE->IsCourseMode() ?
 		PROFILEMAN->GetMachineProfile()->GetCourseHighScoreList(pCourse, pTrail) :
 		PROFILEMAN->GetMachineProfile()->GetStepsHighScoreList(pSong, pSteps);
 
-	const unsigned int iScore = m_player[pn].m_iScore;
+	int iScore = m_player[pn].m_iScore;
 	float fPercentDP = m_player[pn].GetPercentDancePoints();
 	for( int h=0; h<(int)hsl.vHighScores.size() && h<PREFSMAN->m_iMaxHighScoresPerListForMachine; ++h )
 	{
 		const HighScore &hs = hsl.vHighScores[h];
 		if( hs.GetName() == RANKING_TO_FILL_IN_MARKER[pn]  &&
-			hs.GetPercentDP() == fPercentDP  &&
+			hs.GetPercentDP() == fPercentDP  && 
 			hs.GetScore() == iScore )
 		{
 			return true;
@@ -337,14 +335,14 @@ unsigned int StageStats::GetMinimumMissCombo() const
 {
 	unsigned int iMin = INT_MAX;
 	FOREACH_HumanPlayer( p )
-		iMin = std::min( iMin, m_player[p].m_iCurMissCombo );
+		iMin = min( iMin, m_player[p].m_iCurMissCombo );
 	return iMin;
 }
 
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the StageStats. */
+/** @brief Allow Lua to have access to the StageStats. */ 
 class LunaStageStats: public Luna<StageStats>
 {
 public:
@@ -383,7 +381,6 @@ public:
 		return 1;
 	}
 	DEFINE_METHOD( GetEarnedExtraStage,			m_EarnedExtraStage )
-	static int GaveUp( T* p, lua_State *L )		{ LuaHelpers::Push( L, p->m_bGaveUp ); return 1; }
 
 	LunaStageStats()
 	{
@@ -395,7 +392,6 @@ public:
 		ADD_METHOD( OnePassed );
 		ADD_METHOD( AllFailed );
 		ADD_METHOD( GetStage );
-		ADD_METHOD( GaveUp );
 		ADD_METHOD( GetStageIndex );
 		ADD_METHOD( GetStepsSeconds );
 		ADD_METHOD( PlayerHasHighScore );
@@ -410,7 +406,7 @@ LUA_REGISTER_CLASS( StageStats )
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -420,7 +416,7 @@ LUA_REGISTER_CLASS( StageStats )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

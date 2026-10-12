@@ -1,20 +1,16 @@
-set(GLEW_SRC "glew/src/glew.c")
+set(GLEW_SRC "glew-1.5.8/src/glew.c")
 
-set(GLEW_HPP "glew/include/GL/eglew.h"
-             "glew/include/GL/glew.h"
-             "glew/include/GL/glxew.h"
-             "glew/include/GL/wglew.h")
+source_group("" FILES ${GLEW_SRC})
 
-source_group("" FILES ${GLEW_SRC} ${GLEW_HPP})
-
-add_library("glew" STATIC ${GLEW_SRC} ${GLEW_HPP})
+add_library("glew" STATIC ${GLEW_SRC})
 
 set_property(TARGET "glew" PROPERTY FOLDER "External Libraries")
 
-target_compile_definitions("glew" PUBLIC GLEW_STATIC)
+target_include_directories("glew" PUBLIC "glew-1.5.8/include")
+
+sm_add_compile_definition("glew" GLEW_STATIC)
 
 if(MSVC)
-  target_compile_definitions("glew" PRIVATE _MBCS)
+  sm_add_compile_definition("glew" _MBCS)
 endif(MSVC)
 
-target_include_directories("glew" PUBLIC "glew/include")

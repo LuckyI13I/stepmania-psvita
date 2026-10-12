@@ -4,9 +4,6 @@
 #include "RageUtil.h"
 #include "RageLog.h"
 #include "RageSurface.h"
-
-#include <cstdint>
-
 using namespace FileReading;
 
 /* Tested with http://entropymine.com/jason/bmpsuite/. */
@@ -37,14 +34,14 @@ static RageSurfaceUtils::OpenResult LoadBMP( RageFile &f, RageSurface *&img, RSt
 		return RageSurfaceUtils::OPEN_UNKNOWN_FILE_FORMAT;
 	}
 
-	img = nullptr;
+	img = NULL;
 
 	read_u32_le( f, sError ); /* file size */
 	read_u32_le( f, sError ); /* unused */
-	std::uint32_t iDataOffset = read_u32_le( f, sError );
-	std::uint32_t iHeaderSize = read_u32_le( f, sError );
+	uint32_t iDataOffset = read_u32_le( f, sError );
+	uint32_t iHeaderSize = read_u32_le( f, sError );
 
-	std::uint32_t iWidth, iHeight, iPlanes, iBPP, iCompression = COMP_BI_RGB, iColors = 0;
+	uint32_t iWidth, iHeight, iPlanes, iBPP, iCompression = COMP_BI_RGB, iColors = 0;
 	if( iHeaderSize == 12 )
 	{
 		/* OS/2 format */
@@ -82,7 +79,7 @@ static RageSurfaceUtils::OpenResult LoadBMP( RageFile &f, RageSurface *&img, RSt
 		FATAL_ERROR( ssprintf( "BI_BITFIELDS unexpected with bpp %u", iBPP ) );
 
 	int iFileBPP = iBPP;
-	iBPP = std::max( iBPP, 8u );
+	iBPP = max( iBPP, 8u );
 
 	int Rmask = 0, Gmask = 0, Bmask = 0, Amask = 0;
 	switch( iBPP )
@@ -157,7 +154,7 @@ static RageSurfaceUtils::OpenResult LoadBMP( RageFile &f, RageSurface *&img, RSt
 
 	for( int y = (int) iHeight-1; y >= 0; --y )
 	{
-		std::uint8_t *pRow = img->pixels + img->pitch*y;
+		uint8_t *pRow = img->pixels + img->pitch*y;
 		RString buf;
 
 		f.Read( buf, iFilePitch );
@@ -201,13 +198,13 @@ RageSurfaceUtils::OpenResult RageSurface_Load_BMP( const RString &sPath, RageSur
 	}
 
 	RageSurfaceUtils::OpenResult ret;
-	img = nullptr;
+	img = NULL;
 	ret = LoadBMP( f, img, error );
 
-	if( ret != RageSurfaceUtils::OPEN_OK && img != nullptr )
+	if( ret != RageSurfaceUtils::OPEN_OK && img != NULL )
 	{
 		delete img;
-		img = nullptr;
+		img = NULL;
 	}
 
 	return ret;

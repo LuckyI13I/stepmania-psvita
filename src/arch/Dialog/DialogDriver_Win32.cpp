@@ -29,7 +29,7 @@ static RString g_sMessage;
 static bool g_bAllowHush;
 
 #if !defined(SMPACKAGE)
-static INT_PTR CALLBACK OKWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+static BOOL CALLBACK OKWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
 	switch( msg )
 	{
@@ -72,7 +72,7 @@ static INT_PTR CALLBACK OKWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 		{
 		case IDOK:
 			g_bHush = !!IsDlgButtonChecked( hWnd, IDC_HUSH );
-			[[fallthrough]];
+			// fall through
 		case IDCANCEL:
 			EndDialog( hWnd, 0 );
 			break;
@@ -120,7 +120,7 @@ Dialog::Result DialogDriver_Win32::OKCancel( RString sMessage, RString sID )
 
 #if !defined(SMPACKAGE)
 	//DialogBox( handle.Get(), MAKEINTRESOURCE(IDD_OK), ::GetHwnd(), OKWndProc );
-	int result = ::MessageBox( nullptr, sMessage, GetWindowTitle(), MB_OKCANCEL );
+	int result = ::MessageBox( NULL, sMessage, GetWindowTitle(), MB_OKCANCEL );
 #else
 	int result = ::AfxMessageBox( ConvertUTF8ToACP(sMessage).c_str(), MB_OKCANCEL, 0 );
 #endif
@@ -139,14 +139,14 @@ Dialog::Result DialogDriver_Win32::OKCancel( RString sMessage, RString sID )
 #if !defined(SMPACKAGE)
 static RString g_sErrorString;
 
-static INT_PTR CALLBACK ErrorWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+static BOOL CALLBACK ErrorWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
 	switch( msg )
 	{
 	case WM_INITDIALOG:
 		{
 			DialogUtil::SetHeaderFont( hWnd, IDC_STATIC_HEADER_TEXT );
-
+		
 			// Set static text
 			RString sMessage = g_sErrorString;
 			sMessage.Replace( "\n", "\r\n" );
@@ -165,14 +165,14 @@ static INT_PTR CALLBACK ErrorWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 				RString sAppDataDir = SpecialDirs::GetAppDataDir();
 				RString sCommand = "notepad \"" + sAppDataDir + PRODUCT_ID + "/Logs/log.txt\"";
 				CreateProcess(
-					nullptr,		// pointer to name of executable module
+					NULL,		// pointer to name of executable module
 					const_cast<char *>(sCommand.c_str()),	// pointer to command line string
-					nullptr,  // process security attributes
-					nullptr,   // thread security attributes
+					NULL,  // process security attributes
+					NULL,   // thread security attributes
 					false,  // handle inheritance flag
 					0, // creation flags
-					nullptr,  // pointer to new environment block
-					nullptr,   // pointer to current directory name
+					NULL,  // pointer to new environment block
+					NULL,   // pointer to current directory name
 					&si,  // pointer to STARTUPINFO
 					&pi  // pointer to PROCESS_INFORMATION
 				);
@@ -183,6 +183,8 @@ static INT_PTR CALLBACK ErrorWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 			break;
 		case IDC_BUTTON_RESTART:
 			Win32RestartProgram();
+			// Possibly make W32RP a NORETURN call?
+			FAIL_M("Win32RestartProgram failed?");
 		case IDOK:
 			EndDialog( hWnd, 0 );
 			break;
@@ -192,21 +194,21 @@ static INT_PTR CALLBACK ErrorWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 		{
 			HDC hdc = (HDC)wParam;
 			HWND hwndStatic = (HWND)lParam;
-			HBRUSH hbr = nullptr;
+			HBRUSH hbr = NULL;
 
 			// TODO:  Change any attributes of the DC here
 			switch( GetDlgCtrlID(hwndStatic) )
 			{
 			case IDC_STATIC_HEADER_TEXT:
 			case IDC_STATIC_ICON:
-				hbr = (HBRUSH)::GetStockObject(WHITE_BRUSH);
+				hbr = (HBRUSH)::GetStockObject(WHITE_BRUSH); 
 				SetBkMode( hdc, OPAQUE );
 				SetBkColor( hdc, RGB(255,255,255) );
 				break;
 			}
 
 			// TODO:  Return a different brush if the default is not desired
-			return reinterpret_cast<INT_PTR>(hbr);
+			return (BOOL)hbr;
 		}
 	}
 	return FALSE;
@@ -220,7 +222,7 @@ void DialogDriver_Win32::Error( RString sError, RString sID )
 
 	// throw up a pretty error dialog
 	AppInstance handle;
-	DialogBox( handle.Get(), MAKEINTRESOURCE(IDD_ERROR_DIALOG), nullptr, ErrorWndProc );
+	DialogBox( handle.Get(), MAKEINTRESOURCE(IDD_ERROR_DIALOG), NULL, ErrorWndProc );
 #else
 	::AfxMessageBox( ConvertUTF8ToACP(sError).c_str(), MB_OK, 0 );
 #endif
@@ -242,7 +244,7 @@ Dialog::Result DialogDriver_Win32::AbortRetryIgnore( RString sMessage, RString I
 	default:
 		FAIL_M(ssprintf("Unexpected response to Abort/Retry/Ignore dialog: %i", iRet));
 	}
-}
+} 
 
 Dialog::Result DialogDriver_Win32::AbortRetry( RString sMessage, RString sID )
 {
@@ -259,7 +261,7 @@ Dialog::Result DialogDriver_Win32::AbortRetry( RString sMessage, RString sID )
 	default:
 		FAIL_M(ssprintf("Unexpected response to Retry/Cancel dialog: %i", iRet));
 	}
-}
+} 
 
 Dialog::Result DialogDriver_Win32::YesNo( RString sMessage, RString sID )
 {
@@ -281,7 +283,7 @@ Dialog::Result DialogDriver_Win32::YesNo( RString sMessage, RString sID )
 /*
  * (c) 2003-2004 Glenn Maynard, Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -291,7 +293,7 @@ Dialog::Result DialogDriver_Win32::YesNo( RString sMessage, RString sID )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

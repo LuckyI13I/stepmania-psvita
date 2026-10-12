@@ -30,10 +30,6 @@
 #include "ScoreKeeperNormal.h"
 #include "InputEventPlus.h"
 
-#include <cmath>
-#include <cstddef>
-#include <vector>
-
 // metrics that are common to all ScreenEvaluation classes
 #define BANNER_WIDTH			THEME->GetMetricF(m_sName,"BannerWidth")
 #define BANNER_HEIGHT			THEME->GetMetricF(m_sName,"BannerHeight")
@@ -133,7 +129,7 @@ void ScreenEvaluation::Init()
 			GAMESTATE->m_pCurSteps[p].Set( GAMESTATE->m_pCurSong->GetAllSteps()[0] );
 			if( GAMESTATE->m_pCurCourse )
 			{
-				std::vector<Trail*> apTrails;
+				vector<Trail*> apTrails;
 				GAMESTATE->m_pCurCourse->GetAllTrails( apTrails );
 				if( apTrails.size() )
 					GAMESTATE->m_pCurTrail[p].Set( apTrails[0] );
@@ -147,7 +143,7 @@ void ScreenEvaluation::Init()
 
 		for( float f = 0; f < 100.0f; f += 1.0f )
 		{
-			float fP1 = std::fmod(f/100*4+.3f,1);
+			float fP1 = fmodf(f/100*4+.3f,1);
 			ss.m_player[PLAYER_1].SetLifeRecordAt( fP1, f );
 			ss.m_player[PLAYER_2].SetLifeRecordAt( 1-fP1, f );
 		}
@@ -213,8 +209,8 @@ void ScreenEvaluation::Init()
 					case RadarCategory_Rolls:
 					case RadarCategory_Lifts:
 					case RadarCategory_Fakes:
-						ss.m_player[p].m_radarPossible[rc] = float(1 + (rand() % 200));
-						ss.m_player[p].m_radarActual[rc] = float(rand() % (int)(ss.m_player[p].m_radarPossible[rc]));
+						ss.m_player[p].m_radarPossible[rc] = 1 + (rand() % 200);
+						ss.m_player[p].m_radarActual[rc] = rand() % (int)(ss.m_player[p].m_radarPossible[rc]);
 						break;
 					default: break;
 				}
@@ -267,20 +263,20 @@ void ScreenEvaluation::Init()
 	{
 		if( SUMMARY )
 		{
-			for( std::size_t i=0; i<m_pStageStats->m_vpPlayedSongs.size()
+			for( size_t i=0; i<m_pStageStats->m_vpPlayedSongs.size()
 						 && i < MAX_SONGS_TO_SHOW; i++ )
 			{
 				Song *pSong = m_pStageStats->m_vpPlayedSongs[i];
 
 				m_SmallBanner[i].LoadFromSong( pSong );
 				m_SmallBanner[i].ScaleToClipped( BANNER_WIDTH, BANNER_HEIGHT );
-				m_SmallBanner[i].SetName( ssprintf("SmallBanner%u",(unsigned)i+1) );
+				m_SmallBanner[i].SetName( ssprintf("SmallBanner%zu",i+1) );
 				ActorUtil::LoadAllCommands( m_SmallBanner[i], m_sName );
 				SET_XY( m_SmallBanner[i] );
 				this->AddChild( &m_SmallBanner[i] );
 
 				m_sprSmallBannerFrame[i].Load( THEME->GetPathG(m_sName,"BannerFrame") );
-				m_sprSmallBannerFrame[i]->SetName( ssprintf("SmallBanner%u",(unsigned)i+1) );
+				m_sprSmallBannerFrame[i]->SetName( ssprintf("SmallBanner%zu",i+1) );
 				ActorUtil::LoadAllCommands( *m_sprSmallBannerFrame[i], m_sName );
 				SET_XY( m_sprSmallBannerFrame[i] );
 				this->AddChild( m_sprSmallBannerFrame[i] );
@@ -315,7 +311,7 @@ void ScreenEvaluation::Init()
 				m_textPlayerOptions[p].SetName( ssprintf("PlayerOptionsP%d",p+1) );
 				ActorUtil::LoadAllCommands( m_textPlayerOptions[p], m_sName );
 				SET_XY( m_textPlayerOptions[p] );
-				std::vector<RString> v;
+				vector<RString> v;
 				PlayerOptions po = GAMESTATE->m_pPlayerState[p]->m_PlayerOptions.GetPreferred();
 				if( PLAYER_OPTIONS_HIDE_FAIL_TYPE )
 					po.m_FailType = (FailType)0;	// blank out the fail type so that it won't show in the mods list
@@ -552,7 +548,7 @@ void ScreenEvaluation::Init()
 				DEFAULT_FAIL( l );
 				}
 
-				m_textJudgmentLineNumber[l][p].SetTargetNumber( float(iValue) );
+				m_textJudgmentLineNumber[l][p].SetTargetNumber( iValue );
 			}
 		}
 	}
@@ -581,12 +577,12 @@ void ScreenEvaluation::Init()
 
 				static const int indices[NUM_DetailLine] =
 				{
-					RadarCategory_TapsAndHolds, RadarCategory_Jumps, RadarCategory_Holds, RadarCategory_Mines,
+					RadarCategory_TapsAndHolds, RadarCategory_Jumps, RadarCategory_Holds, RadarCategory_Mines, 
 					RadarCategory_Hands, RadarCategory_Rolls, RadarCategory_Lifts, RadarCategory_Fakes
 				};
 				const int ind = indices[l];
-				const int iActual = std::lrint(m_pStageStats->m_player[p].m_radarActual[ind]);
-				const int iPossible = std::lrint(m_pStageStats->m_player[p].m_radarPossible[ind]);
+				const int iActual = lrintf(m_pStageStats->m_player[p].m_radarActual[ind]);
+				const int iPossible = lrintf(m_pStageStats->m_player[p].m_radarPossible[ind]);
 
 				// todo: check if format string is valid
 				// (two integer values in DETAILLINE_FORMAT) -aj
@@ -611,7 +607,7 @@ void ScreenEvaluation::Init()
 			m_textScore[p].Load( "RollingNumbersEvaluation" );
 			ActorUtil::LoadAllCommands( m_textScore[p], m_sName );
 			SET_XY( m_textScore[p] );
-			m_textScore[p].SetTargetNumber( float(m_pStageStats->m_player[p].m_iScore) );
+			m_textScore[p].SetTargetNumber( m_pStageStats->m_player[p].m_iScore );
 			this->AddChild( &m_textScore[p] );
 		}
 	}
@@ -643,7 +639,7 @@ void ScreenEvaluation::Init()
 	bool bOneHasFullW2Combo = false;
 	bool bOneHasFullW3Combo = false;
 	bool bOneHasFullW4Combo = false;
-
+	
 	FOREACH_PlayerNumber( p )
 	{
 		if(GAMESTATE->IsPlayerEnabled(p))
@@ -670,7 +666,7 @@ void ScreenEvaluation::Init()
 
 	Grade best_grade = Grade_NoData;
 	FOREACH_PlayerNumber( p )
-		best_grade = std::min( best_grade, grade[p] );
+		best_grade = min( best_grade, grade[p] ); 
 
 	if( m_pStageStats->m_EarnedExtraStage != EarnedExtraStage_No )
 	{
@@ -713,7 +709,7 @@ void ScreenEvaluation::Init()
 		}
 	}
 
-	switch( GradeToOldGrade(best_grade) )
+	switch( best_grade )
 	{
 		case Grade_Tier01:
 		case Grade_Tier02:
@@ -728,13 +724,6 @@ bool ScreenEvaluation::Input( const InputEventPlus &input )
 {
 	if( IsTransitioning() )
 		return false;
-
-	if (input.MenuI == GAME_BUTTON_RESTART && input.type == IET_FIRST_PRESS &&
-		GAMESTATE->IsEventMode() && !GAMESTATE->IsCourseMode())
-	{
-		return MenuRestart(input);
-	}
-
 
 	if( input.GameI.IsValid() )
 	{
@@ -802,16 +791,6 @@ bool ScreenEvaluation::MenuStart( const InputEventPlus &input )
 	return true;
 }
 
-bool ScreenEvaluation::MenuRestart( const InputEventPlus &input )
-{
-	if( IsTransitioning() )
-		return false;
-
-	SCREENMAN->GetTopScreen()->SetNextScreenName("ScreenGameplay");
-	StartTransitioningScreen( SM_GoToNextScreen );
-	return true;
-}
-
 void ScreenEvaluation::HandleMenuStart()
 {
 	StartTransitioningScreen( SM_GoToNextScreen );
@@ -820,7 +799,7 @@ void ScreenEvaluation::HandleMenuStart()
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the ScreenEvaluation. */
+/** @brief Allow Lua to have access to the ScreenEvaluation. */ 
 class LunaScreenEvaluation: public Luna<ScreenEvaluation>
 {
 public:
@@ -838,7 +817,7 @@ LUA_REGISTER_DERIVED_CLASS( ScreenEvaluation, ScreenWithMenuElements )
 /*
  * (c) 2001-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -848,7 +827,7 @@ LUA_REGISTER_DERIVED_CLASS( ScreenEvaluation, ScreenWithMenuElements )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

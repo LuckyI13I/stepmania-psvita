@@ -15,9 +15,6 @@
 #include "LuaBinding.h"
 #include "InputEventPlus.h"
 
-#include <cmath>
-#include <vector>
-
 
 /*
  * These navigation types are provided:
@@ -202,7 +199,7 @@ void ScreenOptions::Init()
 	m_OptionRowTypeExit.Load( OPTION_ROW_EXIT_METRICS_GROUP, this );
 }
 
-void ScreenOptions::InitMenu( const std::vector<OptionRowHandler*> &vHands )
+void ScreenOptions::InitMenu( const vector<OptionRowHandler*> &vHands )
 {
 	LOG->Trace( "ScreenOptions::InitMenu()" );
 
@@ -236,15 +233,16 @@ void ScreenOptions::InitMenu( const std::vector<OptionRowHandler*> &vHands )
 
 	m_frameContainer.SortByDrawOrder();
 
-	int iIndex = 0;
-	for (OptionRow *p : m_pRows)
+	FOREACH( OptionRow*, m_pRows, p )
 	{
+		int iIndex = p - m_pRows.begin();
+
 		Lua *L = LUA->Get();
-		LuaHelpers::Push( L, iIndex++ );
-		p->m_pLuaInstance->Set( L, "iIndex" );
+		LuaHelpers::Push( L, iIndex );
+		(*p)->m_pLuaInstance->Set( L, "iIndex" );
 		LUA->Release( L );
 
-		p->RunCommands( ROW_INIT_COMMAND );
+		(*p)->RunCommands( ROW_INIT_COMMAND );
 	}
 
 	// poke once at all the explanation metrics so that we catch missing ones early
@@ -258,7 +256,7 @@ void ScreenOptions::InitMenu( const std::vector<OptionRowHandler*> &vHands )
 void ScreenOptions::RestartOptions()
 {
 	m_exprRowPositionTransformFunction.ClearCache();
-	std::vector<PlayerNumber> vpns;
+	vector<PlayerNumber> vpns;
 	FOREACH_HumanPlayer( p )
 		vpns.push_back( p );
 
@@ -340,8 +338,8 @@ void ScreenOptions::TweenOnScreen()
 {
 	ScreenWithMenuElements::TweenOnScreen();
 
-	for (OptionRow *p : m_pRows)
-		p->RunCommands( ROW_ON_COMMAND );
+	FOREACH( OptionRow*, m_pRows, p )
+		(*p)->RunCommands( ROW_ON_COMMAND );
 
 	m_frameContainer.SortByDrawOrder();
 }
@@ -350,8 +348,8 @@ void ScreenOptions::TweenOffScreen()
 {
 	ScreenWithMenuElements::TweenOffScreen();
 
-	for (OptionRow *p : m_pRows)
-		p->RunCommands( ROW_OFF_COMMAND );
+	FOREACH( OptionRow*, m_pRows, p )
+		(*p)->RunCommands( ROW_OFF_COMMAND );
 }
 
 ScreenOptions::~ScreenOptions()
@@ -507,7 +505,7 @@ bool ScreenOptions::Input( const InputEventPlus &input )
 		if (input.DeviceI == DeviceInput( DEVICE_MOUSE, (DeviceButton)i ))
 			mouse_evt = true;
 	}
-	if (mouse_evt)
+	if (mouse_evt)	
 	{
 		return ScreenWithMenuElements::Input(input);
 	}
@@ -567,7 +565,7 @@ void ScreenOptions::HandleScreenMessage( const ScreenMessage SM )
 	}
 	else if( SM == SM_ExportOptions )
 	{
-		std::vector<PlayerNumber> vpns;
+		vector<PlayerNumber> vpns;
 		FOREACH_HumanPlayer( p )
 			vpns.push_back( p );
 		for( unsigned r=0; r<m_pRows.size(); r++ ) // foreach row
@@ -595,8 +593,8 @@ void ScreenOptions::PositionRows( bool bTween )
 	int P1Choice = GAMESTATE->IsHumanPlayer(PLAYER_1)? m_iCurrentRow[PLAYER_1]: m_iCurrentRow[PLAYER_2];
 	int P2Choice = GAMESTATE->IsHumanPlayer(PLAYER_2)? m_iCurrentRow[PLAYER_2]: m_iCurrentRow[PLAYER_1];
 
-	std::vector<OptionRow*> Rows( m_pRows );
-	OptionRow *pSeparateExitRow = nullptr;
+	vector<OptionRow*> Rows( m_pRows );
+	OptionRow *pSeparateExitRow = NULL;
 
 	if( (bool)SEPARATE_EXIT_ROW && !Rows.empty() && Rows.back()->GetRowType() == OptionRow::RowType_Exit )
 	{
@@ -615,30 +613,30 @@ void ScreenOptions::PositionRows( bool bTween )
 	if( m_InputMode == INPUTMODE_SHARE_CURSOR || !BothPlayersActivated )
 	{
 		// Simply center the cursor.
-		first_start = std::max( P1Choice - halfsize, 0 );
+		first_start = max( P1Choice - halfsize, 0 );
 		first_end = first_start + total;
 		second_start = second_end = first_end;
 	}
 	else
 	{
 		// First half:
-		const int earliest = std::min( P1Choice, P2Choice );
-		first_start = std::max( earliest - halfsize/2, 0 );
+		const int earliest = min( P1Choice, P2Choice );
+		first_start = max( earliest - halfsize/2, 0 );
 		first_end = first_start + halfsize;
 
 		// Second half:
-		const int latest = std::max( P1Choice, P2Choice );
+		const int latest = max( P1Choice, P2Choice );
 
-		second_start = std::max( latest - halfsize/2, 0 );
+		second_start = max( latest - halfsize/2, 0 );
 
 		// Don't overlap.
-		second_start = std::max( second_start, first_end );
+		second_start = max( second_start, first_end );
 
 		second_end = second_start + halfsize;
 	}
 
-	first_end = std::min( first_end, (int) Rows.size() );
-	second_end = std::min( second_end, (int) Rows.size() );
+	first_end = min( first_end, (int) Rows.size() );
+	second_end = min( second_end, (int) Rows.size() );
 
 	/* If less than total (and Rows.size()) are displayed, fill in the empty
 	 * space intelligently. */
@@ -681,7 +679,7 @@ void ScreenOptions::PositionRows( bool bTween )
 		else if( i >= first_end && i < second_start )	fPos = ((int)NUM_ROWS_SHOWN)/2-0.5f;
 		else if( i >= second_end )			fPos = ((int)NUM_ROWS_SHOWN)-0.5f;
 
-		Actor::TweenState tsDestination = m_exprRowPositionTransformFunction.GetTransformCached( fPos, i, std::min( (int)Rows.size(), (int)NUM_ROWS_SHOWN ) );
+		Actor::TweenState tsDestination = m_exprRowPositionTransformFunction.GetTransformCached( fPos, i, min( (int)Rows.size(), (int)NUM_ROWS_SHOWN ) );
 
 		bool bHidden =
 			i < first_start ||
@@ -760,7 +758,7 @@ void ScreenOptions::AfterChangeValueOrRow( PlayerNumber pn )
 	}
 
 	const RString text = GetExplanationText( iCurRow );
-	BitmapText *pText = nullptr;
+	BitmapText *pText = NULL;
 	switch( m_InputMode )
 	{
 		case INPUTMODE_INDIVIDUAL:
@@ -858,7 +856,7 @@ void ScreenOptions::ProcessMenuStart( const InputEventPlus &input )
 		 * something.  Apply it now, and don't go to the next screen. */
 		if( !FocusedItemEndsScreen(input.pn) )
 		{
-			std::vector<PlayerNumber> vpns;
+			vector<PlayerNumber> vpns;
 			vpns.push_back( input.pn );
 			ExportOptions( iCurRow, vpns );
 			return;
@@ -1017,7 +1015,7 @@ RString ScreenOptions::GetNextScreenForFocusedItem( PlayerNumber pn ) const
 		return RString();
 
 	const OptionRowHandler *pHand = pRow->GetHandler();
-	if( pHand == nullptr )
+	if( pHand == NULL )
 		return RString();
 	return pHand->GetScreen( iChoice );
 }
@@ -1147,7 +1145,7 @@ void ScreenOptions::ChangeValueInRowRelative( int iRow, PlayerNumber pn, int iDe
 
 	if( row.GetRowDef().m_bExportOnChange )
 	{
-		std::vector<PlayerNumber> vpns;
+		vector<PlayerNumber> vpns;
 		FOREACH_HumanPlayer( p )
 			vpns.push_back( p );
 		ExportOptions( iRow, vpns );
@@ -1213,7 +1211,7 @@ void ScreenOptions::AfterChangeRow( PlayerNumber pn )
 					{
 						int iWidth, iX, iY;
 						GetWidthXY( pn, m_iCurrentRow[pn], i, iWidth, iX, iY );
-						const int iDist = std::abs( iX-m_iFocusX[pn] );
+						const int iDist = abs( iX-m_iFocusX[pn] );
 						if( iSelectionDist == -1 || iDist < iSelectionDist )
 						{
 							iSelectionDist = iDist;
@@ -1272,7 +1270,7 @@ bool ScreenOptions::MenuLeft( const InputEventPlus &input )
 		ChangeValueInRowRelative(m_iCurrentRow[input.pn],input.pn,-1, input.type != IET_FIRST_PRESS);
 
 	PlayerNumber pn = input.pn;
-	MESSAGEMAN->Broadcast( (MessageID)(Message_MenuLeftP1+Enum::to_integral(pn)) );
+	MESSAGEMAN->Broadcast( (MessageID)(Message_MenuLeftP1+pn) );
 	return true;
 }
 
@@ -1284,7 +1282,7 @@ bool ScreenOptions::MenuRight( const InputEventPlus &input )
 		ChangeValueInRowRelative(m_iCurrentRow[input.pn], input.pn,+1, input.type != IET_FIRST_PRESS);
 
 	PlayerNumber pn = input.pn;
-	MESSAGEMAN->Broadcast( (MessageID)(Message_MenuRightP1+Enum::to_integral(pn)) );
+	MESSAGEMAN->Broadcast( (MessageID)(Message_MenuRightP1+pn) );
 	return true;
 }
 
@@ -1292,7 +1290,7 @@ bool ScreenOptions::MenuUp( const InputEventPlus &input )
 {
 	MenuUpDown( input, -1 );
 	PlayerNumber pn = input.pn;
-	MESSAGEMAN->Broadcast( (MessageID)(Message_MenuUpP1+Enum::to_integral(pn)) );
+	MESSAGEMAN->Broadcast( (MessageID)(Message_MenuUpP1+pn) );
 	return true;
 }
 
@@ -1300,7 +1298,7 @@ bool ScreenOptions::MenuDown( const InputEventPlus &input )
 {
 	MenuUpDown( input, +1 );
 	PlayerNumber pn = input.pn;
-	MESSAGEMAN->Broadcast( (MessageID)(Message_MenuDownP1+Enum::to_integral(pn)) );
+	MESSAGEMAN->Broadcast( (MessageID)(Message_MenuDownP1+pn) );
 	return true;
 }
 
@@ -1358,7 +1356,7 @@ void ScreenOptions::SetOptionRowFromName( const RString& nombre )
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to ScreenOptions. */
+/** @brief Allow Lua to have access to ScreenOptions. */ 
 class LunaScreenOptions: public Luna<ScreenOptions>
 {
 public:

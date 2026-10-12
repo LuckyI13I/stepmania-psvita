@@ -116,7 +116,7 @@ namespace
 					sCredits += ssprintf("  %d", iCredits);
 				if( PREFSMAN->m_iCoinsPerCredit > 1 )
 					sCredits += ssprintf("  %d/%d", iCoins, PREFSMAN->m_iCoinsPerCredit.Get() );
-				if( iCredits >= PREFSMAN->m_iMaxNumCredits )
+				if( iCredits >= MAX_NUM_CREDITS )
 					sCredits += "  " + CREDITS_MAX.GetValue();
 				return sCredits;
 			}
@@ -148,7 +148,7 @@ namespace
 	const luaL_Reg ScreenSystemLayerHelpersTable[] =
 	{
 		LIST_METHOD( GetCreditsMessage ),
-		{ nullptr, nullptr }
+		{ NULL, NULL }
 	};
 }
 

@@ -1,8 +1,5 @@
 #include "global.h"
 #include "GotoURL.h"
-
-#include <cstdint>
-
 #include <windows.h>
 #include <shellapi.h>
 
@@ -28,7 +25,7 @@ static LONG GetRegKey( HKEY key, RString subkey, LPTSTR retdata )
 bool GotoURL( RString sUrl )
 {
 	// First try ShellExecute()
-	std::intptr_t iRet = reinterpret_cast<std::intptr_t>(ShellExecute( nullptr, "open", sUrl, nullptr, nullptr, SW_SHOWDEFAULT ));
+	int iRet = (int) ShellExecute( NULL, "open", sUrl, NULL, NULL, SW_SHOWDEFAULT );
 
 	// If it failed, get the .htm regkey and lookup the program
 	if( iRet > 32 )
@@ -44,11 +41,11 @@ bool GotoURL( RString sUrl )
 		return false;
 
 	char *szPos = strstr( key, "\"%1\"" );
-	if( szPos == nullptr )
+	if( szPos == NULL )
 	{
 		// No quotes found. Check for %1 without quotes
 		szPos = strstr( key, "%1" );
-		if( szPos == nullptr )
+		if( szPos == NULL )
 			szPos = key+lstrlen(key)-1;	// No parameter.
 		else
 			*szPos = '\0';	// Remove the parameter

@@ -24,7 +24,7 @@ RageFileDriverZip::RageFileDriverZip():
 	m_Mutex( "RageFileDriverZip" )
 {
 	m_bFileOwned = false;
-	m_pZip = nullptr;
+	m_pZip = NULL;
 }
 
 RageFileDriverZip::RageFileDriverZip( const RString &sPath ):
@@ -32,13 +32,13 @@ RageFileDriverZip::RageFileDriverZip( const RString &sPath ):
 	m_Mutex( "RageFileDriverZip" )
 {
 	m_bFileOwned = false;
-	m_pZip = nullptr;
+	m_pZip = NULL;
 	Load( sPath );
 }
 
 bool RageFileDriverZip::Load( const RString &sPath )
 {
-	ASSERT( m_pZip == nullptr ); /* don't load twice */
+	ASSERT( m_pZip == NULL ); /* don't load twice */
 
 	m_bFileOwned = true;
 	m_sPath = sPath;
@@ -60,9 +60,9 @@ bool RageFileDriverZip::Load( const RString &sPath )
 
 bool RageFileDriverZip::Load( RageFileBasic *pFile )
 {
-	ASSERT( m_pZip == nullptr ); /* don't load twice */
-	m_sPath = ssprintf("%p", static_cast<void*>(pFile));
-	m_Mutex.SetName( ssprintf("RageFileDriverZip(%p)", static_cast<void*>(pFile)) );
+	ASSERT( m_pZip == NULL ); /* don't load twice */
+	m_sPath = ssprintf("%p", pFile);
+	m_Mutex.SetName( ssprintf("RageFileDriverZip(%p)", pFile) );
 
 	m_pZip = pFile;
 
@@ -95,7 +95,7 @@ bool RageFileDriverZip::ReadEndCentralRecord( int &iTotalEntries, int &iCentralD
 /* Find the end of central directory record, and seek to it. */
 bool RageFileDriverZip::SeekToEndCentralRecord()
 {
-	const int iSearchTo = std::max( m_pZip->GetFileSize() - 1024*32, 0 );
+	const int iSearchTo = max( m_pZip->GetFileSize() - 1024*32, 0 );
 	int iRealPos = m_pZip->GetFileSize();
 
 	while( iRealPos > 0 && iRealPos >= iSearchTo )
@@ -104,7 +104,7 @@ bool RageFileDriverZip::SeekToEndCentralRecord()
 		 * the case where the signature crosses the block boundary. */
 		char buf[1024*4];
 		iRealPos -= sizeof(buf) - 4;
-		iRealPos = std::max( 0, iRealPos );
+		iRealPos = max( 0, iRealPos );
 		m_pZip->Seek( iRealPos );
 
 		int iGot = m_pZip->Read( buf, sizeof(buf) );
@@ -296,14 +296,14 @@ RageFileBasic *RageFileDriverZip::Open( const RString &sPath, int iMode, int &iE
 	if( iMode & RageFile::WRITE )
 	{
 		iErr = ERROR_WRITING_NOT_SUPPORTED;
-		return nullptr;
+		return NULL;
 	}
 
 	FileInfo *info = (FileInfo *) FDB->GetFilePriv( sPath );
-	if( info == nullptr )
+	if( info == NULL )
 	{
 		iErr = ENOENT;
-		return nullptr;
+		return NULL;
 	}
 
 	m_Mutex.Lock();
@@ -314,7 +314,7 @@ RageFileBasic *RageFileDriverZip::Open( const RString &sPath, int iMode, int &iE
 		if( !ReadLocalFileHeader(*info) )
 		{
 			m_Mutex.Unlock();
-			return nullptr;
+			return NULL;
 		}
 	}
 
@@ -338,7 +338,7 @@ RageFileBasic *RageFileDriverZip::Open( const RString &sPath, int iMode, int &iE
 	default:
 		/* unknown compression method */
 		iErr = ENOSYS;
-		return nullptr;
+		return NULL;
 	}
 }
 

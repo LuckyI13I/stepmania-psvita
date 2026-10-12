@@ -12,9 +12,6 @@
 #include "Style.h"
 #include "ScreenAttract.h"
 
-#include <vector>
-
-
 #define SECONDS_TO_SHOW			THEME->GetMetricF(m_sName,"SecondsToShow")
 #define ALLOW_STYLE_TYPES		THEME->GetMetric (m_sName,"AllowStyleTypes")
 
@@ -32,17 +29,17 @@ void ScreenDemonstration::Init()
 
 	// Choose a Style
 	{
-		std::vector<RString> v;
+		vector<RString> v;
 		split( ALLOW_STYLE_TYPES, ",", v );
-		std::vector<StyleType> vStyleTypeAllow;
-		for (RString const &s : v)
+		vector<StyleType> vStyleTypeAllow;
+		FOREACH_CONST( RString, v, s )
 		{
-			StyleType st = StringToStyleType( s );
+			StyleType st = StringToStyleType( *s );
 			ASSERT( st != StyleType_Invalid );
 			vStyleTypeAllow.push_back( st );
 		}
 
-		std::vector<const Style*> vStylePossible;
+		vector<const Style*> vStylePossible;
 		GAMEMAN->GetDemonstrationStylesForGame( GAMESTATE->m_pCurGame, vStylePossible );
 		for( int i=(int)(vStylePossible.size())-1; i>=0; i-- )
 		{
@@ -60,7 +57,7 @@ void ScreenDemonstration::Init()
 
 	ScreenJukebox::Init();
 
-	if( GAMESTATE->m_pCurSong == nullptr )	// we didn't find a song.
+	if( GAMESTATE->m_pCurSong == NULL )	// we didn't find a song.
 	{
 		PostScreenMessage( SM_GoToNextScreen, 0 );	// Abort demonstration.
 		return;
@@ -99,7 +96,7 @@ void ScreenDemonstration::Cancel( ScreenMessage smSendWhenDone )
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -109,7 +106,7 @@ void ScreenDemonstration::Cancel( ScreenMessage smSendWhenDone )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -2,6 +2,16 @@
 #include "DirectXHelpers.h"
 #include "RageUtil.h"
 
+#include <windows.h>
+#if defined(USE_DXERR9)
+#include <dxerr9.h>
+#else
+#include <dxerr.h>
+#endif
+#if defined(_MSC_VER)
+#  pragma comment(lib, "dxerr.lib")
+#endif
+
 RString hr_ssprintf( int hr, const char *fmt, ... )
 {
 	va_list	va;
@@ -9,27 +19,12 @@ RString hr_ssprintf( int hr, const char *fmt, ... )
 	RString s = vssprintf( fmt, va );
 	va_end(va);
 
-	const char *szError = GetErrorString( hr );
+#if defined(USE_DXERR9)
+	const char *szError = DXGetErrorString9( hr );
+#else
+	const char *szError = DXGetErrorString( hr );
+#endif
 	return s + ssprintf( " (%s)", szError );
-}
-
-// needed for defines
-#define DIRECTINPUT_VERSION 0x0800
-#define DIRECTSOUND_VERSION 0x0700
-#include <dinput.h>
-#include <d3d9.h>
-#include <mmsystem.h> // dsound.h needs this
-#include <dsound.h>
-
-#define DXERRMSG(hrcode, dummy) case hrcode: return #hrcode;
-
-RString GetErrorString(HRESULT hr)
-{
-	switch (hr)
-	{
-#include "DirectXErrorList.h"
-	default: return ssprintf("unknown HRESULT 0x%8.8X", hr);
-	}
 }
 
 /*

@@ -5,15 +5,17 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
-/**
+/** 
   @file pkcs_1_pss_decode.c
-  PKCS #1 PSS Signature Padding, Tom St Denis
+  PKCS #1 PSS Signature Padding, Tom St Denis 
 */
 
-#ifdef LTC_PKCS_1
+#ifdef PKCS_1
 
 /**
    PKCS #1 v2.00 PSS decode
@@ -49,12 +51,11 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
    }
 
    hLen        = hash_descriptor[hash_idx].hashsize;
-   modulus_bitlen--;
    modulus_len = (modulus_bitlen>>3) + (modulus_bitlen & 7 ? 1 : 0);
 
    /* check sizes */
-   if ((saltlen > modulus_len) ||
-       (modulus_len < hLen + saltlen + 2)) {
+   if ((saltlen > modulus_len) || 
+       (modulus_len < hLen + saltlen + 2) || (siglen != modulus_len)) {
       return CRYPT_PK_INVALID_SIZE;
    }
 
@@ -92,10 +93,10 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
 
    /* copy out the hash */
    XMEMCPY(hash, sig + x, hLen);
-   /* x += hLen; */
+   x += hLen;
 
    /* check the MSB */
-   if ((sig[0] & ~(0xFF >> ((modulus_len<<3) - (modulus_bitlen)))) != 0) {
+   if ((sig[0] & ~(0xFF >> ((modulus_len<<3) - (modulus_bitlen-1)))) != 0) {
       err = CRYPT_INVALID_PACKET;
       goto LBL_ERR;
    }
@@ -109,9 +110,9 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
    for (y = 0; y < (modulus_len - hLen - 1); y++) {
       DB[y] ^= mask[y];
    }
-
+   
    /* now clear the first byte [make sure smaller than modulus] */
-   DB[0] &= 0xFF >> ((modulus_len<<3) - (modulus_bitlen));
+   DB[0] &= 0xFF >> ((modulus_len<<3) - (modulus_bitlen-1));
 
    /* DB = PS || 0x01 || salt, PS == modulus_len - saltlen - hLen - 2 zero bytes */
 
@@ -148,17 +149,17 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
    }
 
    /* mask == hash means valid signature */
-   if (XMEM_NEQ(mask, hash, hLen) == 0) {
+   if (XMEMCMP(mask, hash, hLen) == 0) {
       *res = 1;
    }
 
    err = CRYPT_OK;
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK
-   zeromem(DB,   modulus_len);
-   zeromem(mask, modulus_len);
-   zeromem(salt, modulus_len);
-   zeromem(hash, modulus_len);
+   zeromem(DB,   modulus_len);   
+   zeromem(mask, modulus_len);   
+   zeromem(salt, modulus_len);   
+   zeromem(hash, modulus_len);   
 #endif
 
    XFREE(hash);
@@ -169,8 +170,8 @@ LBL_ERR:
    return err;
 }
 
-#endif /* LTC_PKCS_1 */
+#endif /* PKCS_1 */
 
-/* ref:         HEAD -> master, tag: v1.18.2 */
-/* git commit:  7e7eb695d581782f04b24dc444cbfde86af59853 */
-/* commit time: 2018-07-01 22:49:01 +0200 */
+/* $Source$ */
+/* $Revision: 24838 $ */
+/* $Date: 2007-01-23 23:16:57 -0600 (Tue, 23 Jan 2007) $ */

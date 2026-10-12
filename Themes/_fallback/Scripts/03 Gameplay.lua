@@ -330,15 +330,6 @@ local CodeDetectorCodes = {
 	},
 	CloseCurrentFolder = {
 		default = "MenuUp-MenuDown",
-		dance = "Up-Down",
-		pump = "@UpLeft-@UpRight-Center",
-	},
-	-- OptionsList
-	PrevOptionsList = {
-		default = "@MenuUp-MenuDown",
-	},
-	NextOptionsList = {
-		default = "@MenuDown-MenuUp",
 	},
 	-- sorts
 	NextSort1 = {
@@ -468,36 +459,4 @@ function GetCodeForGame(codeName)
 	local gameName = string.lower(CurGameName())
 	local inputCode = CodeDetectorCodes[codeName]
 	return inputCode[gameName] or inputCode["default"]
-end
-
-local OptionsListKeys = {
-	PrevItem = {
-		pump="MenuLeft",
-		default="MenuUp"
-	},
-	NextItem = {
-		pump="MenuRight",
-		default="MenuDown"
-	}
-};
-
-function GetOptionsListMapping(name)
-	local sGame = string.lower(GAMESTATE:GetCurrentGame():GetName())
-	local map = OptionsListKeys[name]
-	return map[sGame] or map["default"]
-end
-
-
-function oitg_zoom_mode_actor()
-	return Def.Actor{
-		OnCommand= function(self)
-			local screen= SCREENMAN:GetTopScreen()
-			for i, pn in ipairs(GAMESTATE:GetEnabledPlayers()) do
-				local player= screen:GetChild("Player"..ToEnumShortString(pn))
-				if player and player.set_oitg_zoom_mode then
-					player:set_oitg_zoom_mode(true)
-				end
-			end
-		end,
-	}
 end

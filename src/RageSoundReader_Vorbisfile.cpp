@@ -1,6 +1,5 @@
 #include "global.h"
 
-#include "RageFile.h"
 #include "RageUtil.h"
 #include "RageSoundReader_Vorbisfile.h"
 #include "RageLog.h"
@@ -11,12 +10,10 @@
 #include <vorbis/vorbisfile.h>
 #endif
 
-#include <cerrno>
-#include <cstddef>
-#include <cstdint>
 #include <cstring>
-
-static std::size_t OggRageFile_read_func( void *ptr, std::size_t size, std::size_t nmemb, void *datasource )
+#include <cerrno>
+#include "RageFile.h"
+static size_t OggRageFile_read_func( void *ptr, size_t size, size_t nmemb, void *datasource )
 {
 	RageFileBasic *f = (RageFileBasic *) datasource;
 	return f->Read( ptr, size, nmemb );
@@ -51,22 +48,22 @@ static RString ov_ssprintf( int err, const char *fmt, ...)
 	{
 		// OV_FALSE, OV_EOF, and OV_HOLE were added to this switch because
 		// OV_EOF cases were being reported as unknown. -Kyz
-		case OV_FALSE: errstr = "OV_FALSE"; break;
-		case OV_EOF: errstr = "OV_EOF"; break;
-		case OV_HOLE: errstr = "OV_HOLE"; break;
-		/* XXX: In the case of OV_EREAD, can we snoop at errno? */
-		case OV_EREAD:		errstr = "Read error"; break;
-		case OV_EFAULT:		errstr = "Internal error"; break;
-		case OV_EIMPL:		errstr = "Feature not implemented"; break;
-		case OV_EINVAL:		errstr = "Invalid argument"; break;
-		case OV_ENOTVORBIS:	errstr = "Not Vorbis data"; break;
-		case OV_EBADHEADER:	errstr = "Invalid Vorbis bitstream header"; break;
-		case OV_EVERSION:	errstr = "Vorbis version mismatch"; break;
-		case OV_ENOTAUDIO:	errstr = "OV_ENOTAUDIO"; break;
-		case OV_EBADPACKET:	errstr = "OV_EBADPACKET"; break;
-		case OV_EBADLINK:	errstr = "Link corrupted"; break;
-		case OV_ENOSEEK:	errstr = "Stream is not seekable"; break;
-		default:		errstr = ssprintf( "unknown error %i", err ); break;
+	case OV_FALSE: errstr = "OV_FALSE"; break;
+	case OV_EOF: errstr = "OV_EOF"; break;
+	case OV_HOLE: errstr = "OV_HOLE"; break;
+	/* XXX: In the case of OV_EREAD, can we snoop at errno? */
+	case OV_EREAD:		errstr = "Read error"; break;
+	case OV_EFAULT:		errstr = "Internal error"; break;
+	case OV_EIMPL:		errstr = "Feature not implemented"; break;
+	case OV_EINVAL:		errstr = "Invalid argument"; break;
+	case OV_ENOTVORBIS:	errstr = "Not Vorbis data"; break;
+	case OV_EBADHEADER:	errstr = "Invalid Vorbis bitstream header"; break;
+	case OV_EVERSION:	errstr = "Vorbis version mismatch"; break;
+	case OV_ENOTAUDIO:	errstr = "OV_ENOTAUDIO"; break;
+	case OV_EBADPACKET:	errstr = "OV_EBADPACKET"; break;
+	case OV_EBADLINK:	errstr = "Link corrupted"; break;
+	case OV_ENOSEEK:	errstr = "Stream is not seekable"; break;
+	default:		errstr = ssprintf( "unknown error %i", err ); break;
 	}
 
 	return s + ssprintf( " (%s)", errstr.c_str() );
@@ -84,12 +81,12 @@ RageSoundReader_FileReader::OpenResult RageSoundReader_Vorbisfile::Open( RageFil
 	callbacks.close_func = OggRageFile_close_func;
 	callbacks.tell_func  = OggRageFile_tell_func;
 
-	int ret = ov_open_callbacks( pFile, vf, nullptr, 0, callbacks );
+	int ret = ov_open_callbacks( pFile, vf, NULL, 0, callbacks );
 	if( ret < 0 )
 	{
 		SetError( ov_ssprintf(ret, "ov_open failed") );
 		delete vf;
-		vf = nullptr;
+		vf = NULL;
 		switch( ret )
 		{
 		case OV_ENOTVORBIS:
@@ -118,7 +115,7 @@ int RageSoundReader_Vorbisfile::GetLength() const
 	if( len == OV_EINVAL )
 		RageException::Throw( "RageSoundReader_Vorbisfile::GetLength: ov_time_total returned OV_EINVAL." );
 
-	return len;
+	return len; 
 }
 
 int RageSoundReader_Vorbisfile::SetPosition( int iFrame )
@@ -160,8 +157,8 @@ int RageSoundReader_Vorbisfile::Read( float *buf, int iFrames )
 			{
 				/* The timestamps moved backwards.  Ignore it.  This file probably
 				 * won't sync correctly. */
-				LOG->Trace( "p ahead %p %i < %i, we're ahead by %i",
-					static_cast<void*>(this), curofs, read_offset, read_offset-curofs );
+				LOG->Trace( "p ahead %p %i < %i, we're ahead by %i", 
+					this, curofs, read_offset, read_offset-curofs );
 				read_offset = curofs;
 			}
 			else if( curofs > read_offset )
@@ -172,7 +169,7 @@ int RageSoundReader_Vorbisfile::Read( float *buf, int iFrames )
 
 				/* In bytes: */
 				int iSilentFrames = curofs - read_offset;
-				iSilentFrames = std::min( iSilentFrames, (int) iFrames );
+				iSilentFrames = min( iSilentFrames, (int) iFrames );
 				int silence = iSilentFrames * bytes_per_frame;
 				CHECKPOINT_M( ssprintf("p %i,%i: %i frames of silence needed", curofs, read_offset, silence) );
 
@@ -185,7 +182,7 @@ int RageSoundReader_Vorbisfile::Read( float *buf, int iFrames )
 		{
 			int bstream;
 #if defined(INTEGER_VORBIS)
-			int ret = ov_read( vf, (char *) buf, iFrames * channels * sizeof(std::int16_t), &bstream );
+			int ret = ov_read( vf, (char *) buf, iFrames * channels * sizeof(int16_t), &bstream );
 #else // float vorbis decoder
 			float **pcm;
 			int ret = ov_read_float( vf, &pcm, iFrames, &bstream );
@@ -193,7 +190,7 @@ int RageSoundReader_Vorbisfile::Read( float *buf, int iFrames )
 
 			{
 				vorbis_info *vi = ov_info( vf, -1 );
-				ASSERT( vi != nullptr );
+				ASSERT( vi != NULL );
 
 				if( (unsigned) vi->channels != channels )
 					RageException::Throw( "File \"%s\" changes channel count from %i to %i; not supported.",
@@ -218,11 +215,11 @@ int RageSoundReader_Vorbisfile::Read( float *buf, int iFrames )
 #if defined(INTEGER_VORBIS)
 			if( ret > 0 )
 			{
-				int iSamplesRead = ret / sizeof(std::int16_t);
+				int iSamplesRead = ret / sizeof(int16_t);
 				iFramesRead = iSamplesRead / channels;
 
 				/* Convert in reverse, so we can do it in-place. */
-				const std::int16_t *pIn = (std::int16_t *) buf;
+				const int16_t *pIn = (int16_t *) buf;
 				float *pOut = (float *) buf;
 				for( int i = iSamplesRead-1; i >= 0; --i )
 					pOut[i] = pIn[i] / 32768.0f;
@@ -263,17 +260,17 @@ int RageSoundReader_Vorbisfile::Read( float *buf, int iFrames )
 
 int RageSoundReader_Vorbisfile::GetSampleRate() const
 {
-	ASSERT(vf != nullptr);
+	ASSERT(vf != NULL);
 
 	vorbis_info *vi = ov_info(vf, -1);
-	ASSERT(vi != nullptr);
+	ASSERT(vi != NULL);
 
 	return vi->rate;
 }
 
 int RageSoundReader_Vorbisfile::GetNextSourceFrame() const
 {
-	ASSERT(vf != nullptr);
+	ASSERT(vf != NULL);
 
 	int iFrame = (int)ov_pcm_tell( vf );
 	return iFrame;
@@ -281,7 +278,7 @@ int RageSoundReader_Vorbisfile::GetNextSourceFrame() const
 
 RageSoundReader_Vorbisfile::RageSoundReader_Vorbisfile()
 {
-	vf = nullptr;
+	vf = NULL;
 }
 
 RageSoundReader_Vorbisfile::~RageSoundReader_Vorbisfile()

@@ -27,7 +27,7 @@ class AutoPtrCopyOnWrite
 {
 public:
 	/* This constructor only exists to make us work with STL containers. */
-	inline AutoPtrCopyOnWrite(): m_pPtr(nullptr), m_iRefCount(new int(1))
+	inline AutoPtrCopyOnWrite(): m_pPtr(NULL), m_iRefCount(new int(1))
 	{
 	}
 
@@ -43,8 +43,8 @@ public:
 
 	void Swap( AutoPtrCopyOnWrite<T> &rhs )
 	{
-		std::swap( m_pPtr, rhs.m_pPtr );
-		std::swap( m_iRefCount, rhs.m_iRefCount );
+		swap( m_pPtr, rhs.m_pPtr );
+		swap( m_iRefCount, rhs.m_iRefCount );
 	}
 
 	inline AutoPtrCopyOnWrite<T> &operator=( const AutoPtrCopyOnWrite &rhs )
@@ -127,11 +127,11 @@ public:
 	T& operator*() { return *m_pPtr; }
 	T* operator->() { return m_pPtr; }
 
-	explicit HiddenPtr( T *p = nullptr ): m_pPtr(p) {}
+	explicit HiddenPtr( T *p = NULL ): m_pPtr(p) {}
 
-	HiddenPtr( const HiddenPtr<T> &cpy ): m_pPtr(nullptr)
+	HiddenPtr( const HiddenPtr<T> &cpy ): m_pPtr(NULL)
 	{
-		if( cpy.m_pPtr != nullptr )
+		if( cpy.m_pPtr != NULL )
 			m_pPtr = HiddenPtrTraits<T>::Copy( cpy.m_pPtr );
 	}
 
@@ -139,8 +139,8 @@ public:
 	template<class U>
 	HiddenPtr( const HiddenPtr<U> &cpy )
 	{
-		if( cpy.m_pPtr == nullptr )
-			m_pPtr = nullptr;
+		if( cpy.m_pPtr == NULL )
+			m_pPtr = NULL;
 		else
 			m_pPtr = HiddenPtrTraits<U>::Copy( cpy.m_pPtr );
 	}
@@ -150,7 +150,7 @@ public:
 	{
 		HiddenPtrTraits<T>::Delete( m_pPtr );
 	}
-	void Swap( HiddenPtr<T> &rhs ) { std::swap( m_pPtr, rhs.m_pPtr ); }
+	void Swap( HiddenPtr<T> &rhs ) { swap( m_pPtr, rhs.m_pPtr ); }
 
 	HiddenPtr<T> &operator=( T *p )
 	{
@@ -175,8 +175,6 @@ public:
 		return *this;
 	}
 #endif
-
-	bool isNull() const { return m_pPtr == nullptr; }
 
 private:
 	T *m_pPtr;

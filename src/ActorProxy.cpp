@@ -6,17 +6,17 @@ REGISTER_ACTOR_CLASS( ActorProxy );
 
 ActorProxy::ActorProxy()
 {
-	m_pActorTarget = nullptr;
+	m_pActorTarget = NULL;
 }
 
 bool ActorProxy::EarlyAbortDraw() const
 {
-	return m_pActorTarget == nullptr || Actor::EarlyAbortDraw();
+	return m_pActorTarget == NULL || Actor::EarlyAbortDraw();
 }
 
 void ActorProxy::DrawPrimitives()
 {
-	if( m_pActorTarget != nullptr )
+	if( m_pActorTarget != NULL )
 	{
 		bool bVisible = m_pActorTarget->GetVisible();
 		m_pActorTarget->SetVisible( true );
@@ -47,7 +47,7 @@ public:
 	static int GetTarget( T* p, lua_State *L )
 	{
 		Actor *pTarget = p->GetTarget();
-		if( pTarget != nullptr )
+		if( pTarget != NULL )
 			pTarget->PushSelf( L );
 		else
 			lua_pushnil( L );

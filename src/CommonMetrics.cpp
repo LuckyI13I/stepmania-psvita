@@ -1,15 +1,12 @@
 #include "global.h"
 #include "CommonMetrics.h"
 #include "RageUtil.h"
-
+#include "Foreach.h"
 #include "GameManager.h"
 #include "RageLog.h"
 #include "GameState.h"
 #include "ProductInfo.h"
 #include "LuaManager.h"
-
-#include <vector>
-
 
 ThemeMetric<RString>		CommonMetrics::OPERATOR_MENU_SCREEN		("Common","OperatorMenuScreen");
 ThemeMetric<RString>		CommonMetrics::FIRST_ATTRACT_SCREEN		("Common","FirstAttractScreen");
@@ -23,9 +20,8 @@ ThemeMetricCourseDifficultiesToShow	CommonMetrics::COURSE_DIFFICULTIES_TO_SHOW	(
 ThemeMetricStepsTypesToShow	CommonMetrics::STEPS_TYPES_TO_SHOW		("Common","StepsTypesToHide");
 ThemeMetric<bool>			CommonMetrics::AUTO_SET_STYLE			("Common","AutoSetStyle");
 ThemeMetric<int>			CommonMetrics::PERCENT_SCORE_DECIMAL_PLACES	("Common","PercentScoreDecimalPlaces");
-ThemeMetric<RString>		CommonMetrics::IMAGES_TO_CACHE	("Common","ImageCache");
 
-ThemeMetricDifficultiesToShow::ThemeMetricDifficultiesToShow( const RString& sGroup, const RString& sName ) :
+ThemeMetricDifficultiesToShow::ThemeMetricDifficultiesToShow( const RString& sGroup, const RString& sName ) : 
 	ThemeMetric<RString>(sGroup,sName)
 {
 	// re-read because ThemeMetric::ThemeMetric calls ThemeMetric::Read, not the derived one
@@ -40,7 +36,7 @@ void ThemeMetricDifficultiesToShow::Read()
 
 	m_v.clear();
 
-	std::vector<RString> v;
+	vector<RString> v;
 	split( ThemeMetric<RString>::GetValue(), ",", v );
 	if(v.empty())
 	{
@@ -48,12 +44,12 @@ void ThemeMetricDifficultiesToShow::Read()
 		return;
 	}
 
-	for (RString const &i : v)
+	FOREACH_CONST( RString, v, i )
 	{
-		Difficulty d = StringToDifficulty( i );
+		Difficulty d = StringToDifficulty( *i );
 		if( d == Difficulty_Invalid )
 		{
-			LuaHelpers::ReportScriptErrorFmt("Unknown difficulty \"%s\" in CourseDifficultiesToShow.", i.c_str());
+			LuaHelpers::ReportScriptErrorFmt("Unknown difficulty \"%s\" in CourseDifficultiesToShow.", i->c_str());
 		}
 		else
 		{
@@ -61,10 +57,10 @@ void ThemeMetricDifficultiesToShow::Read()
 		}
 	}
 }
-const std::vector<Difficulty>& ThemeMetricDifficultiesToShow::GetValue() const { return m_v; }
+const vector<Difficulty>& ThemeMetricDifficultiesToShow::GetValue() const { return m_v; }
 
 
-ThemeMetricCourseDifficultiesToShow::ThemeMetricCourseDifficultiesToShow( const RString& sGroup, const RString& sName ) :
+ThemeMetricCourseDifficultiesToShow::ThemeMetricCourseDifficultiesToShow( const RString& sGroup, const RString& sName ) : 
 	ThemeMetric<RString>(sGroup,sName)
 {
 	// re-read because ThemeMetric::ThemeMetric calls ThemeMetric::Read, not the derived one
@@ -79,7 +75,7 @@ void ThemeMetricCourseDifficultiesToShow::Read()
 
 	m_v.clear();
 
-	std::vector<RString> v;
+	vector<RString> v;
 	split( ThemeMetric<RString>::GetValue(), ",", v );
 	if(v.empty())
 	{
@@ -87,12 +83,12 @@ void ThemeMetricCourseDifficultiesToShow::Read()
 		return;
 	}
 
-	for (RString const &i : v)
+	FOREACH_CONST( RString, v, i )
 	{
-		CourseDifficulty d = StringToDifficulty( i );
+		CourseDifficulty d = StringToDifficulty( *i );
 		if( d == Difficulty_Invalid )
 		{
-			LuaHelpers::ReportScriptErrorFmt("Unknown CourseDifficulty \"%s\" in CourseDifficultiesToShow.", i.c_str());
+			LuaHelpers::ReportScriptErrorFmt("Unknown CourseDifficulty \"%s\" in CourseDifficultiesToShow.", i->c_str());
 		}
 		else
 		{
@@ -100,30 +96,30 @@ void ThemeMetricCourseDifficultiesToShow::Read()
 		}
 	}
 }
-const std::vector<CourseDifficulty>& ThemeMetricCourseDifficultiesToShow::GetValue() const { return m_v; }
+const vector<CourseDifficulty>& ThemeMetricCourseDifficultiesToShow::GetValue() const { return m_v; }
 
-static void RemoveStepsTypes( std::vector<StepsType>& inout, RString sStepsTypesToRemove )
+static void RemoveStepsTypes( vector<StepsType>& inout, RString sStepsTypesToRemove )
 {
-	std::vector<RString> v;
+	vector<RString> v;
 	split( sStepsTypesToRemove, ",", v );
 	if( v.size() == 0 ) return; // Nothing to do!
 
 	// subtract StepsTypes
-	for (RString const &i : v)
+	FOREACH_CONST( RString, v, i )
 	{
-		StepsType st = GAMEMAN->StringToStepsType(i);
+		StepsType st = GAMEMAN->StringToStepsType(*i);
 		if( st == StepsType_Invalid )
 		{
-			LuaHelpers::ReportScriptErrorFmt( "Invalid StepsType value '%s' in '%s'", i.c_str(), sStepsTypesToRemove.c_str() );
+			LuaHelpers::ReportScriptErrorFmt( "Invalid StepsType value '%s' in '%s'", i->c_str(), sStepsTypesToRemove.c_str() );
 			continue;
 		}
 
-		const std::vector<StepsType>::iterator iter = find( inout.begin(), inout.end(), st );
+		const vector<StepsType>::iterator iter = find( inout.begin(), inout.end(), st );
 		if( iter != inout.end() )
 			inout.erase( iter );
 	}
 }
-ThemeMetricStepsTypesToShow::ThemeMetricStepsTypesToShow( const RString& sGroup, const RString& sName ) :
+ThemeMetricStepsTypesToShow::ThemeMetricStepsTypesToShow( const RString& sGroup, const RString& sName ) : 
 	ThemeMetric<RString>(sGroup,sName)
 {
 	// re-read because ThemeMetric::ThemeMetric calls ThemeMetric::Read, not the derived one
@@ -141,7 +137,7 @@ void ThemeMetricStepsTypesToShow::Read()
 
 	RemoveStepsTypes( m_v, ThemeMetric<RString>::GetValue() );
 }
-const std::vector<StepsType>& ThemeMetricStepsTypesToShow::GetValue() const { return m_v; }
+const vector<StepsType>& ThemeMetricStepsTypesToShow::GetValue() const { return m_v; }
 
 
 RString CommonMetrics::LocalizeOptionItem( const RString &s, bool bOptional )
@@ -156,7 +152,7 @@ LuaFunction( LocalizeOptionItem, CommonMetrics::LocalizeOptionItem(SArg(1),true)
 /*
  * (c) 2001-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -166,7 +162,7 @@ LuaFunction( LocalizeOptionItem, CommonMetrics::LocalizeOptionItem(SArg(1),true)
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

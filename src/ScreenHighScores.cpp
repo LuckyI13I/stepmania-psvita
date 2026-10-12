@@ -6,12 +6,8 @@
 #include "RageLog.h"
 #include "UnlockManager.h"
 
-#include <cstddef>
-#include <vector>
-
-
-RString COLUMN_DIFFICULTY_NAME( std::size_t i );
-RString COLUMN_STEPS_TYPE_NAME( std::size_t i );
+RString COLUMN_DIFFICULTY_NAME( size_t i );
+RString COLUMN_STEPS_TYPE_NAME( size_t i );
 
 static const char *HighScoresTypeNames[] = {
 	"AllSteps",
@@ -25,16 +21,16 @@ LuaXType( HighScoresType );
 
 REGISTER_SCREEN_CLASS( ScreenHighScores );
 
-static void GetAllSongsToShow( std::vector<Song*> &vpOut, int iNumMostRecentScoresToShow )
+static void GetAllSongsToShow( vector<Song*> &vpOut, int iNumMostRecentScoresToShow )
 {
 	vpOut.clear();
-	for (Song *s : SONGMAN->GetAllSongs())
+	FOREACH_CONST( Song*, SONGMAN->GetAllSongs(), s )
 	{
-		if( !s->NormallyDisplayed() )
+		if( !(*s)->NormallyDisplayed() )
 			continue;	// skip
-		if( !s->ShowInDemonstrationAndRanking() )
+		if( !(*s)->ShowInDemonstrationAndRanking() )
 			continue;	// skip
-		vpOut.push_back( s );
+		vpOut.push_back( *s );
 	}
 
 	if( (int)vpOut.size() > iNumMostRecentScoresToShow )
@@ -46,22 +42,22 @@ static void GetAllSongsToShow( std::vector<Song*> &vpOut, int iNumMostRecentScor
 	}
 }
 
-static void GetAllCoursesToShow( std::vector<Course*> &vpOut, CourseType ct, int iNumMostRecentScoresToShow )
+static void GetAllCoursesToShow( vector<Course*> &vpOut, CourseType ct, int iNumMostRecentScoresToShow )
 {
 	vpOut.clear();
-	std::vector<Course*> vpCourses;
+	vector<Course*> vpCourses;
 	if( ct == CourseType_Invalid )
 		SONGMAN->GetAllCourses( vpCourses, false );
 	else
 		SONGMAN->GetCourses( ct, vpCourses, false );
 
-	for (Course *c : vpCourses)
+	FOREACH_CONST( Course*, vpCourses, c)
 	{
-		if( UNLOCKMAN->CourseIsLocked(c) )
+		if( UNLOCKMAN->CourseIsLocked(*c) )
 			continue;	// skip
-		if( !c->ShowInDemonstrationAndRanking() )
+		if( !(*c)->ShowInDemonstrationAndRanking() )
 			continue;	// skip
-		vpOut.push_back( c );
+		vpOut.push_back( *c );
 	}
 	if( (int)vpOut.size() > iNumMostRecentScoresToShow )
 	{
@@ -79,7 +75,7 @@ ScoreScroller::ScoreScroller()
 	this->DeleteChildrenWhenDone();
 }
 
-void ScoreScroller::SetDisplay( const std::vector<DifficultyAndStepsType> &DifficultiesToShow )
+void ScoreScroller::SetDisplay( const vector<DifficultyAndStepsType> &DifficultiesToShow )
 {
 	m_DifficultiesToShow = DifficultiesToShow;
 	ShiftSubActors( INT_MAX );
@@ -120,9 +116,9 @@ void ScoreScroller::ConfigureActor( Actor *pActor, int iItem )
 	const ScoreRowItemData &data = m_vScoreRowItemData[iItem];
 
 	Message msg("Set");
-	if( data.m_pSong != nullptr )
+	if( data.m_pSong != NULL )
 		msg.SetParam( "Song", data.m_pSong );
-	if( data.m_pCourse != nullptr )
+	if( data.m_pCourse != NULL )
 		msg.SetParam( "Course", data.m_pCourse );
 
 
@@ -131,27 +127,27 @@ void ScoreScroller::ConfigureActor( Actor *pActor, int iItem )
 	lua_pushvalue( L, -1 );
 	msg.SetParamFromStack( L, "Entries" );
 
-	int i = 0;
-	for (DifficultyAndStepsType &iter : m_DifficultiesToShow)
+	FOREACH( DifficultyAndStepsType, m_DifficultiesToShow, iter )
 	{
-		Difficulty dc = iter.first;
-		StepsType st = iter.second;
+		int i = iter-m_DifficultiesToShow.begin();
+		Difficulty dc = iter->first;
+		StepsType st = iter->second;
 
-		if( data.m_pSong != nullptr )
+		if( data.m_pSong != NULL )
 		{
 			const Song* pSong = data.m_pSong;
 			Steps *pSteps = SongUtil::GetStepsByDifficulty( pSong, st, dc, false );
 			if( pSteps  &&  UNLOCKMAN->StepsIsLocked(pSong, pSteps) )
-				pSteps = nullptr;
+				pSteps = NULL;
 			LuaHelpers::Push( L, pSteps );
 		}
-		else if( data.m_pCourse != nullptr )
+		else if( data.m_pCourse != NULL )
 		{
 			const Course* pCourse = data.m_pCourse;
 			Trail *pTrail = pCourse->GetTrail( st, dc );
 			LuaHelpers::Push( L, pTrail );
 		}
-		// Because pSteps or pTrail can be nullptr, what we're creating in Lua is not an array.
+		// Because pSteps or pTrail can be NULL, what we're creating in Lua is not an array.
 		// It must be iterated using pairs(), not ipairs().
 		lua_setfield( L, -2, ssprintf("%d",i+1) );
 	}
@@ -165,7 +161,7 @@ void ScoreScroller::ConfigureActor( Actor *pActor, int iItem )
 
 void ScoreScroller::LoadSongs( int iNumRecentScores )
 {
-	std::vector<Song*> vpSongs;
+	vector<Song*> vpSongs;
 	GetAllSongsToShow( vpSongs, iNumRecentScores );
 	m_vScoreRowItemData.resize( vpSongs.size() );
 	for( unsigned i=0; i<m_vScoreRowItemData.size(); ++i )
@@ -174,7 +170,7 @@ void ScoreScroller::LoadSongs( int iNumRecentScores )
 
 void ScoreScroller::LoadCourses( CourseType ct, int iNumRecentScores )
 {
-	std::vector<Course*> vpCourses;
+	vector<Course*> vpCourses;
 	GetAllCoursesToShow( vpCourses, ct, iNumRecentScores );
 	m_vScoreRowItemData.resize( vpCourses.size() );
 	for( unsigned i=0; i<m_vScoreRowItemData.size(); ++i )
@@ -185,13 +181,13 @@ void ScoreScroller::Load( RString sMetricsGroup )
 {
 	SCROLLER_ITEMS_TO_DRAW.Load(sMetricsGroup, "ScrollerItemsToDraw");
 	SCROLLER_SECONDS_PER_ITEM.Load(sMetricsGroup, "ScrollerSecondsPerItem");
-
+	
 
 	int iNumCopies = SCROLLER_ITEMS_TO_DRAW+1;
 	for( int i=0; i<iNumCopies; ++i )
 	{
 		Actor *pActor = ActorUtil::MakeActor( THEME->GetPathG(sMetricsGroup,"ScrollerItem") );
-		if( pActor != nullptr )
+		if( pActor != NULL )
 			this->AddChild( pActor );
 	}
 
@@ -205,8 +201,8 @@ void ScoreScroller::Load( RString sMetricsGroup )
 
 /////////////////////////////////////////////
 
-RString COLUMN_DIFFICULTY_NAME( std::size_t i ) { return ssprintf("ColumnDifficulty%d",int(i+1)); }
-RString COLUMN_STEPS_TYPE_NAME( std::size_t i ) { return ssprintf("ColumnStepsType%d",int(i+1)); }
+RString COLUMN_DIFFICULTY_NAME( size_t i ) { return ssprintf("ColumnDifficulty%d",int(i+1)); }
+RString COLUMN_STEPS_TYPE_NAME( size_t i ) { return ssprintf("ColumnStepsType%d",int(i+1)); }
 
 void ScreenHighScores::Init()
 {
@@ -257,7 +253,7 @@ void ScreenHighScores::BeginScreen()
 {
 	ScreenAttract::BeginScreen();
 
-	std::vector<DifficultyAndStepsType> vdast;
+	vector<DifficultyAndStepsType> vdast;
 	for( int i=0; i<NUM_COLUMNS; i++ )
 	{
 		DifficultyAndStepsType dast( COLUMN_DIFFICULTY.GetValue(i), COLUMN_STEPS_TYPE.GetValue(i) );
@@ -333,7 +329,7 @@ void ScreenHighScores::DoScroll( int iDir )
 /*
  * (c) 2001-2007 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -343,7 +339,7 @@ void ScreenHighScores::DoScroll( int iDir )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

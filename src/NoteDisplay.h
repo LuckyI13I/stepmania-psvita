@@ -7,9 +7,6 @@
 #include "PlayerNumber.h"
 #include "GameInput.h"
 
-#include <vector>
-
-
 class Sprite;
 class Model;
 class PlayerState;
@@ -39,7 +36,6 @@ enum NoteColorType
 {
 	NoteColorType_Denominator, /**< Color by note type. */
 	NoteColorType_Progress, /**< Color by progress. */
-	NoteColorType_ProgressAlternate, /**< Color by progress, except the frame boundaries are slightly later. */
 	NUM_NoteColorType,
 	NoteColorType_Invalid
 };
@@ -68,7 +64,7 @@ private:
 	NoteResource *m_p;
 };
 /** @brief What types of holds are there? */
-enum HoldType
+enum HoldType 
 {
 	hold, /**< Merely keep your foot held on the body for it to count. */
 	roll, /**< Keep hitting the hold body for it to stay alive. */
@@ -161,7 +157,7 @@ struct NoteColumnRenderArgs
 		float beat, float y_offset, float y_reverse_offset,
 		RageVector3& sp_pos, RageVector3& ae_pos) const;
 	void spae_zoom_for_beat(const PlayerState* state, float beat,
-		RageVector3& sp_zoom, RageVector3& ae_zoom, int col_num, float y_offset) const;
+		RageVector3& sp_zoom, RageVector3& ae_zoom) const;
 	void SetPRZForActor(Actor* actor,
 		const RageVector3& sp_pos, const RageVector3& ae_pos,
 		const RageVector3& sp_rot, const RageVector3& ae_rot,
@@ -190,10 +186,10 @@ public:
 
 	bool DrawHoldsInRange(const NoteFieldRenderArgs& field_args,
 		const NoteColumnRenderArgs& column_args,
-		const std::vector<NoteData::TrackMap::const_iterator>& tap_set);
+		const vector<NoteData::TrackMap::const_iterator>& tap_set);
 	bool DrawTapsInRange(const NoteFieldRenderArgs& field_args,
 		const NoteColumnRenderArgs& column_args,
-		const std::vector<NoteData::TrackMap::const_iterator>& tap_set);
+		const vector<NoteData::TrackMap::const_iterator>& tap_set);
 	/**
 	 * @brief Draw the TapNote onto the NoteField.
 	 * @param tn the TapNote in question.
@@ -203,7 +199,7 @@ public:
 	 * @param bOnSameRowAsRollStart a flag to see if a roll is on the same beat.
 	 * @param bIsAddition a flag to see if this note was added via mods.
 	 * @param fPercentFadeToFail at what point do the notes fade on failure?
-	 * @param fReverseOffsetPixels How are the notes adjusted on Reverse?
+	 * @param fReverseOffsetPixels How are the notes adjusted on Reverse? 
 	 * @param fDrawDistanceAfterTargetsPixels how much to draw after the receptors.
 	 * @param fDrawDistanceBeforeTargetsPixels how much ot draw before the receptors.
 	 * @param fFadeInPercentOfDrawFar when to start fading in. */
@@ -247,12 +243,12 @@ private:
 		const NoteColumnRenderArgs& column_args, float fYOffset, float fBeat,
 		bool bIsAddition, float fPercentFadeToFail, float fColorScale,
 		bool is_being_held);
-	void DrawHoldPart(std::vector<Sprite*> &vpSpr,
+	void DrawHoldPart(vector<Sprite*> &vpSpr,
 		const NoteFieldRenderArgs& field_args,
 		const NoteColumnRenderArgs& column_args,
 		const draw_hold_part_args& part_args, bool glow, int part_type);
-	void DrawHoldBodyInternal(std::vector<Sprite*>& sprite_top,
-		std::vector<Sprite*>& sprite_body, std::vector<Sprite*>& sprite_bottom,
+	void DrawHoldBodyInternal(vector<Sprite*>& sprite_top,
+		vector<Sprite*>& sprite_body, vector<Sprite*>& sprite_bottom,
 		const NoteFieldRenderArgs& field_args,
 		const NoteColumnRenderArgs& column_args,
 		draw_hold_part_args& part_args,
@@ -300,8 +296,8 @@ struct NoteColumnRenderer : public Actor
 	// and receptor positions follow the splines.  It's called by their row
 	// update functions. -Kyz
 	void UpdateReceptorGhostStuff(Actor* receptor) const;
-	virtual void DrawPrimitives() override;
-	virtual void PushSelf(lua_State* L) override;
+	virtual void DrawPrimitives();
+	virtual void PushSelf(lua_State* L);
 
 	struct NCR_TweenState
 	{
@@ -324,19 +320,19 @@ struct NoteColumnRenderer : public Actor
 	}
 	const NCR_TweenState& NCR_DestTweenState() const { return const_cast<NoteColumnRenderer*>(this)->NCR_DestTweenState(); }
 
-	virtual void SetCurrentTweenStart() override;
-	virtual void EraseHeadTween() override;
-	virtual void UpdatePercentThroughTween(float between) override;
-	virtual void BeginTweening(float time, ITween* interp) override;
-	virtual void StopTweening() override;
-	virtual void FinishTweening() override;
+	virtual void SetCurrentTweenStart();
+	virtual void EraseHeadTween();
+	virtual void UpdatePercentThroughTween(float between);
+	virtual void BeginTweening(float time, ITween* interp);
+	virtual void StopTweening();
+	virtual void FinishTweening();
 
 	NCSplineHandler* GetPosHandler() { return &NCR_DestTweenState().m_pos_handler; }
 	NCSplineHandler* GetRotHandler() { return &NCR_DestTweenState().m_rot_handler; }
 	NCSplineHandler* GetZoomHandler() { return &NCR_DestTweenState().m_zoom_handler; }
 
 	private:
-	std::vector<NCR_TweenState> NCR_Tweens;
+	vector<NCR_TweenState> NCR_Tweens;
 	NCR_TweenState NCR_current;
 	NCR_TweenState NCR_start;
 };
@@ -349,7 +345,7 @@ struct NoteColumnRenderer : public Actor
  * @author Brian Bugh, Ben Nordstrom, Chris Danford, Steve Checkoway (c) 2001-2006
  * @section LICENSE
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -359,7 +355,7 @@ struct NoteColumnRenderer : public Actor
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -18,14 +18,12 @@ public:
 	bool IsSoftwareRenderer( RString &sError );
 	void SwapBuffers();
 
-	const ActualVideoModeParams GetActualVideoModeParams() const { return CurrentParams; }
+	const VideoModeParams &GetActualVideoModeParams() const { return CurrentParams; }
 
-	void GetDisplaySpecs(DisplaySpecs &out) const;
+	void GetDisplayResolutions( DisplayResolutions &out ) const;
 
 	bool SupportsRenderToTexture() const;
 	RenderTarget *CreateRenderTarget();
-
-	bool SupportsFullscreenBorderlessWindow() const;
 
 	bool SupportsThreadedRendering();
 	void BeginConcurrentRenderingMainThread();
@@ -34,13 +32,8 @@ public:
 	void EndConcurrentRendering();
 
 private:
-	void RestoreOutputConfig();
-
 	bool m_bWasWindowed;
-	ActualVideoModeParams CurrentParams;
-
-	float m_lastScreensaverInterrupt = 0.0f;
-	float m_screensaverInterruptInterval = 60.0f;
+	VideoModeParams CurrentParams;
 };
 
 #ifdef ARCH_LOW_LEVEL_WINDOW

@@ -1,17 +1,29 @@
--- I have to do it like this because I think the Set command in the metrics is screwing me over
+local sString;
 local t = Def.ActorFrame{
-	-- todo: make this less stupid
-	Def.Sprite{
-		InitCommand=cmd(x,8;horizalign,right),
+--[[ 	LoadActor("TestStep") .. {
+		InitCommand=cmd(zoomto,20,20);
+	}; --]]
+	LoadFont("Common normal")..{
+		InitCommand=cmd(shadowlength,1;horizalign,left;zoom,0.45;skewx,-0.125);
 		SetMessageCommand=function(self,param)
-			local path = "Themes/"..THEME:GetCurThemeName().."/Graphics/_StepsType/" .. ToEnumShortString(param.StepsType) .. ".png"
-			if FILEMAN:DoesFileExist(path) then
-				self:Load( path )
+			sString = THEME:GetString("StepsListDisplayRow StepsType",ToEnumShortString(param.StepsType));
+			if param.Steps and param.Steps:IsAutogen() then
+				self:diffusebottomedge(color("0.75,0.75,0.75,1"));
 			else
-				self:Load( THEME:GetPathG("","_StepsType/missing") )
-			end
-		end
-	}
-}
+				self:diffuse(Color("White"));
+			end;
+			self:settext( sString );
+		end;
+	};
+	-- argh this isn't working as nicely as I would've hoped...
+	--[[
+	Def.Sprite{
+		SetMessageCommand=function(self,param)
+			self:Load( THEME:GetPathG("","_StepsType/"..ToEnumShortString(param.StepsType)) );
+			self:diffusealpha(0.5);
+		end;
+	};
+	--]]
+};
 
 return t;

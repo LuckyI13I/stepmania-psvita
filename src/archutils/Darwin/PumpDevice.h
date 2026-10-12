@@ -3,9 +3,6 @@
 
 #include "HIDDevice.h"
 
-#include <vector>
-
-
 class PumpDevice : public HIDDevice
 {
 private:
@@ -19,9 +16,9 @@ protected:
 	bool InitDevice( int vid, int pid ) { return vid == 0x0d2f && pid == 0x0001; }
 
 public:
-	void GetButtonPresses( std::vector<DeviceInput>& vPresses, IOHIDElementCookie cookie, int value, const RageTimer& now ) const;
+	void GetButtonPresses( vector<DeviceInput>& vPresses, IOHIDElementCookie cookie, int value, const RageTimer& now ) const;
 	int AssignIDs( InputDevice startID );
-	void GetDevicesAndDescriptions( std::vector<InputDeviceInfo>& vDevices ) const;
+	void GetDevicesAndDescriptions( vector<InputDeviceInfo>& vDevices ) const;
 };
 
 #endif
@@ -29,7 +26,7 @@ public:
 /*
  * (c) 2006 Steve Checkoway
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -39,7 +36,7 @@ public:
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

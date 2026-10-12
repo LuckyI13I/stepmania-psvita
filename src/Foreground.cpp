@@ -7,7 +7,7 @@
 #include "ActorUtil.h"
 #include "Song.h"
 #include "BackgroundUtil.h"
-
+#include "Foreach.h"
 
 Foreground::~Foreground()
 {
@@ -21,7 +21,7 @@ void Foreground::Unload()
 	m_BGAnimations.clear();
 	m_SubActors.clear();
 	m_fLastMusicSeconds = -9999;
-	m_pSong = nullptr;
+	m_pSong = NULL;
 }
 
 void Foreground::LoadFromSong( const Song *pSong )
@@ -31,8 +31,9 @@ void Foreground::LoadFromSong( const Song *pSong )
 	TEXTUREMAN->SetDefaultTexturePolicy( RageTextureID::TEX_VOLATILE );
 
 	m_pSong = pSong;
-	for (BackgroundChange const &change : pSong->GetForegroundChanges())
+	FOREACH_CONST( BackgroundChange, pSong->GetForegroundChanges(), bgc )
 	{
+		const BackgroundChange &change = *bgc;
 		RString sBGName = change.m_def.m_sFile1,
 			sLuaFile = pSong->GetSongDir() + sBGName + "/default.lua",
 			sXmlFile = pSong->GetSongDir() + sBGName + "/default.xml";
@@ -50,7 +51,7 @@ void Foreground::LoadFromSong( const Song *pSong )
 		{
 			bga.m_bga = ActorUtil::MakeActor( pSong->GetSongDir() + sBGName, this );
 		}
-		if( bga.m_bga == nullptr )
+		if( bga.m_bga == NULL )
 			continue;
 		bga.m_bga->SetName( sBGName );
 		// ActorUtil::MakeActor calls LoadFromNode to load the actor, and
@@ -72,8 +73,8 @@ void Foreground::LoadFromSong( const Song *pSong )
 
 void Foreground::Update( float fDeltaTime )
 {
-	// Calls to Update() should *not* be scaled by music rate unless RateModsAffectFGChanges is enabled. Undo it.
-	const float fRate = PREFSMAN->m_bRateModsAffectTweens ? 1.0f : GAMESTATE->m_SongOptions.GetCurrent().m_fMusicRate;
+	// Calls to Update() should *not* be scaled by music rate. Undo it.
+	const float fRate = GAMESTATE->m_SongOptions.GetCurrent().m_fMusicRate;
 
 	for( unsigned i=0; i < m_BGAnimations.size(); ++i )
 	{
@@ -108,7 +109,7 @@ void Foreground::Update( float fDeltaTime )
 		}
 
 		// This shouldn't go down, but be safe:
-		lDeltaTime = std::max( lDeltaTime, 0.0f );
+		lDeltaTime = max( lDeltaTime, 0 );
 
 		bga.m_bga->Update( lDeltaTime / fRate );
 
@@ -138,7 +139,7 @@ void Foreground::HandleMessage( const Message &msg )
 /*
  * (c) 2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -148,7 +149,7 @@ void Foreground::HandleMessage( const Message &msg )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -33,7 +33,7 @@ local stepmania_credits= {
 		"Jason Felds (wolfman2000)", -- Timing Segments, Split Timing, optimization
 		"Thai Pangsakulyanont (theDtTvB)", -- BMS, Split Timing, optimization
 		"Alberto Ramos (Daisuke Master)",
-		"tertu marybig (FSX)",
+		"Jack Walstrom (FSX)",
 	},
 	{
 		name= "StepMania Team",
@@ -85,10 +85,8 @@ local stepmania_credits= {
 		"Kaox", -- pump/default noteskin
 		-- Add Graphics/CreditsLogo name.png and change your entry to a table like this to look super pro.
 		{logo= "kyzentun", name= "Kyzentun"}, -- new lua bindings, theme documentation
-		"Lirodon", -- Lambda default theme on 5.1
 		"Mad Matt", -- new lua bindings
 		"Matt McCutchen", -- minor fix for some dance pads on linux
-		"MrThatKid", -- nitg modifiers
 		"NitroX72", -- pump/frame noteskin
 		"nixtrix", -- various BMS features and other fixes
 		"Petriform", -- default theme music

@@ -5,6 +5,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 #include <stdarg.h>
@@ -23,11 +25,10 @@
   @param inlen Length of input in octets
   @remark <...> is of the form <type, size, data> (int, unsigned long, void*)
   @return CRYPT_OK on success
-*/
+*/  
 int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
 {
-   int           err;
-   ltc_asn1_type type;
+   int           err, type;
    unsigned long size, x;
    void          *data;
    va_list       args;
@@ -39,13 +40,11 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
    va_start(args, inlen);
    x = 0;
    for (;;) {
-       type = (ltc_asn1_type)va_arg(args, int);
+       type = va_arg(args, int);
        size = va_arg(args, unsigned long);
        data = va_arg(args, void*);
-       LTC_UNUSED_PARAM(size);
-       LTC_UNUSED_PARAM(data);
 
-       if (type == LTC_ASN1_EOL) {
+       if (type == LTC_ASN1_EOL) { 
           break;
        }
 
@@ -65,15 +64,10 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
            case LTC_ASN1_SETOF:
            case LTC_ASN1_SEQUENCE:
            case LTC_ASN1_CHOICE:
-           case LTC_ASN1_RAW_BIT_STRING:
-           case LTC_ASN1_TELETEX_STRING:
-           case LTC_ASN1_GENERALIZEDTIME:
-                ++x;
+                ++x; 
                 break;
-
-           case LTC_ASN1_EOL:
-           case LTC_ASN1_CONSTRUCTED:
-           case LTC_ASN1_CONTEXT_SPECIFIC:
+          
+           default:
                va_end(args);
                return CRYPT_INVALID_ARG;
        }
@@ -94,11 +88,11 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
    va_start(args, inlen);
    x = 0;
    for (;;) {
-       type = (ltc_asn1_type)va_arg(args, int);
+       type = va_arg(args, int);
        size = va_arg(args, unsigned long);
        data = va_arg(args, void*);
 
-       if (type == LTC_ASN1_EOL) {
+       if (type == LTC_ASN1_EOL) { 
           break;
        }
 
@@ -116,23 +110,23 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
            case LTC_ASN1_UTCTIME:
            case LTC_ASN1_SEQUENCE:
            case LTC_ASN1_SET:
-           case LTC_ASN1_SETOF:
+           case LTC_ASN1_SETOF:          
            case LTC_ASN1_CHOICE:
-           case LTC_ASN1_RAW_BIT_STRING:
-           case LTC_ASN1_TELETEX_STRING:
-           case LTC_ASN1_GENERALIZEDTIME:
-                LTC_SET_ASN1(list, x++, type, data, size);
+                list[x].type   = type;
+                list[x].size   = size;
+                list[x++].data = data;
                 break;
-           /* coverity[dead_error_line] */
-           case LTC_ASN1_EOL:
-           case LTC_ASN1_CONSTRUCTED:
-           case LTC_ASN1_CONTEXT_SPECIFIC:
-                break;
+         
+           default:
+               va_end(args);
+               err = CRYPT_INVALID_ARG;
+               goto LBL_ERR;
        }
    }
    va_end(args);
 
    err = der_decode_sequence(in, inlen, list, x);
+LBL_ERR:
    XFREE(list);
    return err;
 }
@@ -140,6 +134,6 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
 #endif
 
 
-/* ref:         HEAD -> master, tag: v1.18.2 */
-/* git commit:  7e7eb695d581782f04b24dc444cbfde86af59853 */
-/* commit time: 2018-07-01 22:49:01 +0200 */
+/* $Source$ */
+/* $Revision: 24838 $ */
+/* $Date: 2007-01-23 23:16:57 -0600 (Tue, 23 Jan 2007) $ */

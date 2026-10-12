@@ -3,9 +3,7 @@
 
 #include "GameConstantsAndTypes.h"
 #include "Difficulty.h"
-
-#include <vector>
-
+#include "RageUtil_CachedObject.h"
 
 class Steps;
 class Song;
@@ -22,7 +20,6 @@ public:
 	 *
 	 * Don't filter here if the Difficulty is Difficulty_Invalid. */
 	Difficulty m_difficulty;
-	std::vector<Difficulty> m_vDifficulties;
 	/**
 	 * @brief The lowest meter to search for.
 	 *
@@ -44,7 +41,7 @@ public:
 	StepsType m_st;
 	/** @brief Check a song's locked status for searching. */
 	enum Locked
-	{
+	{ 
 		Locked_Locked,		/**< We want songs that are locked. */
 		Locked_Unlocked,	/**< We want songs that are unlocked. */
 		Locked_DontCare		/**< We don't care if the songs are locked or not. */
@@ -52,7 +49,6 @@ public:
 
 	/** @brief Set up the initial criteria. */
 	StepsCriteria(): m_difficulty(Difficulty_Invalid),
-	m_vDifficulties(),
 		m_iLowMeter(-1), m_iHighMeter(-1),
 		m_st(StepsType_Invalid), m_Locked(Locked_DontCare)
 	{
@@ -92,11 +88,11 @@ public:
 	Song *pSong;
 	/** @brief the Steps we're using. */
 	Steps *pSteps;
-	/** @brief Set up a blank Song and
+	/** @brief Set up a blank Song and 
 	 * <a class="el" href="class_steps.html">Step</a>. */
-	SongAndSteps() : pSong(nullptr), pSteps(nullptr) { }
+	SongAndSteps() : pSong(NULL), pSteps(NULL) { }
 	/**
-	 * @brief Set up the specified Song and
+	 * @brief Set up the specified Song and 
 	 * <a class="el" href="class_steps.html">Step</a>.
 	 * @param pSong_ the new Song.
 	 * @param pSteps_ the new <a class="el" href="class_steps.html">Step</a>. */
@@ -122,21 +118,21 @@ namespace StepsUtil
 	 * @param stc the StepsCriteria to look for.
 	 * @param out the SongsAndSteps that match.
 	 */
-	void GetAllMatching( const SongCriteria &soc, const StepsCriteria &stc, std::vector<SongAndSteps> &out);	// look up in SONGMAN
+	void GetAllMatching( const SongCriteria &soc, const StepsCriteria &stc, vector<SongAndSteps> &out);	// look up in SONGMAN
 	/**
 	 * @brief Retrieve all of the Steps that match the criteria.
 	 * @param pSong the Song we're checking in.
 	 * @param stc the StepsCriteria to look for.
 	 * @param out the SongsAndSteps that match.
 	 */
-	void GetAllMatching( Song *pSong, const StepsCriteria &stc, std::vector<SongAndSteps> &out );
+	void GetAllMatching( Song *pSong, const StepsCriteria &stc, vector<SongAndSteps> &out );
 	/**
 	* @brief Retrieve all of the Steps that match the criteria, for Endless mode only.
 	* @param pSong the Song we're checking in.
 	* @param stc the StepsCriteria to look for.
 	* @param out the SongsAndSteps that match.
 	*/
-	void GetAllMatchingEndless( Song *pSong, const StepsCriteria &stc, std::vector<SongAndSteps> &out );
+	void GetAllMatchingEndless( Song *pSong, const StepsCriteria &stc, vector<SongAndSteps> &out );
 	/**
 	 * @brief Is there a <a class="el" href="class_steps.html">Step</a>
 	 * that matches the criteria?
@@ -155,15 +151,15 @@ namespace StepsUtil
 	bool CompareNotesPointersByRadarValues(const Steps* pSteps1, const Steps* pSteps2);
 	bool CompareNotesPointersByMeter(const Steps *pSteps1, const Steps* pSteps2);
 	bool CompareNotesPointersByDifficulty(const Steps *pSteps1, const Steps *pSteps2);
-	void SortNotesArrayByDifficulty( std::vector<Steps*> &vpStepsInOut );
+	void SortNotesArrayByDifficulty( vector<Steps*> &vpStepsInOut );
 	bool CompareStepsPointersByTypeAndDifficulty(const Steps *pStep1, const Steps *pStep2);
-	void SortStepsByTypeAndDifficulty( std::vector<Steps*> &vpStepsInOut );
-	void SortStepsPointerArrayByNumPlays( std::vector<Steps*> &vpStepsInOut, ProfileSlot slot, bool bDescending );
-	void SortStepsPointerArrayByNumPlays( std::vector<Steps*> &vpStepsInOut, const Profile* pProfile, bool bDescending );
+	void SortStepsByTypeAndDifficulty( vector<Steps*> &vpStepsInOut );
+	void SortStepsPointerArrayByNumPlays( vector<Steps*> &vpStepsInOut, ProfileSlot slot, bool bDescending );
+	void SortStepsPointerArrayByNumPlays( vector<Steps*> &vpStepsInOut, const Profile* pProfile, bool bDescending );
 	bool CompareStepsPointersByDescription(const Steps *pStep1, const Steps *pStep2);
-	void SortStepsByDescription( std::vector<Steps*> &vpStepsInOut );
-	void RemoveLockedSteps( const Song *pSong, std::vector<Steps*> &vpStepsInOut );
-}
+	void SortStepsByDescription( vector<Steps*> &vpStepsInOut );
+	void RemoveLockedSteps( const Song *pSong, vector<Steps*> &vpStepsInOut );
+};
 
 class StepsID
 {
@@ -171,6 +167,7 @@ class StepsID
 	Difficulty dc;
 	RString sDescription;
 	unsigned uHash;
+	mutable CachedObjectPointer<Steps> m_Cache;
 
 public:
 	/**
@@ -179,8 +176,8 @@ public:
 	 * This used to call Unset(), which set the variables to
 	 * the same thing. */
 	StepsID(): st(StepsType_Invalid), dc(Difficulty_Invalid),
-		sDescription(""), uHash(0) {}
-	void Unset() { FromSteps(nullptr); }
+		sDescription(""), uHash(0), m_Cache() {}
+	void Unset() { FromSteps(NULL); }
 	void FromSteps( const Steps *p );
 	Steps *ToSteps( const Song *p, bool bAllowNull ) const;
 	// FIXME: (interferes with unlimited charts per song)
@@ -209,7 +206,7 @@ public:
 	void LoadFromNode( const XNode* pNode );
 	RString ToString() const;
 	bool IsValid() const;
-
+	
 	StepsType GetStepsType() const { return st; }
 	Difficulty GetDifficulty() const { return dc; }
 };
@@ -221,7 +218,7 @@ public:
  * @author Chris Danford, Glenn Maynard (c) 2001-2004
  * @section LICENSE
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -231,7 +228,7 @@ public:
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

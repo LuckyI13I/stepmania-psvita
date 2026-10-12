@@ -18,9 +18,6 @@
 #include "Style.h"
 #include "PrefsManager.h"
 
-#include <vector>
-
-
 enum ReviewWorkoutRow
 {
 	ReviewWorkoutRow_Play,
@@ -30,12 +27,12 @@ enum ReviewWorkoutRow
 	NUM_ReviewWorkoutRow
 };
 
-static const MenuRowDef g_MenuRows[] =
+static const MenuRowDef g_MenuRows[] = 
 {
-	MenuRowDef( -1,	"Play",		true, EditMode_Practice, true, false, 0, nullptr ),
-	MenuRowDef( -1,	"Edit Workout",	true, EditMode_Practice, true, false, 0, nullptr ),
-	MenuRowDef( -1,	"Shuffle",	true, EditMode_Practice, true, false, 0, nullptr ),
-	MenuRowDef( -1,	"Save",		true, EditMode_Practice, true, false, 0, nullptr ),
+	MenuRowDef( -1,	"Play",		true, EditMode_Practice, true, false, 0, NULL ),
+	MenuRowDef( -1,	"Edit Workout",	true, EditMode_Practice, true, false, 0, NULL ),
+	MenuRowDef( -1,	"Shuffle",	true, EditMode_Practice, true, false, 0, NULL ),
+	MenuRowDef( -1,	"Save",		true, EditMode_Practice, true, false, 0, NULL ),
 };
 
 REGISTER_SCREEN_CLASS( ScreenOptionsCourseOverview );
@@ -56,7 +53,7 @@ void ScreenOptionsCourseOverview::Init()
 
 void ScreenOptionsCourseOverview::BeginScreen()
 {
-	std::vector<OptionRowHandler*> vHands;
+	vector<OptionRowHandler*> vHands;
 	FOREACH_ENUM( ReviewWorkoutRow, rowIndex )
 	{
 		const MenuRowDef &mr = g_MenuRows[rowIndex];
@@ -69,7 +66,7 @@ void ScreenOptionsCourseOverview::BeginScreen()
 	ScreenOptions::BeginScreen();
 
 	// clear the current song in case it's set when we back out from gameplay
-	GAMESTATE->m_pCurSong.Set(nullptr);
+	GAMESTATE->m_pCurSong.Set( NULL );
 }
 
 ScreenOptionsCourseOverview::~ScreenOptionsCourseOverview()
@@ -77,12 +74,12 @@ ScreenOptionsCourseOverview::~ScreenOptionsCourseOverview()
 
 }
 
-void ScreenOptionsCourseOverview::ImportOptions( int iRow, const std::vector<PlayerNumber> &vpns )
+void ScreenOptionsCourseOverview::ImportOptions( int iRow, const vector<PlayerNumber> &vpns )
 {
 	//OptionRow &row = *m_pRows[iRow];
 }
 
-void ScreenOptionsCourseOverview::ExportOptions( int iRow, const std::vector<PlayerNumber> &vpns )
+void ScreenOptionsCourseOverview::ExportOptions( int iRow, const vector<PlayerNumber> &vpns )
 {
 	OptionRow &row = *m_pRows[iRow];
 	int iIndex = row.GetOneSharedSelection( true );
@@ -114,7 +111,7 @@ void ScreenOptionsCourseOverview::HandleScreenMessage( const ScreenMessage SM )
 		if( !ScreenTextEntry::s_bCancelledLast )
 		{
 			ASSERT( ScreenTextEntry::s_sLastAnswer != "" );	// validate should have assured this
-
+			
 			if( EditCourseUtil::RenameAndSave( GAMESTATE->m_pCurCourse, ScreenTextEntry::s_sLastAnswer ) )
 			{
 				m_soundSave.Play(true);
@@ -149,7 +146,7 @@ void ScreenOptionsCourseOverview::ProcessMenuStart( const InputEventPlus &input 
 	case ReviewWorkoutRow_Shuffle:
 		{
 			Course *pCourse = GAMESTATE->m_pCurCourse;
-			std::shuffle( pCourse->m_vEntries.begin(), pCourse->m_vEntries.end(), g_RandomNumberGenerator );
+			random_shuffle( pCourse->m_vEntries.begin(), pCourse->m_vEntries.end() );
 			Trail *pTrail = pCourse->GetTrailForceRegenCache( GAMESTATE->m_pCurStyle->m_StepsType );
 			GAMESTATE->m_pCurTrail[PLAYER_1].Set( pTrail );
 			SCREENMAN->PlayStartSound();
@@ -161,11 +158,11 @@ void ScreenOptionsCourseOverview::ProcessMenuStart( const InputEventPlus &input 
 			bool bPromptForName = EditCourseUtil::s_bNewCourseNeedsName;
 			if( bPromptForName )
 			{
-				ScreenTextEntry::TextEntry(
-					SM_BackFromEnterName,
-					ENTER_WORKOUT_NAME,
-					GAMESTATE->m_pCurCourse->GetDisplayFullTitle(),
-					EditCourseUtil::MAX_NAME_LENGTH,
+				ScreenTextEntry::TextEntry( 
+					SM_BackFromEnterName, 
+					ENTER_WORKOUT_NAME, 
+					GAMESTATE->m_pCurCourse->GetDisplayFullTitle(), 
+					EditCourseUtil::MAX_NAME_LENGTH, 
 					EditCourseUtil::ValidateEditCourseName );
 			}
 			else
@@ -192,7 +189,7 @@ void ScreenOptionsCourseOverview::ProcessMenuStart( const InputEventPlus &input 
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -202,7 +199,7 @@ void ScreenOptionsCourseOverview::ProcessMenuStart( const InputEventPlus &input 
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

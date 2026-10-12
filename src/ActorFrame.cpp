@@ -9,12 +9,10 @@
 #include "ActorUtil.h"
 #include "RageDisplay.h"
 #include "ScreenDimensions.h"
-
-#include <cstdint>
-#include <vector>
+#include "Foreach.h"
 
 /* Tricky: We need ActorFrames created in Lua to auto delete their children.
- * We don't want classes that derive from ActorFrame to auto delete their
+ * We don't want classes that derive from ActorFrame to auto delete their 
  * children.  The name "ActorFrame" is widely used in Lua, so we'll have
  * that string instead create an ActorFrameAutoDeleteChildren object.
  */
@@ -84,7 +82,8 @@ ActorFrame::ActorFrame( const ActorFrame &cpy ):
 
 void ActorFrame::InitState()
 {
-	std::for_each(m_SubActors.begin(), m_SubActors.end(), [](Actor *a) { a->InitState(); });
+	FOREACH( Actor*, m_SubActors, a )
+		(*a)->InitState();
 	Actor::InitState();
 }
 
@@ -120,7 +119,7 @@ void ActorFrame::LoadChildrenFromNode( const XNode* pNode )
 	// Load children
 	const XNode* pChildren = pNode->GetChild("children");
 	bool bArrayOnly = false;
-	if( pChildren == nullptr )
+	if( pChildren == NULL )
 	{
 		bArrayOnly = true;
 		pChildren = pNode;
@@ -142,13 +141,13 @@ void ActorFrame::AddChild( Actor *pActor )
 {
 #ifdef DEBUG
 	// check that this Actor isn't already added.
-	std::vector<Actor*>::iterator iter = find( m_SubActors.begin(), m_SubActors.end(), pActor );
+	vector<Actor*>::iterator iter = find( m_SubActors.begin(), m_SubActors.end(), pActor );
 	if( iter != m_SubActors.end() )
 		Dialog::OK( ssprintf("Actor \"%s\" adds child \"%s\" more than once", GetLineage().c_str(), pActor->GetName().c_str()) );
 #endif
 
-	ASSERT( pActor != nullptr );
-	ASSERT( reinterpret_cast<std::uintptr_t>(pActor) != static_cast<std::uintptr_t>(0xC0000005) );
+	ASSERT( pActor != NULL );
+	ASSERT( (void*)pActor != (void*)0xC0000005 );
 	m_SubActors.push_back( pActor );
 
 	pActor->SetParent( this );
@@ -156,25 +155,26 @@ void ActorFrame::AddChild( Actor *pActor )
 
 void ActorFrame::RemoveChild( Actor *pActor )
 {
-	std::vector<Actor*>::iterator iter = find( m_SubActors.begin(), m_SubActors.end(), pActor );
+	vector<Actor*>::iterator iter = find( m_SubActors.begin(), m_SubActors.end(), pActor );
 	if( iter != m_SubActors.end() )
 		m_SubActors.erase( iter );
 }
 
 void ActorFrame::TransferChildren( ActorFrame *pTo )
 {
-	std::for_each(m_SubActors.begin(), m_SubActors.end(), [&](Actor *a) { pTo->AddChild(a); });
+	FOREACH( Actor*, m_SubActors, i )
+		pTo->AddChild( *i );
 	RemoveAllChildren();
 }
 
 Actor* ActorFrame::GetChild( const RString &sName )
 {
-	for (Actor *a : m_SubActors)
+	FOREACH( Actor*, m_SubActors, a )
 	{
-		if( a->GetName() == sName )
-			return a;
+		if( (*a)->GetName() == sName )
+			return *a;
 	}
-	return nullptr;
+	return NULL;
 }
 
 void ActorFrame::RemoveAllChildren()
@@ -184,7 +184,7 @@ void ActorFrame::RemoveAllChildren()
 
 void ActorFrame::MoveToTail( Actor* pActor )
 {
-	std::vector<Actor*>::iterator iter = find( m_SubActors.begin(), m_SubActors.end(), pActor );
+	vector<Actor*>::iterator iter = find( m_SubActors.begin(), m_SubActors.end(), pActor );
 	if( iter == m_SubActors.end() )	// didn't find
 		FAIL_M("Nonexistent actor");
 
@@ -194,7 +194,7 @@ void ActorFrame::MoveToTail( Actor* pActor )
 
 void ActorFrame::MoveToHead( Actor* pActor )
 {
-	std::vector<Actor*>::iterator iter = find( m_SubActors.begin(), m_SubActors.end(), pActor );
+	vector<Actor*>::iterator iter = find( m_SubActors.begin(), m_SubActors.end(), pActor );
 	if( iter == m_SubActors.end() )	// didn't find
 		FAIL_M("Nonexistent actor");
 
@@ -228,7 +228,7 @@ void ActorFrame::DrawPrimitives()
 		m_bClearZBuffer = false;
 	}
 
-	// Don't set Actor-defined render states because we won't be drawing
+	// Don't set Actor-defined render states because we won't be drawing 
 	// any geometry that belongs to this object.
 	// Actor::DrawPrimitives();
 
@@ -261,7 +261,7 @@ void ActorFrame::DrawPrimitives()
 	// draw all sub-ActorFrames while we're in the ActorFrame's local coordinate space
 	if( m_bDrawByZPosition )
 	{
-		std::vector<Actor*> subs = m_SubActors;
+		vector<Actor*> subs = m_SubActors;
 		ActorUtil::SortByZPosition( subs );
 		for( unsigned i=0; i<subs.size(); i++ )
 		{
@@ -374,15 +374,15 @@ static void AddToChildTable(lua_State* L, Actor* a)
 void ActorFrame::PushChildrenTable( lua_State *L )
 {
 	lua_newtable( L ); // stack: all_actors
-	for (Actor *a: m_SubActors)
+	FOREACH( Actor*, m_SubActors, a )
 	{
-		LuaHelpers::Push( L, a->GetName() ); // stack: all_actors, name
+		LuaHelpers::Push( L, (*a)->GetName() ); // stack: all_actors, name
 		lua_gettable(L, -2); // stack: all_actors, entry
 		if(lua_isnil(L, -1))
 		{
 			lua_pop(L, 1); // stack: all_actors
-			LuaHelpers::Push( L, a->GetName() ); // stack: all_actors, name
-			a->PushSelf( L ); // stack: all_actors, name, actor
+			LuaHelpers::Push( L, (*a)->GetName() ); // stack: all_actors, name
+			(*a)->PushSelf( L ); // stack: all_actors, name, actor
 			lua_rawset( L, -3 ); // stack: all_actors
 		}
 		else
@@ -391,14 +391,14 @@ void ActorFrame::PushChildrenTable( lua_State *L )
 			if(lua_objlen(L, -1) > 0)
 			{
 				 // stack: all_actors, table_entry
-				AddToChildTable(L, a); // stack: all_actors, table_entry
+				AddToChildTable(L, *a); // stack: all_actors, table_entry
 				lua_pop(L, 1); // stack: all_actors
 			}
 			else
 			{
 				 // stack: all_actors, old_entry
-				CreateChildTable(L, a); // stack: all_actors, table_entry
-				LuaHelpers::Push(L, a->GetName()); // stack: all_actors, table_entry, name
+				CreateChildTable(L, *a); // stack: all_actors, table_entry
+				LuaHelpers::Push(L, (*a)->GetName()); // stack: all_actors, table_entry, name
 				lua_insert(L, -2); // stack: all_actors, name, table_entry
 				lua_rawset(L, -3); // stack: all_actors
 			}
@@ -409,20 +409,20 @@ void ActorFrame::PushChildrenTable( lua_State *L )
 void ActorFrame::PushChildTable(lua_State* L, const RString &sName)
 {
 	int found= 0;
-	for (Actor *a: m_SubActors)
+	FOREACH(Actor*, m_SubActors, a)
 	{
-		if(a->GetName() == sName)
+		if((*a)->GetName() == sName)
 		{
 			switch(found)
 			{
 				case 0:
-					a->PushSelf(L);
+					(*a)->PushSelf(L);
 					break;
 				case 1:
-					CreateChildTable(L, a);
+					CreateChildTable(L, *a);
 					break;
 				default:
-					AddToChildTable(L, a);
+					AddToChildTable(L, *a);
 					break;
 			}
 			++found;
@@ -437,14 +437,14 @@ void ActorFrame::PushChildTable(lua_State* L, const RString &sName)
 void ActorFrame::PlayCommandOnChildren( const RString &sCommandName, const LuaReference *pParamTable )
 {
 	const apActorCommands *pCmd = GetCommand( sCommandName );
-	if( pCmd != nullptr )
+	if( pCmd != NULL )
 		RunCommandsOnChildren( *pCmd, pParamTable );
 }
 
 void ActorFrame::PlayCommandOnLeaves( const RString &sCommandName, const LuaReference *pParamTable )
 {
 	const apActorCommands *pCmd = GetCommand( sCommandName );
-	if( pCmd != nullptr )
+	if( pCmd != NULL )
 		RunCommandsOnLeaves( **pCmd, pParamTable );
 }
 
@@ -476,7 +476,7 @@ void ActorFrame::UpdateInternal( float fDeltaTime )
 	Actor::UpdateInternal( fDeltaTime );
 
 	// update all sub-Actors
-	for( std::vector<Actor*>::iterator it=m_SubActors.begin(); it!=m_SubActors.end(); it++ )
+	for( vector<Actor*>::iterator it=m_SubActors.begin(); it!=m_SubActors.end(); it++ )
 	{
 		Actor *pActor = *it;
 		pActor->Update(fDeltaTime);
@@ -533,7 +533,7 @@ float ActorFrame::GetTweenTimeLeft() const
 	for( unsigned i=0; i<m_SubActors.size(); i++ )
 	{
 		const Actor* pActor = m_SubActors[i];
-		m = std::max(m, m_fHibernateSecondsLeft + pActor->GetTweenTimeLeft());
+		m = max(m, m_fHibernateSecondsLeft + pActor->GetTweenTimeLeft());
 	}
 
 	return m;
@@ -579,7 +579,7 @@ void ActorFrame::HandleMessage( const Message &msg )
 	if( msg.IsBroadcast() )
 		return;
 
-	for( unsigned i=0; i<m_SubActors.size(); i++ )
+	for( unsigned i=0; i<m_SubActors.size(); i++ ) 
 	{
 		Actor* pActor = m_SubActors[i];
 		pActor->HandleMessage( msg );
@@ -595,7 +595,7 @@ void ActorFrame::SetDrawByZPosition( bool b )
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the ActorFrame. */
+/** @brief Allow Lua to have access to the ActorFrame. */ 
 class LunaActorFrame : public Luna<ActorFrame>
 {
 public:
@@ -661,7 +661,7 @@ public:
 			p->SetDrawFunction( ref );
 			COMMON_RETURN_SELF;
 		}
-
+		
 		luaL_checktype( L, 1, LUA_TFUNCTION );
 
 		LuaReference ref;
@@ -685,7 +685,7 @@ public:
 			p->SetUpdateFunction( ref );
 			COMMON_RETURN_SELF;
 		}
-
+		
 		luaL_checktype( L, 1, LUA_TFUNCTION );
 
 		LuaReference ref;
@@ -704,7 +704,7 @@ public:
 	{
 		luaL_checktype( L, 1, LUA_TTABLE );
 		lua_pushvalue( L, 1 );
-		std::vector<float> coords;
+		vector<float> coords;
 		LuaHelpers::ReadArrayFromTable( coords, L );
 		lua_pop( L, 1 );
 		if( coords.size() !=3 )
@@ -720,7 +720,7 @@ public:
 	{
 		// this one is tricky, we need to get an Actor from Lua.
 		Actor *pActor = ActorUtil::MakeActor( SArg(1) );
-		if ( pActor == nullptr )
+		if ( pActor == NULL )
 		{
 			lua_pushboolean( L, 0 );
 			return 1;
@@ -771,7 +771,7 @@ public:
 		ADD_METHOD( AddChildFromPath );
 		ADD_METHOD( RemoveChild );
 		ADD_METHOD( RemoveAllChildren );
-
+		
 	}
 };
 
@@ -781,7 +781,7 @@ LUA_REGISTER_DERIVED_CLASS( ActorFrame, Actor )
 /*
  * (c) 2001-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -791,7 +791,7 @@ LUA_REGISTER_DERIVED_CLASS( ActorFrame, Actor )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

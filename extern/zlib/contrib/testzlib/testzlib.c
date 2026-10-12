@@ -18,7 +18,7 @@ void MyDoMinus64(LARGE_INTEGER *R,LARGE_INTEGER A,LARGE_INTEGER B)
 }
 
 #ifdef _M_X64
-// see https://learn.microsoft.com/en-us/cpp/intrinsics/rdtsc?view=msvc-170 for __rdtsc
+// see http://msdn2.microsoft.com/library/twchhe95(en-us,vs.80).aspx for __rdtsc
 unsigned __int64 __rdtsc(void);
 void BeginCountRdtsc(LARGE_INTEGER * pbeginTime64)
 {
@@ -116,10 +116,10 @@ DWORD GetMsecSincePerfCounter(LARGE_INTEGER beginTime64,BOOL fComputeTimeQueryPe
     return dwRet;
 }
 
-int ReadFileMemory(const char* filename,long* plFileSize,unsigned char** pFilePtr)
+int ReadFileMemory(const char* filename,long* plFileSize,void** pFilePtr)
 {
     FILE* stream;
-    unsigned char* ptr;
+    void* ptr;
     int retVal=1;
     stream=fopen(filename, "rb");
     if (stream==NULL)
@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
         printf("error reading %s\n",argv[1]);
         return 1;
     }
-    else printf("file %s read, %ld bytes\n",argv[1],lFileSize);
+    else printf("file %s read, %u bytes\n",argv[1],lFileSize);
 
     if (argc>=3)
         BlockSizeCompress=atol(argv[2]);

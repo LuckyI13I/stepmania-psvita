@@ -10,7 +10,7 @@
 // modify it under the terms of the GNU General Public License
 // as published by the Free Software Foundation; either version 2
 // of the License, or (at your option) any later version.
-//
+// 
 // For the licensing details see the file License.txt
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -22,12 +22,11 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include <cstddef>
 #include <sys/mman.h>
 
 namespace ziparchv
 {
-
+	
 
 	struct CZipFileMapping
 	{
@@ -46,7 +45,7 @@ namespace ziparchv
 		}
 		void RemoveMapping()
 		{
-
+                
 			if (m_pFileMap)
 			{
 				munmap(m_pFileMap, m_iSize);
@@ -63,7 +62,7 @@ namespace ziparchv
 		}
 	protected:
 		void* m_pFileMap;
-		std::size_t m_iSize;
+		size_t m_iSize;
 
 	};
 }

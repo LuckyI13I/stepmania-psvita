@@ -136,8 +136,8 @@ RageSurfaceUtils::OpenResult RageSurface_Load_GIF( const RString &sPath, RageSur
 					imageCount, imageCount > 1 ? "s" : "");
 				return RageSurfaceUtils::OPEN_FATAL_ERROR;
 			}
-			[[fallthrough]];
 		}
+
 		case '!':
 		{
 			/* Extension */
@@ -399,14 +399,14 @@ static RageSurface *ReadImage( RageFile &f, int len, int height,
 	if( !state.Init(f) )
 	{
 //		RWSetMsg("error reading image");
-		return nullptr;
+		return NULL;
 	}
 	/* If this is an "uninteresting picture" ignore it. */
 	if( ignore )
 	{
 		while( state.ReadByte(f) >= 0 )
 			;
-		return nullptr;
+		return NULL;
 	}
 
 	RageSurface *image = CreateSurface( len, height, 8, 0, 0, 0, 0 );

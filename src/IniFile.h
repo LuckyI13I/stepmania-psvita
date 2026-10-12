@@ -4,6 +4,7 @@
 #define INIFILE_H
 
 #include "XmlFile.h"
+using namespace std;
 
 class RageFileBasic;
 /** @brief The functions to read and write .INI files. */
@@ -31,7 +32,7 @@ public:
 	bool GetValue( const RString &sKey, const RString &sValueName, T& value ) const
 	{
 		const XNode* pNode = GetChild( sKey );
-		if( pNode == nullptr )
+		if( pNode == NULL )
 			return false;
 		return pNode->GetAttrValue<T>( sValueName, value );
 	}
@@ -39,7 +40,7 @@ public:
 	void SetValue( const RString &sKey, const RString &sValueName, const T &value )
 	{
 		XNode* pNode = GetChild( sKey );
-		if( pNode == nullptr )
+		if( pNode == NULL )
 			pNode = AppendChild( sKey );
 		pNode->AppendAttr<T>( sValueName, value );
 	}

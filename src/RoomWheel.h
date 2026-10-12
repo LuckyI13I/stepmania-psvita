@@ -62,9 +62,6 @@ public:
 	void AddItem( WheelItemBaseData *itemdata );
 	void RemoveItem( int index );
 
-	// Lua
-	void PushSelf(lua_State *L);
-
 private:
 	virtual WheelItemBase *MakeItem();
 	int m_offset;

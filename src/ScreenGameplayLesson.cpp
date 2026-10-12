@@ -6,9 +6,6 @@
 #include "StatsManager.h"
 #include "Song.h"
 
-#include <vector>
-
-
 REGISTER_SCREEN_CLASS( ScreenGameplayLesson );
 ScreenGameplayLesson::ScreenGameplayLesson()
 {
@@ -18,8 +15,8 @@ ScreenGameplayLesson::ScreenGameplayLesson()
 
 void ScreenGameplayLesson::Init()
 {
-	ASSERT( GAMESTATE->GetCurrentStyle(GAMESTATE->GetMasterPlayerNumber()) != nullptr );
-	ASSERT( GAMESTATE->m_pCurSong != nullptr );
+	ASSERT( GAMESTATE->GetCurrentStyle(GAMESTATE->GetMasterPlayerNumber()) != NULL );
+	ASSERT( GAMESTATE->m_pCurSong != NULL );
 
 	/* Now that we've set up, init the base class. */
 	ScreenGameplayNormal::Init();
@@ -33,28 +30,27 @@ void ScreenGameplayLesson::Init()
 	// Load pages
 	Song *pSong = GAMESTATE->m_pCurSong;
 	RString sDir = pSong->GetSongDir();
-	std::vector<RString> vs;
+	vector<RString> vs;
 	GetDirListing( sDir+"Page*", vs, true, true );
 	m_vPages.resize( vs.size() );
-	int i = 0;
-	for (RString const &s : vs)
+	FOREACH( RString, vs, s )
 	{
+		int i = s - vs.begin();
 		AutoActor &aa = m_vPages[i];
 
-		LuaThreadVariable iIndex( "PageIndex", LuaReference::Create(i++) );
+		LuaThreadVariable iIndex( "PageIndex", LuaReference::Create(i) );
 		LuaThreadVariable iPages( "NumPages", LuaReference::Create( (int)vs.size() ) );
-		aa.Load( s );
+		aa.Load( *s );
 
 		aa->SetDrawOrder( DRAW_ORDER_OVERLAY+1 );
 		this->AddChild( aa );
 	}
 
-	i = 0;
-	for (AutoActor &aa : m_vPages)
+	FOREACH( AutoActor, m_vPages, aa )
 	{
-		bool bIsFirst = (i++ == 0);
-		aa->PlayCommand( bIsFirst ? "Show" : "Hide" );
-		aa->PlayCommand( "On" );
+		bool bIsFirst = aa == m_vPages.begin();
+		(*aa)->PlayCommand( bIsFirst ? "Show" : "Hide" );
+		(*aa)->PlayCommand( "On" );
 	}
 
 	// Reset stage number (not relevant in lessons)
@@ -116,7 +112,7 @@ void ScreenGameplayLesson::HandleScreenMessage( const ScreenMessage SM )
 				ResetAndRestartCurrentSong();
 
 				m_Try = (Try)(m_Try+1);
-				MESSAGEMAN->Broadcast( (MessageID)(Message_LessonTry1+Enum::to_integral(m_Try)) );
+				MESSAGEMAN->Broadcast( (MessageID)(Message_LessonTry1+m_Try) );
 			}
 			else
 			{
@@ -167,7 +163,7 @@ void ScreenGameplayLesson::ChangeLessonPage( int iDir )
 
 		ResetAndRestartCurrentSong();
 
-		MESSAGEMAN->Broadcast( (MessageID)(Message_LessonTry1+Enum::to_integral(m_Try)) );
+		MESSAGEMAN->Broadcast( (MessageID)(Message_LessonTry1+m_Try) );
 
 		// Change back to the current autoplay setting (in most cases, human controlled).
 		FOREACH_EnabledPlayerInfo( m_vPlayerInfo, pi )
@@ -200,7 +196,7 @@ void ScreenGameplayLesson::ResetAndRestartCurrentSong()
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -210,7 +206,7 @@ void ScreenGameplayLesson::ResetAndRestartCurrentSong()
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

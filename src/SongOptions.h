@@ -5,9 +5,6 @@
 
 #include "EnumHelper.h"
 
-#include <vector>
-
-
 enum AutosyncType
 {
 	AutosyncType_Off,
@@ -49,7 +46,9 @@ public:
 
 	/**
 	 * @brief Set up the SongOptions with reasonable defaults.
-	 */
+	 *
+	 * This is taken from Init(), but uses the intended
+	 * initialization lists. */
 	SongOptions(): m_bAssistClap(false),
 		m_bAssistMetronome(false), m_fMusicRate(1.0f),
 		m_SpeedfMusicRate(1.0f), m_fHaste(0.0f),
@@ -57,10 +56,10 @@ public:
 		m_SoundEffectType(SoundEffectType_Off),
 		m_bStaticBackground(false), m_bRandomBGOnly(false),
 		m_bSaveScore(true), m_bSaveReplay(false) {};
-	void Init() { *this = {}; }
+	void Init();
 	void Approach( const SongOptions& other, float fDeltaSeconds );
-	void GetMods( std::vector<RString> &AddTo ) const;
-	void GetLocalizedMods( std::vector<RString> &AddTo ) const;
+	void GetMods( vector<RString> &AddTo ) const;
+	void GetLocalizedMods( vector<RString> &AddTo ) const;
 	RString GetString() const;
 	RString GetLocalizedString() const;
 	void FromString( const RString &sOptions );
@@ -78,7 +77,7 @@ public:
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -88,7 +87,7 @@ public:
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

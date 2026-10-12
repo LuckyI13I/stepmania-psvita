@@ -14,8 +14,8 @@ REGISTER_ACTOR_CLASS( CourseContentsList );
 
 CourseContentsList::~CourseContentsList()
 {
-	for (Actor *d : m_vpDisplay)
-		delete d;
+	FOREACH( Actor *, m_vpDisplay, d )
+		delete *d;
 	m_vpDisplay.clear();
 }
 
@@ -25,7 +25,7 @@ void CourseContentsList::LoadFromNode( const XNode* pNode )
 	pNode->GetAttrValue( "MaxSongs", iMaxSongs );
 
 	const XNode *pDisplayNode = pNode->GetChild( "Display" );
-	if( pDisplayNode == nullptr )
+	if( pDisplayNode == NULL )
 	{
 		LuaHelpers::ReportScriptErrorFmt("%s: CourseContentsList: missing the Display child", ActorUtil::GetWhere(pNode).c_str());
 		return;
@@ -48,7 +48,7 @@ void CourseContentsList::SetFromGameState()
 	if( GAMESTATE->GetMasterPlayerNumber() == PlayerNumber_Invalid )
 		return;
 	const Trail *pMasterTrail = GAMESTATE->m_pCurTrail[GAMESTATE->GetMasterPlayerNumber()];
-	if( pMasterTrail == nullptr )
+	if( pMasterTrail == NULL )
 		return;
 	unsigned uNumEntriesToShow = pMasterTrail->m_vEntries.size(); 
 	CLAMP( uNumEntriesToShow, 0, m_vpDisplay.size() );
@@ -70,7 +70,7 @@ void CourseContentsList::SetFromGameState()
 	if( bLoop )
 	{
 		SetPauseCountdownSeconds( 1.5f );
-		this->SetDestinationItem( (float)m_vpDisplay.size()+1 );	// loop forever
+		this->SetDestinationItem( m_vpDisplay.size()+1 );	// loop forever
 	}
 }
 
@@ -81,21 +81,21 @@ void CourseContentsList::SetItemFromGameState( Actor *pActor, int iCourseEntryIn
 	FOREACH_HumanPlayer(pn)
 	{
 		const Trail *pTrail = GAMESTATE->m_pCurTrail[pn];
-		if( pTrail == nullptr
+		if( pTrail == NULL
 			|| iCourseEntryIndex >= (int) pTrail->m_vEntries.size()
 			|| iCourseEntryIndex >= (int) pCourse->m_vEntries.size() )
 			continue;
 
 		const TrailEntry *te = &pTrail->m_vEntries[iCourseEntryIndex];
 		const CourseEntry *ce = &pCourse->m_vEntries[iCourseEntryIndex];
-		if( te == nullptr )
+		if( te == NULL )
 			continue;
 
 		RString s;
 		Difficulty dc;
 		if( te->bSecret )
 		{
-			if( ce == nullptr )
+			if( ce == NULL )
 				continue;
 
 			int iLow = ce->stepsCriteria.m_iLowMeter;

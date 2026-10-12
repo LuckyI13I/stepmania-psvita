@@ -5,6 +5,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -13,7 +15,7 @@
  *  PKCS #1 v1.5 Padding. (Andreas Lange)
  */
 
-#ifdef LTC_PKCS_1
+#ifdef PKCS_1
 
 /** @brief PKCS #1 v1.5 decode.
  *
@@ -25,13 +27,13 @@
  *  @param outlen           [in/out] The max size and resulting size of the decoding
  *  @param is_valid         [out] Boolean whether the padding was valid
  *
- *  @return CRYPT_OK if successful
+ *  @return CRYPT_OK if successful (even if invalid)
  */
-int pkcs_1_v1_5_decode(const unsigned char *msg,
+int pkcs_1_v1_5_decode(const unsigned char *msg, 
                              unsigned long  msglen,
                                        int  block_type,
                              unsigned long  modulus_bitlen,
-                             unsigned char *out,
+                             unsigned char *out, 
                              unsigned long *outlen,
                                        int *is_valid)
 {
@@ -49,12 +51,11 @@ int pkcs_1_v1_5_decode(const unsigned char *msg,
     return CRYPT_PK_INVALID_SIZE;
   }
 
-  result = CRYPT_OK;
-
   /* separate encoded message */
 
   if ((msg[0] != 0x00) || (msg[1] != (unsigned char)block_type)) {
     result = CRYPT_INVALID_PACKET;
+    goto bail;
   }
 
   if (block_type == LTC_PKCS_1_EME) {
@@ -64,10 +65,12 @@ int pkcs_1_v1_5_decode(const unsigned char *msg,
     }
     ps_len = i++ - 2;
 
-    if (i >= modulus_len) {
-      /* There was no octet with hexadecimal value 0x00 to separate ps from m.
+    if ((i >= modulus_len) || (ps_len < 8)) {
+      /* There was no octet with hexadecimal value 0x00 to separate ps from m,
+       * or the length of ps is less than 8 octets.
        */
       result = CRYPT_INVALID_PACKET;
+      goto bail;
     }
   } else {
     for (i = 2; i < modulus_len - 1; i++) {
@@ -78,35 +81,30 @@ int pkcs_1_v1_5_decode(const unsigned char *msg,
     if (msg[i] != 0) {
       /* There was no octet with hexadecimal value 0x00 to separate ps from m. */
       result = CRYPT_INVALID_PACKET;
+      goto bail;
     }
 
     ps_len = i - 2;
   }
 
-  if (ps_len < 8)
-  {
-    /* The length of ps is less than 8 octets.
-     */
-    result = CRYPT_INVALID_PACKET;
-  }
-
   if (*outlen < (msglen - (2 + ps_len + 1))) {
-    result = CRYPT_INVALID_PACKET;
+    *outlen = msglen - (2 + ps_len + 1);
+    result = CRYPT_BUFFER_OVERFLOW;
+    goto bail;
   }
 
-  if (result == CRYPT_OK) {
-     *outlen = (msglen - (2 + ps_len + 1));
-     XMEMCPY(out, &msg[2 + ps_len + 1], *outlen);
+  *outlen = (msglen - (2 + ps_len + 1));
+  XMEMCPY(out, &msg[2 + ps_len + 1], *outlen);
 
-     /* valid packet */
-     *is_valid = 1;
-  }
-
+  /* valid packet */
+  *is_valid = 1;
+  result    = CRYPT_OK;
+bail:
   return result;
 } /* pkcs_1_v1_5_decode */
 
-#endif /* #ifdef LTC_PKCS_1 */
+#endif /* #ifdef PKCS_1 */
 
-/* ref:         HEAD -> master, tag: v1.18.2 */
-/* git commit:  7e7eb695d581782f04b24dc444cbfde86af59853 */
-/* commit time: 2018-07-01 22:49:01 +0200 */
+/* $Source$ */
+/* $Revision: 24838 $ */
+/* $Date: 2007-01-23 23:16:57 -0600 (Tue, 23 Jan 2007) $ */

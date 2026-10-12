@@ -10,9 +10,9 @@
 #if !defined(AFX_TREECTRLEX_H__5D969ED4_7DEA_4FB5_8C1D_E12D1CCF0989__INCLUDED_)
 #define AFX_TREECTRLEX_H__5D969ED4_7DEA_4FB5_8C1D_E12D1CCF0989__INCLUDED_
 
-#if defined(_MSC_VER)
+#if _MSC_VER > 1000
 #pragma once
-#endif
+#endif // _MSC_VER > 1000
 
 #include <afxtempl.h>
 

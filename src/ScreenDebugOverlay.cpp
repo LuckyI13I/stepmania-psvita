@@ -31,9 +31,6 @@
 #include "ThemeMetric.h"
 #include "XmlToLua.h"
 
-#include <vector>
-
-
 static bool g_bIsDisplayed = false;
 static bool g_bIsSlow = false;
 static bool g_bIsHalt = false;
@@ -60,14 +57,14 @@ static LocalizedString MUTE_ACTIONS_ON ("ScreenDebugOverlay", "Mute actions on")
 static LocalizedString MUTE_ACTIONS_OFF ("ScreenDebugOverlay", "Mute actions off");
 
 class IDebugLine;
-static std::vector<IDebugLine*> *g_pvpSubscribers = nullptr;
+static vector<IDebugLine*> *g_pvpSubscribers = NULL;
 class IDebugLine
 {
 public:
 	IDebugLine()
-	{
-		if( g_pvpSubscribers == nullptr )
-			g_pvpSubscribers = new std::vector<IDebugLine*>;
+	{ 
+		if( g_pvpSubscribers == NULL )
+			g_pvpSubscribers = new vector<IDebugLine*>;
 		g_pvpSubscribers->push_back( this );
 	}
 	virtual ~IDebugLine() { }
@@ -102,19 +99,13 @@ ScreenDebugOverlay::~ScreenDebugOverlay()
 {
 	this->RemoveAllChildren();
 
-	for (BitmapText *p : m_vptextPages)
-	{
-		SAFE_DELETE(p);
-	}
-	for (BitmapText *p : m_vptextButton)
-	{
-		SAFE_DELETE(p);
-	}
+	FOREACH( BitmapText*, m_vptextPages, p )
+		SAFE_DELETE( *p );
+	FOREACH( BitmapText*, m_vptextButton, p )
+		SAFE_DELETE( *p );
 	m_vptextButton.clear();
-	for (BitmapText *p : m_vptextFunction)
-	{
-		SAFE_DELETE(p);
-	}
+	FOREACH( BitmapText*, m_vptextFunction, p )
+		SAFE_DELETE( *p );
 	m_vptextFunction.clear();
 }
 
@@ -128,7 +119,7 @@ struct MapDebugToDI
 	DeviceInput toggleMute;
 	DeviceInput debugButton[MAX_DEBUG_LINES];
 	DeviceInput gameplayButton[MAX_DEBUG_LINES];
-	std::map<DeviceInput, int> pageButton;
+	map<DeviceInput, int> pageButton;
 	void Clear()
 	{
 		holdForDebug1.MakeInvalid();
@@ -163,9 +154,9 @@ static RString GetDebugButtonName( const IDebugLine *pLine )
 }
 
 template<typename U, typename V>
-static bool GetKeyFromMap( const std::map<U, V> &m, const V &val, U &key )
+static bool GetKeyFromMap( const map<U, V> &m, const V &val, U &key )
 {
-	for( typename std::map<U, V>::const_iterator iter = m.begin(); iter != m.end(); ++iter )
+	for( typename map<U,V>::const_iterator iter = m.begin(); iter != m.end(); ++iter )
 	{
 		if( iter->second == val )
 		{
@@ -230,14 +221,14 @@ void ScreenDebugOverlay::Init()
 		g_Mappings.pageButton[DeviceInput(DEVICE_KEYBOARD, KEY_F8)] = 3;
 	}
 
-	std::map<RString, int> iNextDebugButton;
+	map<RString,int> iNextDebugButton;
 	int iNextGameplayButton = 0;
-	for (IDebugLine *p : *g_pvpSubscribers)
+	FOREACH( IDebugLine*, *g_pvpSubscribers, p )
 	{
-		RString sPageName = p->GetPageName();
+		RString sPageName = (*p)->GetPageName();
 
 		DeviceInput di;
-		switch( p->GetType() )
+		switch( (*p)->GetType() )
 		{
 		case IDebugLine::all_screens:
 			di = g_Mappings.debugButton[iNextDebugButton[sPageName]++];
@@ -246,7 +237,7 @@ void ScreenDebugOverlay::Init()
 			di = g_Mappings.gameplayButton[iNextGameplayButton++];
 			break;
 		}
-		p->m_Button = di;
+		(*p)->m_Button = di;
 
 		if( find(m_asPages.begin(), m_asPages.end(), sPageName) == m_asPages.end() )
 			m_asPages.push_back( sPageName );
@@ -267,10 +258,9 @@ void ScreenDebugOverlay::Init()
 	m_textHeader.SetText( DEBUG_MENU );
 	this->AddChild( &m_textHeader );
 
-	auto start = m_asPages.begin();
-	for (std::vector<RString>::const_iterator s = m_asPages.begin(); s != m_asPages.end(); ++s)
+	FOREACH_CONST( RString, m_asPages, s )
 	{
-		int iPage = s - start;
+		int iPage = s - m_asPages.begin();
 
 		DeviceInput di;
 		bool b = GetKeyFromMap( g_Mappings.pageButton, iPage, di );
@@ -289,7 +279,7 @@ void ScreenDebugOverlay::Init()
 		this->AddChild( p );
 	}
 
-	for (auto p = g_pvpSubscribers->begin(); p != g_pvpSubscribers->end(); ++p)
+	FOREACH_CONST( IDebugLine*, *g_pvpSubscribers, p )
 	{
 		{
 			BitmapText *bt = new BitmapText;
@@ -345,7 +335,7 @@ void ScreenDebugOverlay::Update( float fDeltaTime )
 	if( bCenteringNeedsUpdate )
 	{
 		DISPLAY->ChangeCentering(
-			PREFSMAN->m_iCenterImageTranslateX,
+			PREFSMAN->m_iCenterImageTranslateX, 
 			PREFSMAN->m_iCenterImageTranslateY,
 			PREFSMAN->m_fCenterImageAddWidth - (int)SCREEN_WIDTH + (int)(g_fImageScaleCurrent*SCREEN_WIDTH),
 			PREFSMAN->m_fCenterImageAddHeight - (int)SCREEN_HEIGHT + (int)(g_fImageScaleCurrent*SCREEN_HEIGHT) );
@@ -362,21 +352,19 @@ void ScreenDebugOverlay::Update( float fDeltaTime )
 
 void ScreenDebugOverlay::UpdateText()
 {
-	auto start = m_asPages.begin();
-	for (std::vector<RString>::const_iterator s = m_asPages.begin(); s != m_asPages.end(); ++s)
+	FOREACH_CONST( RString, m_asPages, s )
 	{
-		int iPage = s - start;
+		int iPage = s - m_asPages.begin();
 		m_vptextPages[iPage]->PlayCommand( (iPage == m_iCurrentPage) ? "GainFocus" :  "LoseFocus" );
 	}
 
 	// todo: allow changing of various spacing/location things -aj
 	int iOffset = 0;
-	auto subStart = g_pvpSubscribers->begin();
-	for (std::vector<IDebugLine*>::const_iterator p = subStart; p != g_pvpSubscribers->end(); ++p)
+	FOREACH_CONST( IDebugLine*, *g_pvpSubscribers, p )
 	{
 		RString sPageName = (*p)->GetPageName();
 
-		int i = p - subStart;
+		int i = p-g_pvpSubscribers->begin();
 
 		float fY = LINE_START_Y + iOffset * LINE_SPACING;
 
@@ -428,9 +416,9 @@ void ScreenDebugOverlay::UpdateText()
 }
 
 template<typename U, typename V>
-static bool GetValueFromMap( const std::map<U, V> &m, const U &key, V &val )
+static bool GetValueFromMap( const map<U, V> &m, const U &key, V &val )
 {
-	typename std::map<U, V>::const_iterator it = m.find(key);
+	typename map<U, V>::const_iterator it = m.find(key);
 	if( it == m.end() )
 		return false;
 	val = it->second;
@@ -439,7 +427,7 @@ static bool GetValueFromMap( const std::map<U, V> &m, const U &key, V &val )
 
 bool ScreenDebugOverlay::Input( const InputEventPlus &input )
 {
-	if( input.DeviceI == g_Mappings.holdForDebug1 ||
+	if( input.DeviceI == g_Mappings.holdForDebug1 || 
 		input.DeviceI == g_Mappings.holdForDebug2 )
 	{
 		bool bHoldingNeither =
@@ -472,12 +460,11 @@ bool ScreenDebugOverlay::Input( const InputEventPlus &input )
 		return true;
 	}
 
-	auto start = g_pvpSubscribers->begin();
-	for (std::vector<IDebugLine*>::const_iterator p = start; p != g_pvpSubscribers->end(); ++p)
+	FOREACH_CONST( IDebugLine*, *g_pvpSubscribers, p )
 	{
 		RString sPageName = (*p)->GetPageName();
 
-		int i = p - start;
+		int i = p-g_pvpSubscribers->begin();
 
 		// Gameplay buttons are available only in gameplay. Non-gameplay buttons
 		// are only available when the screen is displayed.
@@ -580,7 +567,6 @@ static LocalizedString TOGGLE_ERRORS( "ScreenDebugOverlay", "Toggle Errors" );
 static LocalizedString SHOW_RECENT_ERRORS("ScreenDebugOverlay", "Show Recent Errors");
 static LocalizedString CLEAR_ERRORS( "ScreenDebugOverlay", "Clear Errors" );
 static LocalizedString CONVERT_XML( "ScreenDebugOverlay", "Convert XML" );
-static LocalizedString RELOAD_PREFS( "ScreenDebugOverlay", "Reload Prefs" );
 static LocalizedString RELOAD_THEME_AND_TEXTURES( "ScreenDebugOverlay", "Reload Theme and Textures" );
 static LocalizedString WRITE_PROFILES	( "ScreenDebugOverlay", "Write Profiles" );
 static LocalizedString WRITE_PREFERENCES	( "ScreenDebugOverlay", "Write Preferences" );
@@ -620,8 +606,8 @@ class DebugLineAutoplay : public IDebugLine
 	{
 		ASSERT( GAMESTATE->GetMasterPlayerNumber() != PLAYER_INVALID );
 		PlayerController pc = GAMESTATE->m_pPlayerState[GAMESTATE->GetMasterPlayerNumber()]->m_PlayerController;
-		bool bHoldingShift =
-			INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_LSHIFT) ) ||
+		bool bHoldingShift = 
+			INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_LSHIFT) ) || 
 			INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_RSHIFT) );
 		if( bHoldingShift )
 			pc = (pc==PC_CPU) ? PC_HUMAN : PC_CPU;
@@ -633,6 +619,12 @@ class DebugLineAutoplay : public IDebugLine
 		FOREACH_MultiPlayer(p)
 			GAMESTATE->m_pMultiPlayerState[p]->m_PlayerController = GamePreferences::m_AutoPlay;
 
+		// Hide Autoplay if Alt is held down
+		bool bHoldingAlt = 
+			INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_LALT) ) || 
+			INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_RALT) );
+		ScreenSyncOverlay::SetShowAutoplay( !bHoldingAlt );
+
 		IDebugLine::DoAndLog( sMessageOut );
 	}
 };
@@ -641,7 +633,7 @@ class DebugLineAssist : public IDebugLine
 {
 	virtual RString GetDisplayTitle() { return ASSIST.GetValue(); }
 	virtual Type GetType() const { return gameplay_only; }
-	virtual RString GetDisplayValue() {
+	virtual RString GetDisplayValue() { 
 		SongOptions so;
 		so.m_bAssistClap = GAMESTATE->m_SongOptions.GetSong().m_bAssistClap;
 		so.m_bAssistMetronome = GAMESTATE->m_SongOptions.GetSong().m_bAssistMetronome;
@@ -673,7 +665,7 @@ class DebugLineAutosync : public IDebugLine
 {
 	virtual RString GetDisplayTitle() { return AUTOSYNC.GetValue(); }
 	virtual RString GetDisplayValue()
-	{
+	{ 
 		AutosyncType type = GAMESTATE->m_SongOptions.GetSong().m_AutosyncType;
 		switch( type )
 		{
@@ -691,7 +683,7 @@ class DebugLineAutosync : public IDebugLine
 	{
 		int as = GAMESTATE->m_SongOptions.GetSong().m_AutosyncType + 1;
 		bool bAllowSongAutosync = !GAMESTATE->IsCourseMode();
-		if( !bAllowSongAutosync  &&
+		if( !bAllowSongAutosync  && 
 		  ( as == AutosyncType_Song || as == AutosyncType_Tempo ) )
 			as = AutosyncType_Machine;
 		wrap( as, NUM_AutosyncType );
@@ -899,7 +891,7 @@ static HighScore MakeRandomHighScore( float fPercentDP )
 
 static void FillProfileStats( Profile *pProfile )
 {
-	pProfile->InitSongScores();
+	pProfile->InitSongScores(); 
 	pProfile->InitCourseScores();
 
 	static int s_iCount = 0;
@@ -909,40 +901,40 @@ static void FillProfileStats( Profile *pProfile )
 	s_iCount = (s_iCount+1)%2;
 
 
-	int iCount = pProfile->IsMachine()?
+	int iCount = pProfile->IsMachine()? 
 		PREFSMAN->m_iMaxHighScoresPerListForMachine.Get():
 		PREFSMAN->m_iMaxHighScoresPerListForPlayer.Get();
 
-	std::vector<Song*> vpAllSongs = SONGMAN->GetAllSongs();
-	for (Song const *pSong : vpAllSongs)
+	vector<Song*> vpAllSongs = SONGMAN->GetAllSongs();
+	FOREACH( Song*, vpAllSongs, pSong )
 	{
-		std::vector<Steps*> vpAllSteps = pSong->GetAllSteps();
-		for (Steps const *pSteps : vpAllSteps)
+		vector<Steps*> vpAllSteps = (*pSong)->GetAllSteps();
+		FOREACH( Steps*, vpAllSteps, pSteps )
 		{
 			if( rand() % 5 )
-				pProfile->IncrementStepsPlayCount( pSong, pSteps );
+				pProfile->IncrementStepsPlayCount( *pSong, *pSteps );
 			for( int i=0; i<iCount; i++ )
 			{
 				int iIndex = 0;
-				pProfile->AddStepsHighScore( pSong, pSteps, MakeRandomHighScore(fPercentDP), iIndex );
+				pProfile->AddStepsHighScore( *pSong, *pSteps, MakeRandomHighScore(fPercentDP), iIndex );
 			}
 		}
 	}
 
-	std::vector<Course*> vpAllCourses;
+	vector<Course*> vpAllCourses;
 	SONGMAN->GetAllCourses( vpAllCourses, true );
-	for (Course const *pCourse : vpAllCourses)
+	FOREACH( Course*, vpAllCourses, pCourse )
 	{
-		std::vector<Trail*> vpAllTrails;
-		pCourse->GetAllTrails( vpAllTrails );
-		for (Trail const *pTrail : vpAllTrails)
+		vector<Trail*> vpAllTrails;
+		(*pCourse)->GetAllTrails( vpAllTrails );
+		FOREACH( Trail*, vpAllTrails, pTrail )
 		{
 			if( rand() % 5 )
-				pProfile->IncrementCoursePlayCount( pCourse, pTrail );
+				pProfile->IncrementCoursePlayCount( *pCourse, *pTrail );
 			for( int i=0; i<iCount; i++ )
 			{
 				int iIndex = 0;
-				pProfile->AddCourseHighScore( pCourse, pTrail, MakeRandomHighScore(fPercentDP), iIndex );
+				pProfile->AddCourseHighScore( *pCourse, *pTrail, MakeRandomHighScore(fPercentDP), iIndex );
 			}
 		}
 	}
@@ -1190,19 +1182,6 @@ class DebugLineWritePreferences : public IDebugLine
 	}
 };
 
-class DebugLineReloadPreferences : public IDebugLine
-{
-	virtual RString GetDisplayTitle() { return RELOAD_PREFS.GetValue(); }
-	virtual RString GetDisplayValue() { return RString(); }
-	virtual bool IsEnabled() { return true; }
-	virtual RString GetPageName() const { return "Profiles"; }
-	virtual void DoAndLog( RString &sMessageOut )
-	{
-		PREFSMAN->ReadPrefsFromDisk();
-		IDebugLine::DoAndLog(sMessageOut);
-	}
-};
-
 class DebugLineMenuTimer : public IDebugLine
 {
 	virtual RString GetDisplayTitle() { return MENU_TIMER.GetValue(); }
@@ -1358,7 +1337,6 @@ DECLARE_ONE( DebugLineClearErrors );
 DECLARE_ONE( DebugLineConvertXML );
 DECLARE_ONE( DebugLineWriteProfiles );
 DECLARE_ONE( DebugLineWritePreferences );
-DECLARE_ONE(DebugLineReloadPreferences);
 DECLARE_ONE( DebugLineMenuTimer );
 DECLARE_ONE( DebugLineFlushLog );
 DECLARE_ONE( DebugLinePullBackCamera );
@@ -1375,7 +1353,7 @@ DECLARE_ONE( DebugLineMuteActions );
 /*
  * (c) 2001-2005 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -1385,7 +1363,7 @@ DECLARE_ONE( DebugLineMuteActions );
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

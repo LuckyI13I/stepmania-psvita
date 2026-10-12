@@ -2,25 +2,41 @@
 #define RAGE_SOUND_DRIVER_VITA_H
 
 #include "arch/Sound/RageSoundDriver.h"
+#include "RageThreads.h"
 
-// RageSoundDriver_Vita: minimal audio output via sceAudioOut.
-// - 44100 Hz stereo 16-bit, 2 buffers round-robin.
-// - GetPosition() from sceAudioOutGetRestSample() or frame counter.
-// - If sceAudioOut unavailable at configure time, falls back to Null (no crash).
+#include <atomic>
+
+// RageSoundDriver_Vita: audio output via sceAudioOut (BGM port).
+//
+// A dedicated output thread Mix()es fixed chunks and pushes them with the
+// blocking sceAudioOutOutput call, so the main thread never stalls on
+// audio. The played-frame counter IS the hardware position.
 class RageSoundDriver_Vita : public RageSoundDriver
 {
 public:
 	RageSoundDriver_Vita();
-	~RageSoundDriver_Vita() override;
+	virtual ~RageSoundDriver_Vita();
 
-	RString Init() override;
-	std::int64_t GetPosition() const override;
-	float GetPlayLatency() const override { return 0.05f; }
-	int GetSampleRate() const override { return 44100; }
+	virtual RString Init();
+	virtual void Update();
+	virtual int64_t GetPosition() const;
+	virtual float GetPlayLatency() const { return 0.05f; }
+	virtual int GetSampleRate() const { return m_iSampleRate; }
 
 private:
+	static const int kChannels = 2;
+	// Must equal the port len passed to sceAudioOutOpenPort: Output()
+	// requires exactly len samples per call, else SCE_AUDIO_OUT errors.
+	static const int kFramesPerChunk = 1024;
+
+	static int AudioThread_start(void *p);
+	void AudioThread();
+
 	int m_iAudioPort;
-	mutable std::int64_t m_iFrameCounter;
+	int m_iSampleRate;
+	RageThread m_AudioThread;
+	bool m_bShutdownAudio;
+	std::atomic<int64_t> m_iPlayedFrames;
 };
 
 #endif

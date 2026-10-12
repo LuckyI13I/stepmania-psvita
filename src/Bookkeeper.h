@@ -21,9 +21,6 @@ public:
 	void GetCoinsLastWeeks( int coins[NUM_LAST_WEEKS] ) const;
 	void GetCoinsByDayOfWeek( int coins[DAYS_IN_WEEK] ) const;
 	void GetCoinsByHour( int coins[HOURS_IN_DAY] ) const;
-	void WriteCoinsFile( int coins ) ;
-	void ReadCoinsFile( int &coins ) ;
-
 
 	void LoadFromNode( const XNode *pNode );
 	XNode* CreateNode() const;
@@ -58,10 +55,10 @@ private:
 		bool operator<( const Date &rhs ) const;
 	};
 	int GetNumCoins( Date beginning, Date ending ) const;
-	int GetNumCoinsInRange( std::map<Date,int>::const_iterator begin, std::map<Date,int>::const_iterator end ) const;
+	int GetNumCoinsInRange( map<Date,int>::const_iterator begin, map<Date,int>::const_iterator end ) const;
 
 	int m_iLastSeenTime;
-	std::map<Date,int> m_mapCoinsForHour;
+	map<Date,int> m_mapCoinsForHour;
 };
 
 extern Bookkeeper*	BOOKKEEPER;	// global and accessible from anywhere in our program

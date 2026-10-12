@@ -6,8 +6,6 @@
 #include "RageLog.h"
 #include "RageThreads.h"
 
-#include <vector>
-
 
 /* If we're on an OS with a good caching system, writing to our own cache will only
  * waste memory.  In that case, just read the file, to force it into system cache.
@@ -25,7 +23,7 @@ BackgroundLoader::BackgroundLoader():
 	if( !g_bEnableBackgroundLoading )
 		return;
 
-	m_sCachePathPrefix = ssprintf( "@mem/%p", static_cast<void*>(this) );
+	m_sCachePathPrefix = ssprintf( "@mem/%p", this );
 
 	m_bShutdownThread = false;
 	m_sThreadIsActive = m_sThreadShouldAbort = false;
@@ -35,7 +33,7 @@ BackgroundLoader::BackgroundLoader():
 
 static void DeleteEmptyDirectories( RString sDir )
 {
-	std::vector<RString> asNewDirs;
+	vector<RString> asNewDirs;
 	GetDirListing( sDir + "/*", asNewDirs, false, true );
 	for( unsigned i = 0; i < asNewDirs.size(); ++i )
 	{
@@ -58,7 +56,7 @@ BackgroundLoader::~BackgroundLoader()
 	m_LoadThread.Wait();
 
 	/* Delete all leftover cached files. */
-	std::map<RString, int>::iterator it;
+	map<RString,int>::iterator it;
 	for( it = m_FinishedRequests.begin(); it != m_FinishedRequests.end(); ++it )
 		FILEMAN->Remove( GetCachePath( it->first ) );
 
@@ -103,7 +101,7 @@ void BackgroundLoader::LoadThread()
 		{
 			/* If the file already exists, short circuit. */
 			LockMut( m_Mutex );
-			std::map<RString, int>::iterator it;
+			map<RString,int>::iterator it;
 			it = m_FinishedRequests.find( sFile );
 			if( it != m_FinishedRequests.end() )
 			{
@@ -130,7 +128,7 @@ void BackgroundLoader::LoadThread()
 			if( bWriteToCache )
 				bWriteToCache = dst.Open( sCachePath, RageFile::WRITE );
 			LOG->Trace("XXX: go on '%s' to '%s'", sFile.c_str(), sCachePath.c_str());
-
+			
 			char buf[1024*4];
 			while( !m_sThreadShouldAbort && !src.AtEOF() )
 			{
@@ -192,7 +190,7 @@ bool BackgroundLoader::IsCacheFileFinished( const RString &sFile, RString &sActu
 		return true;
 	}
 
-	std::map<RString, int>::iterator it;
+	map<RString,int>::iterator it;
 	it = m_FinishedRequests.find( sFile );
 	if( it == m_FinishedRequests.end() )
 		return false;
@@ -214,7 +212,7 @@ void BackgroundLoader::FinishedWithCachedFile( RString sFile )
 	if( sFile == "" )
 		return;
 
-	std::map<RString, int>::iterator it;
+	map<RString,int>::iterator it;
 	it = m_FinishedRequests.find( sFile );
 	ASSERT_M( it != m_FinishedRequests.end(), sFile );
 
@@ -250,7 +248,7 @@ void BackgroundLoader::Abort()
 /*
  * (c) 2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -260,7 +258,7 @@ void BackgroundLoader::Abort()
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

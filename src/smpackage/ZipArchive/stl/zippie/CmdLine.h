@@ -138,15 +138,16 @@
 #include <map>
 #include <string>
 #include <vector>
+using namespace std ;
 
 // handy little container for our argument vector
 struct CCmdParam
 {
-   std::vector<StringType> m_strings;
+   vector<StringType> m_strings;
 };
 
 // this class is actually a map of strings to vectors
-typedef std::map<StringType, CCmdParam> _CCmdLine;
+typedef map<StringType, CCmdParam> _CCmdLine;
 
 // the command line parser class
 class CCmdLine : public _CCmdLine

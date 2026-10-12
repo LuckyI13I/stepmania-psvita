@@ -3,28 +3,20 @@
 
 #include "arch/InputHandler/InputHandler.h"
 
-// InputHandler_Vita: polls sceCtrlPeekBufferPositive + touch/analog.
-// Mapping (draft, to be tuned in Prefs/InputMapper):
-//   CROSS    -> Start / Confirm
-//   CIRCLE   -> Back
-//   TRIANGLE -> Select/Options
-//   SQUARE   -> Coin/Menu
-//   DPAD     -> Menu navigation / gameplay arrows
-//   L/R, START/SELECT -> Admin/Escape, Service
-//   Left analog -> remapped to DPAD for menus
-//   Right analog + front/back touch -> mouse emulation (future)
+// InputHandler_Vita: polls sceCtrlPeekBufferPositive (StepMania 5.0).
+// Menu navigation emits keyboard events so the default InputMapper
+// bindings (arrows/enter/esc) work with zero configuration.
 class InputHandler_Vita : public InputHandler
 {
 public:
 	InputHandler_Vita();
-	~InputHandler_Vita() override;
+	virtual ~InputHandler_Vita();
 
-	void Update() override;
-	void GetDevicesAndDescriptions(std::vector<InputDeviceInfo> &vDevicesOut) override;
-	InputDeviceState GetInputDeviceState(InputDevice id) override;
+	void Update();
+	void GetDevicesAndDescriptions(vector<InputDeviceInfo> &vDevicesOut);
+	InputDeviceState GetInputDeviceState(InputDevice id);
 
 private:
-	void HandleButton(DeviceInput di, bool bDown);
 	uint32_t m_iLastButtons;
 };
 

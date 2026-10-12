@@ -4,12 +4,8 @@
 #include "RageUtil.h"
 #include "RageLog.h"
 
-#include <cstddef>
-#include <vector>
-
-
 /* Search for "beginning*containing*ending". */
-void FileSet::GetFilesMatching( const RString &sBeginning_, const RString &sContaining_, const RString &sEnding_, std::vector<RString> &asOut, bool bOnlyDirs ) const
+void FileSet::GetFilesMatching( const RString &sBeginning_, const RString &sContaining_, const RString &sEnding_, vector<RString> &asOut, bool bOnlyDirs ) const
 {
 	/* "files" is a case-insensitive mapping, by filename.  Use lower_bound to figure
 	 * out where to start. */
@@ -20,7 +16,7 @@ void FileSet::GetFilesMatching( const RString &sBeginning_, const RString &sCont
 	RString sEnding = sEnding_;
 	sEnding.MakeLower();
 
-	std::set<File>::const_iterator i = files.lower_bound( File(sBeginning) );
+	set<File>::const_iterator i = files.lower_bound( File(sBeginning) );
 	for( ; i != files.end(); ++i )
 	{
 		const File &f = *i;
@@ -43,14 +39,14 @@ void FileSet::GetFilesMatching( const RString &sBeginning_, const RString &sCont
 		/* Check end. */
 		if( end_pos < 0 )
 			continue; /* can't end with it */
-		if( sPath.compare(end_pos, std::string::npos, sEnding) )
+		if( sPath.compare(end_pos, string::npos, sEnding) )
 			continue; /* doesn't end with it */
 
 		/* Check sContaining.  Do this last, since it's the slowest (substring
 		 * search instead of string match). */
 		if( !sContaining.empty() )
 		{
-			std::size_t pos = sPath.find( sContaining, sBeginning.size() );
+			size_t pos = sPath.find( sContaining, sBeginning.size() );
 			if( pos == sPath.npos )
 				continue; /* doesn't contain it */
 			if( pos + sContaining.size() > unsigned(end_pos) )
@@ -61,9 +57,9 @@ void FileSet::GetFilesMatching( const RString &sBeginning_, const RString &sCont
 	}
 }
 
-void FileSet::GetFilesEqualTo( const RString &sStr, std::vector<RString> &asOut, bool bOnlyDirs ) const
+void FileSet::GetFilesEqualTo( const RString &sStr, vector<RString> &asOut, bool bOnlyDirs ) const
 {
-	std::set<File>::const_iterator i = files.find( File(sStr) );
+	set<File>::const_iterator i = files.find( File(sStr) );
 	if( i == files.end() )
 		return;
 
@@ -75,7 +71,7 @@ void FileSet::GetFilesEqualTo( const RString &sStr, std::vector<RString> &asOut,
 
 RageFileManager::FileType FileSet::GetFileType( const RString &sPath ) const
 {
-	std::set<File>::const_iterator i = files.find( File(sPath) );
+	set<File>::const_iterator i = files.find( File(sPath) );
 	if( i == files.end() )
 		return RageFileManager::TYPE_NONE;
 
@@ -84,7 +80,7 @@ RageFileManager::FileType FileSet::GetFileType( const RString &sPath ) const
 
 int FileSet::GetFileSize( const RString &sPath ) const
 {
-	std::set<File>::const_iterator i = files.find( File(sPath) );
+	set<File>::const_iterator i = files.find( File(sPath) );
 	if( i == files.end() )
 		return -1;
 	return i->size;
@@ -92,7 +88,7 @@ int FileSet::GetFileSize( const RString &sPath ) const
 
 int FileSet::GetFileHash( const RString &sPath ) const
 {
-	std::set<File>::const_iterator i = files.find( File(sPath) );
+	set<File>::const_iterator i = files.find( File(sPath) );
 	if( i == files.end() )
 		return -1;
 	return i->hash + i->size;
@@ -108,7 +104,7 @@ static void SplitPath( RString sPath, RString &sDir, RString &sName )
 	if( sPath.Right(1) == "/" )
 		sPath.erase( sPath.size()-1 );
 
-	std::size_t iSep = sPath.find_last_of( '/' );
+	size_t iSep = sPath.find_last_of( '/' );
 	if( iSep == RString::npos )
 	{
 		sDir = "";
@@ -176,7 +172,7 @@ bool FilenameDB::ResolvePath( RString &sPath )
 
 	/* Resolve each component. */
 	RString ret = "";
-	const FileSet *fs = nullptr;
+	const FileSet *fs = NULL;
 
 	static const RString slash("/");
 	for(;;)
@@ -185,7 +181,7 @@ bool FilenameDB::ResolvePath( RString &sPath )
 		if( iBegin == (int) sPath.size() )
 			break;
 
-		if( fs == nullptr )
+		if( fs == NULL )
 			fs = GetFileSet( ret );
 		else
 			m_Mutex.Lock(); /* for access to fs */
@@ -193,7 +189,7 @@ bool FilenameDB::ResolvePath( RString &sPath )
 		RString p = sPath.substr( iBegin, iSize );
 		ASSERT_M( p.size() != 1 || p[0] != '.', sPath ); // no .
 		ASSERT_M( p.size() != 2 || p[0] != '.' || p[1] != '.', sPath ); // no ..
-		std::set<File>::const_iterator it = fs->files.find( File(p) );
+		set<File>::const_iterator it = fs->files.find( File(p) );
 
 		/* If there were no matches, the path isn't found. */
 		if( it == fs->files.end() )
@@ -208,7 +204,7 @@ bool FilenameDB::ResolvePath( RString &sPath )
 
 		m_Mutex.Unlock(); /* locked by GetFileSet */
 	}
-
+	
 	if( sPath.size() && sPath[sPath.size()-1] == '/' )
 		sPath = ret + "/";
 	else
@@ -216,7 +212,7 @@ bool FilenameDB::ResolvePath( RString &sPath )
 	return true;
 }
 
-void FilenameDB::GetFilesMatching( const RString &sDir, const RString &sBeginning, const RString &sContaining, const RString &sEnding, std::vector<RString> &asOut, bool bOnlyDirs )
+void FilenameDB::GetFilesMatching( const RString &sDir, const RString &sBeginning, const RString &sContaining, const RString &sEnding, vector<RString> &asOut, bool bOnlyDirs )
 {
 	ASSERT( !m_Mutex.IsLockedByThisThread() );
 
@@ -225,7 +221,7 @@ void FilenameDB::GetFilesMatching( const RString &sDir, const RString &sBeginnin
 	m_Mutex.Unlock(); /* locked by GetFileSet */
 }
 
-void FilenameDB::GetFilesEqualTo( const RString &sDir, const RString &sFile, std::vector<RString> &asOut, bool bOnlyDirs )
+void FilenameDB::GetFilesEqualTo( const RString &sDir, const RString &sFile, vector<RString> &asOut, bool bOnlyDirs )
 {
 	ASSERT( !m_Mutex.IsLockedByThisThread() );
 
@@ -235,17 +231,17 @@ void FilenameDB::GetFilesEqualTo( const RString &sDir, const RString &sFile, std
 }
 
 
-void FilenameDB::GetFilesSimpleMatch( const RString &sDir, const RString &sMask, std::vector<RString> &asOut, bool bOnlyDirs )
+void FilenameDB::GetFilesSimpleMatch( const RString &sDir, const RString &sMask, vector<RString> &asOut, bool bOnlyDirs )
 {
 	/* Does this contain a wildcard? */
-	std::size_t first_pos = sMask.find_first_of( '*' );
+	size_t first_pos = sMask.find_first_of( '*' );
 	if( first_pos == sMask.npos )
 	{
 		/* No; just do a regular search. */
 		GetFilesEqualTo( sDir, sMask, asOut, bOnlyDirs );
 		return;
 	}
-	std::size_t second_pos = sMask.find_first_of( '*', first_pos+1 );
+	size_t second_pos = sMask.find_first_of( '*', first_pos+1 );
 	if( second_pos == sMask.npos )
 	{
 		/* Only one *: "A*B". */
@@ -255,7 +251,7 @@ void FilenameDB::GetFilesSimpleMatch( const RString &sDir, const RString &sMask,
 	}
 
 	/* Two *s: "A*B*C". */
-	GetFilesMatching( sDir,
+	GetFilesMatching( sDir, 
 		sMask.substr(0, first_pos),
 		sMask.substr(first_pos+1, second_pos-first_pos-1),
 		sMask.substr(second_pos+1), asOut, bOnlyDirs );
@@ -291,11 +287,11 @@ FileSet *FilenameDB::GetFileSet( const RString &sDir_, bool bCreate )
 	for(;;)
 	{
 		/* Look for the directory. */
-		std::map<RString, FileSet*>::iterator i = dirs.find( sLower );
+		map<RString, FileSet *>::iterator i = dirs.find( sLower );
 		if( !bCreate )
 		{
 			if( i == dirs.end() )
-				return nullptr;
+				return NULL;
 			return i->second;
 		}
 
@@ -344,7 +340,7 @@ FileSet *FilenameDB::GetFileSet( const RString &sDir_, bool bCreate )
 	 * to the newly-created directory.  Find the pointer we need to set.  Be careful of
 	 * order of operations, here: since we just unlocked, any this->dirs searches we did
 	 * previously are no longer valid. */
-	FileSet **pParentDirp = nullptr;
+	FileSet **pParentDirp = NULL;
 	if( sDir != "/" )
 	{
 		RString sParent = Dirname( sDir );
@@ -353,9 +349,9 @@ FileSet *FilenameDB::GetFileSet( const RString &sDir_, bool bCreate )
 
 		/* This also re-locks m_Mutex for us. */
 		FileSet *pParent = GetFileSet( sParent );
-		if( pParent != nullptr )
+		if( pParent != NULL )
 		{
-			std::set<File>::iterator it = pParent->files.find( File(Basename(sDir)) );
+			set<File>::iterator it = pParent->files.find( File(Basename(sDir)) );
 			if( it != pParent->files.end() )
 				pParentDirp = const_cast<FileSet **>(&it->dirp);
 		}
@@ -365,7 +361,7 @@ FileSet *FilenameDB::GetFileSet( const RString &sDir_, bool bCreate )
 		m_Mutex.Lock();
 	}
 
-	if( pParentDirp != nullptr )
+	if( pParentDirp != NULL )
 		*pParentDirp = pRet;
 
 	pRet->age.Touch();
@@ -391,11 +387,11 @@ void FilenameDB::AddFile( const RString &sPath_, int iSize, int iHash, void *pPr
 	if( sPath[0] != '/' )
 		sPath = "/" + sPath;
 
-	std::vector<RString> asParts;
+	vector<RString> asParts;
 	split( sPath, "/", asParts, false );
 
-	std::vector<RString>::const_iterator begin = asParts.begin();
-	std::vector<RString>::const_iterator end = asParts.end();
+	vector<RString>::const_iterator begin = asParts.begin();
+	vector<RString>::const_iterator end = asParts.end();
 
 	bool IsDir = true;
 	if( sPath[sPath.size()-1] != '/' )
@@ -435,7 +431,7 @@ void FilenameDB::AddFile( const RString &sPath_, int iSize, int iHash, void *pPr
 /* Remove the given FileSet, and all dirp pointers to it.  This means the cache has
  * expired, not that the directory is necessarily gone; don't actually delete the file
  * from the parent. */
-void FilenameDB::DelFileSet( std::map<RString, FileSet*>::iterator dir )
+void FilenameDB::DelFileSet( map<RString, FileSet *>::iterator dir )
 {
 	/* If this isn't locked, dir may not be valid. */
 	ASSERT( m_Mutex.IsLockedByThisThread() );
@@ -446,14 +442,14 @@ void FilenameDB::DelFileSet( std::map<RString, FileSet*>::iterator dir )
 	FileSet *fs = dir->second;
 
 	/* Remove any stale dirp pointers. */
-	for( std::map<RString, FileSet*>::iterator it = dirs.begin(); it != dirs.end(); ++it )
+	for( map<RString, FileSet *>::iterator it = dirs.begin(); it != dirs.end(); ++it )
 	{
 		FileSet *Clean = it->second;
-		for( std::set<File>::iterator f = Clean->files.begin(); f != Clean->files.end(); ++f )
+		for( set<File>::iterator f = Clean->files.begin(); f != Clean->files.end(); ++f )
 		{
 			File &ff = (File &) *f;
 			if( ff.dirp == fs )
-				ff.dirp = nullptr;
+				ff.dirp = NULL;
 		}
 	}
 
@@ -467,7 +463,7 @@ void FilenameDB::DelFile( const RString &sPath )
 	RString lower = sPath;
 	lower.MakeLower();
 
-	std::map<RString, FileSet*>::iterator fsi = dirs.find( lower );
+	map<RString, FileSet *>::iterator fsi = dirs.find( lower );
 	DelFileSet( fsi );
 
 	/* Delete sPath from its parent. */
@@ -482,27 +478,27 @@ void FilenameDB::DelFile( const RString &sPath )
 
 void FilenameDB::FlushDirCache( const RString & /* sDir */ )
 {
-	FileSet *pFileSet = nullptr;
+	FileSet *pFileSet = NULL;
 	m_Mutex.Lock();
 
 	for(;;)
 	{
 		if( dirs.empty() )
 			break;
-
+		
 		/* Grab the first entry.  Take it out of the list while we hold the
 		 * lock, to guarantee that we own it. */
 		pFileSet = dirs.begin()->second;
-
+		
 		dirs.erase( dirs.begin() );
-
+		
 		/* If it's being filled, we don't really own it until it's finished being
 		 * filled, so wait. */
 		while( !pFileSet->m_bFilled )
 			m_Mutex.Wait();
 		delete pFileSet;
 	}
-
+	
 #if 0
 	/* XXX: This is tricky, we want to flush all of the subdirectories of
 	 * sDir, but once we unlock the mutex, we basically have to start over.
@@ -526,9 +522,9 @@ void FilenameDB::FlushDirCache( const RString & /* sDir */ )
 				if( it != dirs.end() )
 				{
 					FileSet *pParent = it->second;
-					std::set<File>::iterator fileit = pParent->files.find( File(Basename(sDir)) );
+					set<File>::iterator fileit = pParent->files.find( File(Basename(sDir)) );
 					if( fileit != pParent->files.end() )
-						fileit->dirp = nullptr;
+						fileit->dirp = NULL;
 				}
 			}
 		}
@@ -549,10 +545,10 @@ const File *FilenameDB::GetFile( const RString &sPath )
 	SplitPath(sPath, Dir, Name);
 	FileSet *fs = GetFileSet( Dir );
 
-	std::set<File>::iterator it;
+	set<File>::iterator it;
 	it = fs->files.find( File(Name) );
 	if( it == fs->files.end() )
-		return nullptr;
+		return NULL;
 
 	return &*it;
 }
@@ -562,8 +558,8 @@ void *FilenameDB::GetFilePriv( const RString &path )
 	ASSERT( !m_Mutex.IsLockedByThisThread() );
 
 	const File *pFile = GetFile( path );
-	void *pRet = nullptr;
-	if( pFile != nullptr )
+	void *pRet = NULL;
+	if( pFile != NULL )
 		pRet = pFile->priv;
 
 	m_Mutex.Unlock(); /* locked by GetFileSet */
@@ -572,7 +568,7 @@ void *FilenameDB::GetFilePriv( const RString &path )
 
 
 
-void FilenameDB::GetDirListing( const RString &sPath_, std::vector<RString> &asAddTo, bool bOnlyDirs, bool bReturnPathToo )
+void FilenameDB::GetDirListing( const RString &sPath_, vector<RString> &asAddTo, bool bOnlyDirs, bool bReturnPathToo )
 {
 	RString sPath = sPath_;
 //	LOG->Trace( "GetDirListing( %s )", sPath.c_str() );
@@ -580,7 +576,7 @@ void FilenameDB::GetDirListing( const RString &sPath_, std::vector<RString> &asA
 	ASSERT( !sPath.empty() );
 
 	/* Strip off the last path element and use it as a mask. */
-	std::size_t  pos = sPath.find_last_of( '/' );
+	size_t  pos = sPath.find_last_of( '/' );
 	RString fn;
 	if( pos == sPath.npos )
 	{

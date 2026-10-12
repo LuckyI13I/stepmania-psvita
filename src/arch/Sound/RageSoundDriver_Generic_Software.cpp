@@ -1,22 +1,11 @@
 #include "global.h"
 #include "RageSoundDriver.h"
-#include "PrefsManager.h"
+
 #include "RageLog.h"
 #include "RageSound.h"
 #include "RageUtil.h"
 #include "RageSoundMixBuffer.h"
 #include "RageSoundReader.h"
-
-#include <cmath>
-#include <cstdint>
-#include <cinttypes>
-#if defined(_MSC_VER) && !defined(PRIu64)
-	#define PRIu64 "I64u"
-#endif
-/* Note(sukibaby): If you need to activate a log method
- * below, and it's casting a variable to int instead of
- * using the correct format specifier, please modify it
- * to use PRId64 for int64_t, or PRIu64 for uint64_t */
 
 static const int channels = 2;
 
@@ -29,7 +18,7 @@ static int underruns = 0, logged_underruns = 0;
 
 RageSoundDriver::Sound::Sound()
 {
-	m_pSound = nullptr;
+	m_pSound = NULL;
 	m_State = AVAILABLE;
 	m_bPaused = false;
 }
@@ -56,17 +45,16 @@ int RageSoundDriver::DecodeThread_start( void *p )
 	return 0;
 }
 
-static std::int64_t g_iTotalAhead = 0;
+static int g_iTotalAhead = 0;
 static int g_iTotalAheadCount = 0;
 
-RageSoundMixBuffer &RageSoundDriver::MixIntoBuffer( int iFrames, std::int64_t iFrameNumber, std::int64_t iCurrentFrame )
+RageSoundMixBuffer &RageSoundDriver::MixIntoBuffer( int iFrames, int64_t iFrameNumber, int64_t iCurrentFrame )
 {
 	ASSERT_M( m_DecodeThread.IsCreated(), "RageSoundDriver::StartDecodeThread() was never called" );
 
-	std::int64_t frameDifference = iFrameNumber - iCurrentFrame + static_cast<std::int64_t>(iFrames);
-	if (frameDifference > 0)
+	if( iFrameNumber - iCurrentFrame + iFrames > 0 )
 	{
-		g_iTotalAhead += frameDifference;
+		g_iTotalAhead += (int) (iFrameNumber - iCurrentFrame + iFrames);
 		++g_iTotalAheadCount;
 	}
 
@@ -100,10 +88,10 @@ RageSoundMixBuffer &RageSoundDriver::MixIntoBuffer( int iFrames, std::int64_t iF
 		if( !s.m_StartTime.IsZero() && iCurrentFrame != -1 )
 		{
 			/* If the sound is supposed to start at a time past this buffer, insert silence. */
-			const std::int64_t iFramesUntilThisBuffer = iFrameNumber - iCurrentFrame;
+			const int64_t iFramesUntilThisBuffer = iFrameNumber - iCurrentFrame;
 			const float fSecondsBeforeStart = -s.m_StartTime.Ago();
-			const std::int64_t iFramesBeforeStart = std::int64_t(fSecondsBeforeStart * GetSampleRate());
-			const int iSilentFramesInThisBuffer = std::clamp( int(iFramesBeforeStart-iFramesUntilThisBuffer), 0, iFramesLeft );
+			const int64_t iFramesBeforeStart = int64_t(fSecondsBeforeStart * GetSampleRate());
+			const int iSilentFramesInThisBuffer = clamp( int(iFramesBeforeStart-iFramesUntilThisBuffer), 0, iFramesLeft );
 
 			iGotFrames += iSilentFramesInThisBuffer;
 			iFramesLeft -= iSilentFramesInThisBuffer;
@@ -132,13 +120,13 @@ RageSoundMixBuffer &RageSoundDriver::MixIntoBuffer( int iFrames, std::int64_t iF
 					continue; // more data
 
 				/* We've used up p[0].  Try p[1]. */
-				std::swap( p[0], p[1] );
-				std::swap( pSize[0], pSize[1] );
+				swap( p[0], p[1] );
+				swap( pSize[0], pSize[1] );
 				continue;
 			}
 
 			/* Note that, until we call advance_read_pointer, we can safely write to p[0]. */
-			const int frames_to_read = std::min( iFramesLeft, p[0]->m_FramesInBuffer );
+			const int frames_to_read = min( iFramesLeft, p[0]->m_FramesInBuffer );
 			mix.SetWriteOffset( iGotFrames*channels );
 			mix.write( p[0]->m_BufferNext, frames_to_read * channels );
 
@@ -170,23 +158,23 @@ RageSoundMixBuffer &RageSoundDriver::MixIntoBuffer( int iFrames, std::int64_t iF
 	return mix;
 }
 
-void RageSoundDriver::Mix( std::int16_t *pBuf, int iFrames, std::int64_t iFrameNumber, std::int64_t iCurrentFrame )
+void RageSoundDriver::Mix( int16_t *pBuf, int iFrames, int64_t iFrameNumber, int64_t iCurrentFrame )
 {
-	memset( pBuf, 0, iFrames*channels*sizeof(std::int16_t) );
+	memset( pBuf, 0, iFrames*channels*sizeof(int16_t) );
 	MixIntoBuffer( iFrames, iFrameNumber, iCurrentFrame ).read( pBuf );
 }
 
-void RageSoundDriver::Mix( float *pBuf, int iFrames, std::int64_t iFrameNumber, std::int64_t iCurrentFrame )
+void RageSoundDriver::Mix( float *pBuf, int iFrames, int64_t iFrameNumber, int64_t iCurrentFrame )
 {
 	memset( pBuf, 0, iFrames*channels*sizeof(float) );
 	MixIntoBuffer( iFrames, iFrameNumber, iCurrentFrame ).read( pBuf );
 }
 
-void RageSoundDriver::MixDeinterlaced( float **pBufs, int iChannels, int iFrames, std::int64_t iFrameNumber, std::int64_t iCurrentFrame )
+void RageSoundDriver::MixDeinterlaced( float **pBufs, int channels, int iFrames, int64_t iFrameNumber, int64_t iCurrentFrame )
 {
-	for (int i = 0; i < iChannels; ++i )
+	for (int i = 0; i < channels; ++i )
 		memset( pBufs[i], 0, iFrames*sizeof(float) );
-	MixIntoBuffer( iFrames, iFrameNumber, iCurrentFrame ).read_deinterlace( pBufs, iChannels );
+	MixIntoBuffer( iFrames, iFrameNumber, iCurrentFrame ).read_deinterlace( pBufs, channels );
 }
 
 void RageSoundDriver::DecodeThread()
@@ -269,7 +257,7 @@ void RageSoundDriver::Update()
 			while( m_Sounds[i].m_PosMapQueue.read( &p, 1 ) )
 			{
 				RageSoundBase *pSound = m_Sounds[i].m_pSound;
-				if( pSound != nullptr )
+				if( pSound != NULL )
 					pSound->CommitPlayingPosition( p.iStreamFrame, p.iHardwareFrame, p.iFrames );
 			}
 		}
@@ -292,7 +280,7 @@ void RageSoundDriver::Update()
 //		LOG->Trace("finishing sound %i", i);
 
 		m_Sounds[i].m_pSound->SoundIsFinishedPlaying();
-		m_Sounds[i].m_pSound = nullptr;
+		m_Sounds[i].m_pSound = NULL;
 
 		/* This sound is done.  Set it to HALTING, since the mixer thread might
 		 * be accessing it; it'll change it back to STOPPED once it's ready to
@@ -401,7 +389,7 @@ void RageSoundDriver::StopMixing( RageSoundBase *pSound )
 
 	/* Invalidate the m_pSound pointer to guarantee we don't make any further references to
 	 * it.  Once this call returns, the sound may no longer exist. */
-	m_Sounds[i].m_pSound = nullptr;
+	m_Sounds[i].m_pSound = NULL;
 //	LOG->Trace("end StopMixing");
 
 	m_Mutex.Unlock();
@@ -449,20 +437,14 @@ void RageSoundDriver::SetDecodeBufferSize( int iFrames )
 	frames_to_buffer = iFrames;
 }
 
-void RageSoundDriver::low_sample_count_workaround()
-{
-	if (soundDriverMaxSamples != 0) GetHardwareFrame(nullptr);
-}
-
 RageSoundDriver::RageSoundDriver():
 	m_Mutex("RageSoundDriver"),
 	m_SoundListMutex("SoundListMutex")
 {
 	m_bShutdownDecodeThread = false;
 	m_iMaxHardwareFrame = 0;
-	m_iVMaxHardwareFrame = 0;
 	SetDecodeBufferSize( 4096 );
-	soundDriverMaxSamples = PREFSMAN->m_iRageSoundSampleCountClamp;
+	
 	m_DecodeThread.SetName("Decode thread");
 }
 
@@ -479,11 +461,11 @@ RageSoundDriver::~RageSoundDriver()
 		LOG->Flush();
 
 		LOG->Info( "Mixing %f ahead in %i Mix() calls",
-			float(g_iTotalAhead) / std::max( g_iTotalAheadCount, 1 ), g_iTotalAheadCount );
+			float(g_iTotalAhead) / max( g_iTotalAheadCount, 1 ), g_iTotalAheadCount );
 	}
 }
 
-std::int64_t RageSoundDriver::ClampHardwareFrame( std::int64_t iHardwareFrame ) const
+int64_t RageSoundDriver::ClampHardwareFrame( int64_t iHardwareFrame ) const
 {
 	/* It's sometimes possible for the hardware position to move backwards, usually
 	 * on underrun.  We can try to prevent this in each driver, but it's an obscure
@@ -492,25 +474,22 @@ std::int64_t RageSoundDriver::ClampHardwareFrame( std::int64_t iHardwareFrame ) 
 	{
 		/* Clamp the output to one per second, so one underruns don't cascade due to
 		 * output spam. */
-		static std::int64_t lastTime = 0;
-		std::int64_t currentTime = RageTimer::GetUsecsSinceStart();
-		if( lastTime == 0 || (currentTime - lastTime) > 1000000 )
+		static RageTimer last(RageZeroTimer);
+		if( last.IsZero() || last.Ago() > 1.0f )
 		{
-			LOG->Trace("RageSoundDriver: driver returned a lesser position (%" PRId64 " < %" PRId64 ")", iHardwareFrame, m_iMaxHardwareFrame);
-			lastTime = currentTime;
+			LOG->Trace( "RageSoundDriver: driver returned a lesser position (%d < %d)",
+				    (int)iHardwareFrame, (int)m_iMaxHardwareFrame );
+			last.Touch();
 		}
 		return m_iMaxHardwareFrame;
 	}
-	if( iHardwareFrame > m_iMaxHardwareFrame )
-	{
-		m_iMaxHardwareFrame = iHardwareFrame;
-	}
-	return m_iMaxHardwareFrame;
+	m_iMaxHardwareFrame = iHardwareFrame = max( iHardwareFrame, m_iMaxHardwareFrame );
+	return iHardwareFrame;
 }
 
-std::int64_t RageSoundDriver::GetHardwareFrame( RageTimer *pTimestamp=nullptr ) const
+int64_t RageSoundDriver::GetHardwareFrame( RageTimer *pTimestamp ) const
 {
-	if( pTimestamp == nullptr )
+	if( pTimestamp == NULL )
 		return ClampHardwareFrame( GetPosition() );
 
 	/*
@@ -523,17 +502,12 @@ std::int64_t RageSoundDriver::GetHardwareFrame( RageTimer *pTimestamp=nullptr ) 
 	 * severe performance problems, anyway.
 	 */
 	int iTries = 3;
-	std::int64_t iPositionFrames;
-	std::uint64_t iStartTime;
-	const std::uint64_t iThreshold = 2000ULL;
-
+	int64_t iPositionFrames;
 	do
 	{
-		iStartTime = RageTimer::GetUsecsSinceStart();
+		pTimestamp->Touch();
 		iPositionFrames = GetPosition();
-		std::uint64_t elapsedTime = RageTimer::GetUsecsSinceStart() - iStartTime;
-		if (elapsedTime <= iThreshold) break;
-	} while (--iTries);
+	} while( --iTries && pTimestamp->Ago() > 0.002f );
 
 	if( iTries == 0 )
 	{
@@ -551,7 +525,7 @@ std::int64_t RageSoundDriver::GetHardwareFrame( RageTimer *pTimestamp=nullptr ) 
 /*
  * (c) 2002-2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -561,7 +535,7 @@ std::int64_t RageSoundDriver::GetHardwareFrame( RageTimer *pTimestamp=nullptr ) 
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

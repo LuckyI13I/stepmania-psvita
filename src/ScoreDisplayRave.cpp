@@ -65,7 +65,7 @@ void ScoreDisplayRave::Update( float fDelta )
 		m_textLevel.SetText( ssprintf("%d",level+1) );
 	}
 
-	float fPercent = fLevel - Enum::to_integral(level);
+	float fPercent = fLevel - level;
 	m_sprMeter[level].SetCropRight( 1-fPercent );
 }
 

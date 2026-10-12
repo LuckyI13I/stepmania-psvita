@@ -2,7 +2,7 @@
 #include "HIDDevice.h"
 #include "RageUtil.h"
 
-HIDDevice::HIDDevice() : m_Interface(nullptr), m_Queue(nullptr), m_bRunning( false )
+HIDDevice::HIDDevice() : m_Interface( NULL ), m_Queue( NULL ), m_bRunning( false )
 {
 }
 
@@ -108,7 +108,7 @@ bool HIDDevice::Open( io_object_t device )
 	if( hresult != S_OK )
 	{
 		LOG->Warn( "Couldn't get device interface from plugin interface." );
-		m_Interface = nullptr;
+		m_Interface = NULL;
 		return false;
 	}
 
@@ -117,7 +117,7 @@ bool HIDDevice::Open( io_object_t device )
 	{
 		PrintIOErr( ret, "Failed to open the interface." );
 		CALL( m_Interface, Release );
-		m_Interface = nullptr;
+		m_Interface = NULL;
 		return false;
 	}
 
@@ -133,9 +133,9 @@ bool HIDDevice::Open( io_object_t device )
 	{
 		PrintIOErr( ret, "Failed to create the queue." );
 		CALL( m_Queue, Release );
-		m_Queue = nullptr;
+		m_Queue = NULL;
 		CALL( m_Interface, Release );
-		m_Interface = nullptr;
+		m_Interface = NULL;
 		return false;
 	}
 
@@ -144,7 +144,7 @@ bool HIDDevice::Open( io_object_t device )
 	return true;
 }
 
-void HIDDevice::StartQueue( CFRunLoopRef loopRef, IOHIDCallbackFunction callback, void *target )
+void HIDDevice::StartQueue( CFRunLoopRef loopRef, IOHIDCallbackFunction callback, void *target, int refCon )
 {
 	CFRunLoopSourceRef runLoopSource;
 	// This creates a run loop source. It is released in the dtor.
@@ -159,7 +159,7 @@ void HIDDevice::StartQueue( CFRunLoopRef loopRef, IOHIDCallbackFunction callback
 	if( !CFRunLoopContainsSource(loopRef, runLoopSource, kCFRunLoopDefaultMode) )
 		CFRunLoopAddSource( loopRef, runLoopSource, kCFRunLoopDefaultMode );
 
-	ret = CALL( m_Queue, setEventCallout, callback, target, this );
+	ret = CALL( m_Queue, setEventCallout, callback, target, (void *)refCon );
 
 	if( ret != kIOReturnSuccess )
 	{

@@ -4,8 +4,6 @@
 #include "RageUtil.h"
 #include "PrefsManager.h"
 
-#include <cstdint>
-
 REGISTER_SOUND_DRIVER_CLASS( Null );
 
 const int channels = 2;
@@ -15,7 +13,7 @@ void RageSoundDriver_Null::Update()
 	/* "Play" frames. */
 	while( m_iLastCursorPos < GetPosition()+1024*4 )
 	{
-		std::int16_t buf[256*channels];
+		int16_t buf[256*channels];
 		this->Mix( buf, 256, m_iLastCursorPos, GetPosition() );
 		m_iLastCursorPos += 256;
 	}
@@ -23,9 +21,9 @@ void RageSoundDriver_Null::Update()
 	RageSoundDriver::Update();
 }
 
-std::int64_t RageSoundDriver_Null::GetPosition() const
+int64_t RageSoundDriver_Null::GetPosition() const
 {
-	return std::int64_t( RageTimer::GetTimeSinceStart() * m_iSampleRate );
+	return int64_t( RageTimer::GetTimeSinceStart() * m_iSampleRate );
 }
 
 RageSoundDriver_Null::RageSoundDriver_Null()
@@ -45,7 +43,7 @@ int RageSoundDriver_Null::GetSampleRate() const
 /*
  * (c) 2002-2004 Glenn Maynard, Aaron VonderHaar
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -55,7 +53,7 @@ int RageSoundDriver_Null::GetSampleRate() const
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

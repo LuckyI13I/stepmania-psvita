@@ -1,6 +1,6 @@
 -- Find a key in tab with the given value.
 function FindValue(tab, value)
-	for key, name in pairs(tab) do
+	for key, name in tab do
 		if value == name then
 			return key
 		end
@@ -11,7 +11,7 @@ end
 
 -- Return the index of a true value in list.
 function FindSelection(list)
-	for index, on in ipairs(list) do
+	for index, on in list do
 		if on then
 			return index
 		end
@@ -32,7 +32,7 @@ end
 function wrap(val,n)
 	local x = val
 	Trace( "wrap "..x.." "..n )
-	if x<0 then
+	if x<0 then 
 		x = x + (math.ceil(-x/n)+1)*n
 	end
 	Trace( "adjusted "..x )
@@ -122,26 +122,18 @@ end
 --Get the count of all items in a table
 function table.itemcount(t)
 	local i = 0
-	for _, v in pairs(t) do
-		i = i+1
+	while next(t)~=nil do
+		i=i+1
 	end
 	return i
 end
 
 function math.round(num, pre)
 	if pre and pre < 0 then pre = 0 end
-	local mult = 10^(pre or 0)
-	if num >= 0 then return math.floor(num*mult+.5)/mult
+	local mult = 10^(pre or 0) 
+	if num >= 0 then return math.floor(num*mult+.5)/mult 
 	else return math.ceil(num*mult-.5)/mult end
 end
-
-function math.gcd(a, b)
-	while b ~= 0 do
-		a, b = b, math.mod(a, b)
-	end
-	return a
-end
-
 -- deprecated?
 function round(val, decimal)
 	if decimal then
@@ -205,7 +197,7 @@ function ArgsIfPlayerJoinedOrNil(arg1,arg2)
 	if arg1==nil then arg1=arg2
 	elseif arg2==nil then arg2=arg1 end
 	return (GAMESTATE:IsSideJoined(PLAYER_1) and arg1 or nil),(GAMESTATE:IsSideJoined(PLAYER_2) and arg2 or nil)
-end
+end	
 
 function Center1Player()
 	local styleType = GAMESTATE:GetCurrentStyle():GetStyleType()
@@ -272,14 +264,16 @@ File = {
 	end
 }
 
+envTable = GAMESTATE:Env()
+
 -- setenv(name,value)
 -- Sets aside an entry for <name> and puts <value> into it.
 -- Use a table as <value> to store multiple values
-function setenv(name,value) GAMESTATE:Env()[name] = value end
+function setenv(name,value) envTable[name] = value end
 
 -- getenv(name)
--- This will return whatever value is at GAMESTATE:Env()[name]
-function getenv(name) return GAMESTATE:Env()[name] end
+-- This will return whatever value is at envTable[name].
+function getenv(name) return envTable[name] end
 
 -- tobool(v)
 -- Converts v to a boolean.
@@ -329,15 +323,13 @@ end
 
 -- supported aspect ratios
 AspectRatios = {
-	ThreeFour    = 0.75,    -- (576x760 at 1024x768; meant for rotated monitors?)
-	OneOne       = 1.0,     -- 480x480  (uses Y value of specified resolution)
-	FiveFour     = 1.25,    -- 600x480 (1280x1024 is a real use case)
-	FourThree    = 1.33333, -- 640x480 (common)
-	SixteenTen   = 1.6,     -- 720x480 (common)
-	SixteenNine  = 1.77778, -- 853x480 (common)
-	EightThree   = 2.66666, -- 1280x480 (two monitors)
-	TwentyOneNine= 2.37,    -- 1138x480 (Ultrawide)
-	NineSixteen  = 0.5625,  -- 480x720  (16:9 widescreen as portrait display)
+	ThreeFour   = 0.75,		-- (576x760 at 1024x768; meant for rotated monitors?)
+	OneOne      = 1.0,		-- 480x480  (uses Y value of specified resolution)
+	FiveFour    = 1.25,		-- 600x480 (1280x1024 is a real use case)
+	FourThree   = 1.33333,	-- 640x480 (common)
+	SixteenTen  = 1.6,		-- 720x480 (common)
+	SixteenNine = 1.77778,	-- 853x480 (common)
+	EightThree  = 2.66666	-- 1280x480 (two monitors)
 }
 
 function WideScale(AR4_3, AR16_9)
@@ -353,9 +345,16 @@ local function round(num, idp)
 end
 
 function IsUsingWideScreen()
-	local curAspect = GetScreenAspectRatio()
-	return curAspect > 16/10 - .044
-end
+	local curAspect = round(GetScreenAspectRatio(),5);
+	for k,v in pairs(AspectRatios) do
+		if AspectRatios[k] == curAspect then
+			if k == "SixteenNine" or k == "SixteenTen" then
+				return true;
+			else return false;
+			end;
+		end;
+	end;
+end;
 
 -- Usage:  Pass in an ActorFrame and a string to put in front of every line.
 -- indent will be appended to at each level of the recursion, to indent each
@@ -414,26 +413,6 @@ function rec_print_table(t, indent, depth_remaining)
 		end
 	end
 	Trace(indent .. "end")
-end
-
-function rec_count_children(parent)
-	local total= 1
-	if #parent > 0 and type(parent) == "table" then
-		for i, c in ipairs(parent) do
-			total= total + rec_count_children(c)
-		end
-	elseif parent.GetChildren then
-		local pname= (parent.GetName and parent:GetName()) or ""
-		local children= parent:GetChildren()
-		for k, v in pairs(children) do
-			if #v > 0 then
-				total= total + rec_count_children(v)
-			else
-				total= total + rec_count_children(v)
-			end
-		end
-	end
-	return total
 end
 
 -- Minor text formatting functions from Kyzentun.
@@ -512,7 +491,7 @@ end
 
 -- (c) 2005-2011 Glenn Maynard, Chris Danford, SSC
 -- All rights reserved.
---
+-- 
 -- Permission is hereby granted, free of charge, to any person obtaining a
 -- copy of this software and associated documentation files (the
 -- "Software"), to deal in the Software without restriction, including
@@ -522,7 +501,7 @@ end
 -- copyright notice(s) and this permission notice appear in all copies of
 -- the Software and that both the above copyright notice(s) and this
 -- permission notice appear in supporting documentation.
---
+-- 
 -- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
 -- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 -- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF
@@ -532,3 +511,4 @@ end
 -- OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 -- OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 -- PERFORMANCE OF THIS SOFTWARE.
+

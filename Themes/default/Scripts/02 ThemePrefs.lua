@@ -3,12 +3,12 @@ local function OptionNameString(str)
 	return THEME:GetString('OptionNames',str)
 end
 
--- Example usage of new system (absolutely fully implemented and completely usable)
+-- Example usage of new system (not fully implemented yet)
 local Prefs =
 {
 	AutoSetStyle =
 	{
-		Default = true,
+		Default = false,
 		Choices = { OptionNameString('Off'), OptionNameString('On') },
 		Values = { false, true }
 	},
@@ -50,7 +50,7 @@ local Prefs =
 	},
 	FlashyCombo =
 	{
-		Default = true,
+		Default = false,
 		Choices = { OptionNameString('Off'), OptionNameString('On') },
 		Values = { false, true }
 	},
@@ -62,7 +62,7 @@ local Prefs =
 	},
 	FancyUIBG =
 	{
-		Default = true,
+		Default = false,
 		Choices = { OptionNameString('Off'), OptionNameString('On') },
 		Values = { false, true }
 	},
@@ -78,30 +78,6 @@ local Prefs =
 		Choices = { OptionNameString('Off'), OptionNameString('On') },
 		Values = { false, true }
 	},
-	PreferredMeter =
-	{
-		Default = "old",
-		Choices = { OptionNameString('MeterClassic'), OptionNameString('MeterX'), OptionNameString('MeterPump') },
-		Values = { "old", "X", "pump" }
-	},
-	CustomComboContinue =
-	{
-		Default = "default",
-		Choices = { OptionNameString('Default'), OptionNameString('TNS_W1'), OptionNameString('TNS_W2'), OptionNameString('TNS_W3'), OptionNameString('TNS_W4')  },
-		Values = { "default", "TapNoteScore_W1", "TapNoteScore_W2", "TapNoteScore_W3", "TapNoteScore_W4" }
-	},
-	CustomComboMaintain =
-	{
-		Default = "default",
-		Choices = { OptionNameString('Default'), OptionNameString('TNS_W1'), OptionNameString('TNS_W2'), OptionNameString('TNS_W3'), OptionNameString('TNS_W4')  },
-		Values = { "default", "TapNoteScore_W1", "TapNoteScore_W2", "TapNoteScore_W3", "TapNoteScore_W4" }
-	},
-	ForcedExtraMods =
-	{
-		Default = true,
-		Choices = { OptionNameString('Off'), OptionNameString('On') },
-		Values = { false, true }
-	}
 }
 
 ThemePrefs.InitAll(Prefs)

@@ -9,7 +9,7 @@ int GetWin32CmdLine( char** &argv )
 {
 	char *pCmdLine = GetCommandLine();
 	int argc = 0;
-	argv = nullptr;
+	argv = NULL;
 
 	int i = 0;
 	while( pCmdLine[i] )

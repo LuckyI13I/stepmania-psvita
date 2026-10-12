@@ -17,6 +17,7 @@
 #include "arch/ArchHooks/ArchHooks.h"
 #include "arch/LoadingWindow/LoadingWindow.h"
 #include "arch/Dialog/Dialog.h"
+#include <ctime>
 
 #include "ProductInfo.h"
 
@@ -34,9 +35,7 @@
 #define SUPPORT_GLES2
 #include "arch/Vita/RageDisplay_Vita.h"
 #include "arch/Vita/ArchHooks_Vita.h" // VitaBootMark
-#if __has_include("vita_build_number.h")
-#include "vita_build_number.h"
-#endif
+#include "arch/Vita/VitaBootSplash.h" // VitaBootSplash
 #elif !defined(SUPPORT_OPENGL) && !defined(SUPPORT_D3D)
 #define SUPPORT_OPENGL
 #endif
@@ -60,14 +59,15 @@
 #include "InputMapper.h"
 #include "InputQueue.h"
 #include "SongCacheIndex.h"
-#include "ImageCache.h"
+#include "BannerCache.h"
+//#include "BackgroundCache.h"
 #include "UnlockManager.h"
 #include "RageFileManager.h"
 #include "Bookkeeper.h"
 #include "LightsManager.h"
 #include "ModelManager.h"
 #include "CryptManager.h"
-#include "NetworkManager.h"
+#include "NetworkSyncManager.h"
 #include "MessageManager.h"
 #include "StatsManager.h"
 #include "GameLoop.h"
@@ -76,12 +76,7 @@
 #include "ActorUtil.h"
 #include "ver.h"
 
-#include <cmath>
-#include <ctime>
-#include <vector>
-
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
+#if defined(WIN32)
 #include <windows.h>
 #endif
 
@@ -99,15 +94,14 @@ void StepMania::GetPreferredVideoModeParams( VideoModeParams &paramsOut )
 	{
 		//float fRatio = PREFSMAN->m_iDisplayHeight;
 		//iWidth = PREFSMAN->m_iDisplayHeight * fRatio;
-		iWidth = std::ceil(PREFSMAN->m_iDisplayHeight * PREFSMAN->m_fDisplayAspectRatio);
-		// ceil causes the width to come out odd when it shouldn't.
+		iWidth = static_cast<int>(ceilf(PREFSMAN->m_iDisplayHeight * PREFSMAN->m_fDisplayAspectRatio));
+		// ceilf causes the width to come out odd when it shouldn't.
 		// 576 * 1.7778 = 1024.0128, which is rounded to 1025. -Kyz
 		iWidth-= iWidth % 2;
 	}
 
 	paramsOut = VideoModeParams(
-		PREFSMAN->m_bWindowed || PREFSMAN->m_bFullscreenIsBorderlessWindow,
-		PREFSMAN->m_sDisplayId,
+		PREFSMAN->m_bWindowed,
 		iWidth,
 		PREFSMAN->m_iDisplayHeight,
 		PREFSMAN->m_iDisplayColorDepth,
@@ -117,7 +111,6 @@ void StepMania::GetPreferredVideoModeParams( VideoModeParams &paramsOut )
 		PREFSMAN->m_bSmoothLines,
 		PREFSMAN->m_bTrilinearFiltering,
 		PREFSMAN->m_bAnisotropicFiltering,
-		!PREFSMAN->m_bWindowed && PREFSMAN->m_bFullscreenIsBorderlessWindow,
 		CommonMetrics::WINDOW_TITLE,
 		THEME->GetPathG("Common","window icon"),
 		PREFSMAN->m_bPAL,
@@ -158,13 +151,7 @@ static void StoreActualGraphicOptions()
 	 * we don't go through the process of auto-detecting a usable video mode
 	 * every time. */
 	const VideoModeParams &params = DISPLAY->GetActualVideoModeParams();
-	PREFSMAN->m_bWindowed.Set( params.windowed && !params.bWindowIsFullscreenBorderless );
-	if (!params.windowed && !params.bWindowIsFullscreenBorderless) {
-		// In all other cases, want to preserve the value of this preference,
-		// but if DISPLAY decides to go fullscreen exclusive, we'll persist that decision
-		PREFSMAN->m_bFullscreenIsBorderlessWindow.Set( false );
-	}
-
+	PREFSMAN->m_bWindowed.Set( params.windowed );
 
 	/* If we're windowed, we may have tweaked the width based on the aspect ratio.
 	 * Don't save this new value over the preferred value. */
@@ -209,7 +196,7 @@ static void update_centering()
 
 static void StartDisplay()
 {
-	if( DISPLAY != nullptr )
+	if( DISPLAY != NULL )
 		return; // already started
 
 	DISPLAY = CreateDisplay();
@@ -288,7 +275,7 @@ void StepMania::ResetPreferences()
 
 /* Shutdown all global singletons. Note that this may be called partway through
  * initialization, due to an object failing to initialize, in which case some of
- * these may still be nullptr. */
+ * these may still be NULL. */
 void ShutdownGame()
 {
 	/* First, tell SOUNDMAN that we're shutting down. This signals sound drivers to
@@ -297,18 +284,10 @@ void ShutdownGame()
 	if( SOUNDMAN )
 		SOUNDMAN->Shutdown();
 
-	/* Reset all lights to off.
-	 * This is done before ~LightsManager as some drivers use SCREENMAN
-	 * and similar when setting lights. */
-	if( LIGHTSMAN )
-	{
-		LIGHTSMAN->TurnOffAllLights();
-	}
-
 	SAFE_DELETE( SCREENMAN );
 	SAFE_DELETE( STATSMAN );
 	SAFE_DELETE( MESSAGEMAN );
-	SAFE_DELETE( NETWORK );
+	SAFE_DELETE( NSMAN );
 	/* Delete INPUTMAN before the other INPUTFILTER handlers, or an input
 	 * driver may try to send a message to INPUTFILTER after we delete it. */
 	SAFE_DELETE( INPUTMAN );
@@ -322,7 +301,8 @@ void ShutdownGame()
 	SAFE_DELETE( CRYPTMAN );
 	SAFE_DELETE( MEMCARDMAN );
 	SAFE_DELETE( SONGMAN );
-	SAFE_DELETE( IMAGECACHE );
+	SAFE_DELETE( BANNERCACHE );
+	//SAFE_DELETE( BACKGROUNDCACHE );
 	SAFE_DELETE( SONGINDEX );
 	SAFE_DELETE( SOUND ); // uses GAMESTATE, PREFSMAN
 	SAFE_DELETE( PREFSMAN );
@@ -348,6 +328,22 @@ static void HandleException( const RString &sError )
 {
 	if( g_bAutoRestart )
 		HOOKS->RestartProgram();
+
+#if defined(VITA)
+	{
+		/* Vita shows no error dialog, so leave the reason in the boot trace;
+		 * otherwise every handled exception looks like a silent quit. */
+		RString oneLine = sError;
+		oneLine.Replace( "\r\n", " " );
+		oneLine.Replace( "\n", " " );
+		oneLine.Replace( "\r", " " );
+		VitaBootMark( ("sm:exception " + oneLine.Left(200)).c_str() );
+		/* Pre-display errors get a full-screen fatal screen (needs no GL);
+		 * post-display errors keep the old path (already logged above). */
+		if( DISPLAY == NULL )
+			VitaBootSplash::ShowFatal( sError.c_str() );
+	}
+#endif
 
 	// Shut down first, so we exit graphics mode before trying to open a dialog.
 	ShutdownGame();
@@ -394,13 +390,13 @@ RString StepMania::GetSelectMusicScreen()
 	return SELECT_MUSIC_SCREEN.GetValue();
 }
 
-#if defined(_WIN32)
+#if defined(WIN32)
 static Preference<int> g_iLastSeenMemory( "LastSeenMemory", 0 );
 #endif
 
 static void AdjustForChangedSystemCapabilities()
 {
-#if defined(_WIN32)
+#if defined(WIN32)
 	// Has the amount of memory changed?
 	MEMORYSTATUS mem;
 	GlobalMemoryStatus(&mem);
@@ -431,13 +427,15 @@ static void AdjustForChangedSystemCapabilities()
 	/* Preloaded banners takes about 9k per song. Although it's smaller than the
 	 * actual song data, it still adds up with a lot of songs.
 	 * Disable it for 64-meg systems. */
-	PREFSMAN->m_ImageCache.Set( LowMemory ? IMGCACHE_OFF:IMGCACHE_LOW_RES_PRELOAD );
+	PREFSMAN->m_BannerCache.Set( LowMemory ? BNCACHE_OFF:BNCACHE_LOW_RES_PRELOAD );
+	// might wanna do this for backgrounds, too... -aj
+	//PREFSMAN->m_BackgroundCache.Set( LowMemory ? BGCACHE_OFF:BGCACHE_LOW_RES_PRELOAD );
 
 	PREFSMAN->SavePrefsToDisk();
 #endif
 }
 
-#if defined(_WIN32)
+#if defined(WIN32)
 #include "RageDisplay_D3D.h"
 #include "archutils/Win32/VideoDriverInfo.h"
 #endif
@@ -490,38 +488,169 @@ struct VideoCardDefaults
 	}
 } const g_VideoCardDefaults[] =
 {
-	// These lines correspond to the struct defined above.
 	VideoCardDefaults(
-		"OpenGL",       // Video card name (generic Mac/Linux)
-		"opengl",       // Available renderers
-		1280,720,       // Default resolution
-		32,             // Display color
-		32,             // Texture color
-		32,             // Movie color
-		2048,           // Texture size
-		true            // Smooth lines
+		"Voodoo *5",
+		"d3d,opengl",	// received 3 reports of opengl crashing. -Chris
+		640,480,
+		32,32,32,
+		2048,
+		true	// accelerated
+	),
+	VideoCardDefaults(
+		"Voodoo|3dfx", // all other Voodoos: some drivers don't identify which one
+		"d3d,opengl",
+		640,480,
+		16,16,16,
+		256,
+		false	// broken, causes black screen
+	),
+	VideoCardDefaults(
+		"Radeon.* 7|Wonder 7500|ArcadeVGA",	// Radeon 7xxx, RADEON Mobility 7500
+		"d3d,opengl",	// movie texture performance is terrible in OpenGL, but fine in D3D.
+		640,480,
+		16,16,16,
+		2048,
+		true	// accelerated
+	),
+	VideoCardDefaults(
+		"GeForce|Radeon|Wonder 9|Quadro",
+		"opengl,d3d",
+		640,480,
+		32,32,32,	// 32 bit textures are faster to load
+		2048,
+		true	// hardware accelerated
+	),
+	VideoCardDefaults(
+		"TNT|Vanta|M64",
+		"opengl,d3d",
+		640,480,
+		16,16,16,	// Athlon 1.2+TNT demonstration w/ movies: 70fps w/ 32bit textures, 86fps w/ 16bit textures
+		2048,
+		true	// hardware accelerated
+	),
+	VideoCardDefaults(
+		"G200|G250|G400",
+		"d3d,opengl",
+		640,480,
+		16,16,16,
+		2048,
+		false	// broken, causes black screen
+	),
+	VideoCardDefaults(
+		"Savage",
+		"d3d",
+			// OpenGL is unusable on my Savage IV with even the latest drivers.
+			// It draws 30 frames of gibberish then crashes. This happens even with
+			// simple NeHe demos. -Chris
+		640,480,
+		16,16,16,
+		2048,
+		false
+	),
+	VideoCardDefaults(
+		"XPERT@PLAY|IIC|RAGE PRO|RAGE LT PRO",	// Rage Pro chip, Rage IIC chip
+		"d3d",
+			// OpenGL is not hardware accelerated, despite the fact that the
+			// drivers come with an ICD.  Also, the WinXP driver performance
+			// is terrible and supports only 640. The ATI driver is usable.
+			// -Chris
+		320,240,	// lower resolution for 60fps. In-box WinXP driver doesn't support 400x300.
+		16,16,16,
+		256,
+		false
+	),
+	VideoCardDefaults(
+		"RAGE MOBILITY-M1",
+		"d3d,opengl",	// Vertex alpha is broken in OpenGL, but not D3D. -Chris
+		400,300,	// lower resolution for 60fps
+		16,16,16,
+		256,
+		false
+	),
+	VideoCardDefaults(
+		"Mobility M3",	// ATI Rage Mobility 128 (AKA "M3")
+		"d3d,opengl",	// bad movie texture performance in opengl
+		640,480,
+		16,16,16,
+		1024,
+		false
+	),
+	VideoCardDefaults(
+		"Intel.*82810|Intel.*82815",
+		"opengl,d3d",// OpenGL is 50%+ faster than D3D w/ latest Intel drivers.  -Chris
+		512,384,	// lower resolution for 60fps
+		16,16,16,
+		512,
+		false
+	),
+	VideoCardDefaults(
+		"Intel*Extreme Graphics",
+		"d3d",	// OpenGL blue screens w/ XP drivers from 6-21-2002
+		640,480,
+		16,16,16,	// slow at 32bpp
+		1024,
+		false
+	),
+	VideoCardDefaults(
+		"Intel.*", /* fallback: all unknown Intel cards to D3D, since Intel is notoriously bad at OpenGL */
+		"d3d,opengl",
+		640,480,
+		16,16,16,
+		2048,
+		false
+	),
+	VideoCardDefaults(
+		// Cards that have problems with OpenGL:
+		// ASSERT fail somewhere in RageDisplay_OpenGL "Trident Video Accelerator CyberBlade"
+		// bug 764499: ASSERT fail after glDeleteTextures for "SiS 650_651_740"
+		// bug 764830: ASSERT fail after glDeleteTextures for "VIA Tech VT8361/VT8601 Graphics Controller"
+		// bug 791950: AV in glsis630!DrvSwapBuffers for "SiS 630/730"
+		"Trident Video Accelerator CyberBlade|VIA.*VT|SiS 6*",
+		"d3d,opengl",
+		640,480,
+		16,16,16,
+		2048,
+		false
+	),
+	VideoCardDefaults(
+		/* Unconfirmed texture problems on this; let's try D3D, since it's
+		 * a VIA/S3 chipset. */
+		"VIA/S3G KM400/KN400",
+		"d3d,opengl",
+		640,480,
+		16,16,16,
+		2048,
+		false
+	),
+	VideoCardDefaults(
+		"OpenGL",	// This matches all drivers in Mac and Linux. -Chris
+		"opengl",
+		640,480,
+		16,16,16,
+		2048,
+		true // Right now, they've got to have NVidia or ATi Cards anyway..
 	),
 #if defined(VITA)
 	VideoCardDefaults(
-		"Vita",         // PS Vita (vitaGL/GLES2, 960x544 LCD)
-		"gles2",        // Available renderers
-		960,544,        // Default resolution
-		32,             // Display color
-		32,             // Texture color
-		32,             // Movie color
-		1024,           // Texture size (VRAM is tight)
-		true            // Smooth lines
+		"Vita",		// PS Vita (vitaGL/GLES2, 960x544 LCD)
+		"gles2",	// Available renderers
+		960,544,	// Default resolution
+		32,		// Display color
+		32,		// Texture color
+		32,		// Movie color
+		1024,		// Texture size (VRAM is tight)
+		true		// Smooth lines
 	),
 #endif
 	VideoCardDefaults(
-		"",             // Video card name (generic Windows)
-		"opengl,d3d",   // Available renderers
-		1280,720,       // Default resolution
-		32,             // Display color
-		32,             // Texture color
-		32,             // Movie color
-		2048,           // Texture size
-		true            // Smooth lines
+		// Default graphics settings used for all cards that don't match above.
+		// This must be the very last entry!
+		"",
+		"opengl,d3d",
+		640,480,
+		32,32,32,
+		2048,
+		false  // AA is slow on some cards, so let's selectively enable HW accelerated cards.
 	),
 };
 
@@ -530,7 +659,7 @@ static RString GetVideoDriverName()
 {
 #if defined(VITA)
 	return "Vita";
-#elif defined(_WIN32)
+#elif defined(_WINDOWS)
 	return GetPrimaryVideoDriverName();
 #else
 	return "OpenGL";
@@ -647,13 +776,13 @@ RageDisplay *CreateDisplay()
 		VIDEO_TROUBLESHOOTING_URL "\n\n"+
 		ssprintf(ERROR_VIDEO_DRIVER.GetValue(), GetVideoDriverName().c_str())+"\n\n";
 
-	std::vector<RString> asRenderers;
+	vector<RString> asRenderers;
 	split( PREFSMAN->m_sVideoRenderers, ",", asRenderers, true );
 
 	if( asRenderers.empty() )
 		RageException::Throw( "%s", ERROR_NO_VIDEO_RENDERERS.GetValue().c_str() );
 
-	RageDisplay *pRet = nullptr;
+	RageDisplay *pRet = NULL;
 	for( unsigned i=0; i<asRenderers.size(); i++ )
 	{
 		RString sRenderer = asRenderers[i];
@@ -695,7 +824,7 @@ RageDisplay *CreateDisplay()
 			RageException::Throw( ERROR_UNKNOWN_VIDEO_RENDERER.GetValue(), sRenderer.c_str() );
 		}
 
-		if( pRet == nullptr )
+		if( pRet == NULL )
 			continue;
 
 		RString sError = pRet->Init( params, PREFSMAN->m_bAllowUnacceleratedRenderer );
@@ -710,7 +839,7 @@ RageDisplay *CreateDisplay()
 		break; // the display is ready to go
 	}
 
-	if( pRet == nullptr)
+	if( pRet == NULL)
 		RageException::Throw( "%s", error.c_str() );
 
 	return pRet;
@@ -721,7 +850,7 @@ static void SwitchToLastPlayedGame()
 	const Game *pGame = GAMEMAN->StringToGame( PREFSMAN->GetCurrentGame() );
 
 	// If the active game type isn't actually available, revert to the default.
-	if( pGame == nullptr )
+	if( pGame == NULL )
 		pGame = GAMEMAN->GetDefaultGame();
 
 	if( !GAMEMAN->IsGameEnabled( pGame ) && pGame != GAMEMAN->GetDefaultGame() )
@@ -739,10 +868,10 @@ static void SwitchToLastPlayedGame()
 // This function is meant to only be called during start up.
 void StepMania::InitializeCurrentGame( const Game* g )
 {
-	ASSERT( g != nullptr );
-	ASSERT( GAMESTATE != nullptr );
-	ASSERT( ANNOUNCER != nullptr );
-	ASSERT( THEME != nullptr );
+	ASSERT( g != NULL );
+	ASSERT( GAMESTATE != NULL );
+	ASSERT( ANNOUNCER != NULL );
+	ASSERT( THEME != NULL );
 
 	GAMESTATE->SetCurGame( g );
 
@@ -757,7 +886,7 @@ void StepMania::InitializeCurrentGame( const Game* g )
 	if( GetCommandlineArgument( "game", &argCurGame) && argCurGame != sGametype )
 	{
 		Game const* new_game= GAMEMAN->StringToGame(argCurGame);
-		if(new_game == nullptr)
+		if(new_game == NULL)
 		{
 			LOG->Warn("%s is not a known game type, ignoring.", argCurGame.c_str());
 		}
@@ -767,7 +896,7 @@ void StepMania::InitializeCurrentGame( const Game* g )
 			GAMESTATE->SetCurGame(new_game);
 		}
 	}
-
+	
 	// It doesn't matter if sTheme is blank or invalid, THEME->STAL will set
 	// a selectable theme for us. -Kyz
 
@@ -803,7 +932,7 @@ void StepMania::InitializeCurrentGame( const Game* g )
 
 static void MountTreeOfZips( const RString &dir )
 {
-	std::vector<RString> dirs;
+	vector<RString> dirs;
 	dirs.push_back( dir );
 
 	while( dirs.size() )
@@ -814,31 +943,20 @@ static void MountTreeOfZips( const RString &dir )
 		if( !IsADirectory(path) )
 			continue;
 
-		std::vector<RString> zips;
+		vector<RString> zips;
 		GetDirListing( path + "/*.zip", zips, false, true );
 		GetDirListing( path + "/*.smzip", zips, false, true );
 
-		for (const auto& zip : zips)
+		for( unsigned i = 0; i < zips.size(); ++i )
 		{
-			if( !IsAFile(zip) )
+			if( !IsAFile(zips[i]) )
 				continue;
 
-			LOG->Trace( "VFS: found %s", zip.c_str() );
-			FILEMAN->Mount( "zip", zip, "/" );
+			LOG->Trace( "VFS: found %s", zips[i].c_str() );
+			FILEMAN->Mount( "zip", zips[i], "/" );
 		}
 
 		GetDirListing( path + "/*", dirs, true, true );
-	}
-}
-
-static void MountFolders(const RString &type, const RString &realPathList, const RString &mountPoint)
-{
-	if (!realPathList.empty())
-	{
-		std::vector<RString> dirs;
-		split(realPathList, ",", dirs, true);
-		for (const auto& dir : dirs)
-			FILEMAN->Mount(type, dir, mountPoint);
 	}
 }
 
@@ -917,12 +1035,9 @@ int sm_main(int argc, char* argv[])
 #if defined(VITA)
 	VitaBootMark("sm:fileman-done");
 #endif
-	FILEMAN->ProtectPath(SpecialFiles::DEFAULTS_INI_PATH);
-	FILEMAN->ProtectPath(SpecialFiles::STATIC_INI_PATH);
-	FILEMAN->ProtectPath(SpecialFiles::PREFERENCES_INI_PATH);
 	FILEMAN->MountInitialFilesystems();
 
-	bool bPortable = DoesFileExist("/Portable.ini");
+	bool bPortable = DoesFileExist("Portable.ini");
 	if( !bPortable )
 		FILEMAN->MountUserFilesystems();
 #if defined(VITA)
@@ -956,41 +1071,78 @@ int sm_main(int argc, char* argv[])
 		ShutdownGame();
 		return 0;
 	}
+#if defined(VITA)
+	VitaBootMark("sm:instances-done");
+#endif
 
 	ApplyLogPreferences();
+#if defined(VITA)
+	VitaBootMark("sm:applylog-done");
+#endif
 
 	WriteLogHeader();
+#if defined(VITA)
+	VitaBootMark("sm:logheader-done");
+#endif
 
 	// Set up alternative filesystem trees.
-	MountFolders("dirro", PREFSMAN->m_sAdditionalFoldersReadOnly.Get(), "/");
-	MountFolders("dir", PREFSMAN->m_sAdditionalFoldersWritable.Get(), "/");
-	MountFolders("dirro", PREFSMAN->m_sAdditionalSongFoldersReadOnly.Get(), "/Songs");
-	MountFolders("dir", PREFSMAN->m_sAdditionalSongFoldersWritable.Get(), "/Songs");
-	MountFolders("dirro", PREFSMAN->m_sAdditionalCourseFoldersReadOnly.Get(), "/Courses");
-	MountFolders("dir", PREFSMAN->m_sAdditionalCourseFoldersWritable.Get(), "/Courses");
+	if( PREFSMAN->m_sAdditionalFolders.Get() != "" )
+	{
+		vector<RString> dirs;
+		split( PREFSMAN->m_sAdditionalFolders, ",", dirs, true );
+		for( unsigned i=0; i < dirs.size(); i++)
+			FILEMAN->Mount( "dir", dirs[i], "/" );
+	}
+	if( PREFSMAN->m_sAdditionalSongFolders.Get() != "" )
+	{
+		vector<RString> dirs;
+		split( PREFSMAN->m_sAdditionalSongFolders, ",", dirs, true );
+		for( unsigned i=0; i < dirs.size(); i++)
+			FILEMAN->Mount( "dir", dirs[i], "/AdditionalSongs" );
+	}
+	if( PREFSMAN->m_sAdditionalCourseFolders.Get() != "" )
+	{
+		vector<RString> dirs;
+		split( PREFSMAN->m_sAdditionalCourseFolders, ",", dirs, true );
+		for( unsigned i=0; i < dirs.size(); i++)
+			FILEMAN->Mount( "dir", dirs[i], "/AdditionalCourses" );
+	}
 
 	MountTreeOfZips( SpecialFiles::PACKAGES_DIR );
+	MountTreeOfZips( SpecialFiles::USER_PACKAGES_DIR );
 
 	/* One of the above filesystems might contain files that affect preferences
 	 * (e.g. Data/Static.ini). Re-read preferences. */
 	PREFSMAN->ReadPrefsFromDisk();
 	ApplyLogPreferences();
+#if defined(VITA)
+	VitaBootMark("sm:readprefs-done");
+#endif
 
 	// This needs PREFSMAN.
 	Dialog::Init();
-
-	// Set up the messaging system early to have well defined code.
-	MESSAGEMAN	= new MessageManager;
+#if defined(VITA)
+	VitaBootMark("sm:dialog-done");
+#endif
 
 	// Create game objects
+
+	// Set up the messaging system early: GameState ctor broadcasts via MESSAGEMAN.
+	MESSAGEMAN	= new MessageManager;
+#if defined(VITA)
+	VitaBootMark("sm:messageman-done");
+#endif
 	GAMESTATE	= new GameState;
+#if defined(VITA)
+	VitaBootMark("sm:gamestate-done");
+#endif
 
 	// This requires PREFSMAN, for PREFSMAN->m_bShowLoadingWindow.
 	LoadingWindow *pLoadingWindow = LoadingWindow::Create();
-	if(pLoadingWindow == nullptr)
+	if(pLoadingWindow == NULL)
 		RageException::Throw("%s", COULDNT_OPEN_LOADING_WINDOW.GetValue().c_str());
 
-	srand( time(nullptr) ); // seed number generator
+	srand( time(NULL) ); // seed number generator
 
 	/* Do this early, so we have debugging output if anything else fails. LOG and
 	 * Dialog must be set up first. It shouldn't take long, but it might take a
@@ -1008,8 +1160,14 @@ int sm_main(int argc, char* argv[])
 	THEME		= new ThemeManager;
 	ANNOUNCER	= new AnnouncerManager;
 	NOTESKIN	= new NoteSkinManager;
+#if defined(VITA)
+	VitaBootMark("sm:managers-done");
+#endif
 
 	// Switch to the last used game type, and set up the theme and announcer.
+#if defined(VITA)
+	VitaBootSplash::SetStage( BOOTSTAGE_THEME );
+#endif
 	SwitchToLastPlayedGame();
 #if defined(VITA)
 	VitaBootMark("sm:theme-done");
@@ -1017,6 +1175,44 @@ int sm_main(int argc, char* argv[])
 
 	CommandLineActions::Handle(pLoadingWindow);
 
+	// Aldo: Check for updates here!
+#if 0
+	if( /* PREFSMAN->m_bUpdateCheckEnable (do this later) */ 0 )
+	{
+		// TODO - Aldo_MX: Use PREFSMAN->m_iUpdateCheckIntervalSeconds & PREFSMAN->m_iUpdateCheckLastCheckedSecond
+		unsigned long current_version = NetworkSyncManager::GetCurrentSMBuild( pLoadingWindow );
+		if( current_version )
+		{
+			if( current_version > version_num )
+			{
+				switch( Dialog::YesNo( "A new version of " PRODUCT_ID " is available. Do you want to download it?", "UpdateCheck" ) )
+				{
+				case Dialog::yes:
+					//PREFSMAN->SavePrefsToDisk();
+					// TODO: GoToURL for Linux
+					if( !HOOKS->GoToURL( SM_DOWNLOAD_URL ) )
+					{
+						Dialog::Error( "Please go to the following URL to download the latest version of " PRODUCT_ID ":\n\n" SM_DOWNLOAD_URL, "UpdateCheckConfirm" );
+					}
+					ShutdownGame();
+					return 0;
+				case Dialog::no:
+					break;
+				default:
+					FAIL_M("Invalid response to Yes/No dialog");
+				}
+			}
+			else if( version_num < current_version )
+			{
+				LOG->Info( "The current version is more recent than the public one, double check you downloaded it from " SM_DOWNLOAD_URL );
+			}
+		}
+		else
+		{
+			LOG->Info( "Unable to check for updates. The server might be offline." );
+		}
+	}
+#endif
 	if( GetCommandlineArgument("dopefish") )
 		GAMESTATE->m_bDopefish = true;
 
@@ -1025,11 +1221,11 @@ int sm_main(int argc, char* argv[])
 		 * theme into the loading window. */
 		RString sError;
 		RageSurface *pSurface = RageSurfaceUtils::LoadFile( THEME->GetPathG( "Common", "window icon" ), sError );
-		if( pSurface != nullptr )
+		if( pSurface != NULL )
 			pLoadingWindow->SetIcon( pSurface );
 		delete pSurface;
 		pSurface = RageSurfaceUtils::LoadFile( THEME->GetPathG("Common","splash"), sError );
-		if( pSurface != nullptr )
+		if( pSurface != NULL )
 			pLoadingWindow->SetSplash( pSurface );
 		delete pSurface;
 	}
@@ -1038,6 +1234,9 @@ int sm_main(int argc, char* argv[])
 		LOG->Info( "Sound writeahead has been overridden to %i", PREFSMAN->m_iSoundWriteAhead.Get() );
 
 	SOUNDMAN	= new RageSoundManager;
+#if defined(VITA)
+	VitaBootSplash::SetStage( BOOTSTAGE_SOUND );
+#endif
 	SOUNDMAN->Init();
 	SOUNDMAN->SetMixVolume();
 	SOUND		= new GameSoundManager;
@@ -1050,32 +1249,58 @@ int sm_main(int argc, char* argv[])
 
 	INPUTQUEUE	= new InputQueue;
 	SONGINDEX	= new SongCacheIndex;
-	IMAGECACHE	= new ImageCache;
+	BANNERCACHE	= new BannerCache;
+	//BACKGROUNDCACHE	= new BackgroundCache;
 
 	// depends on SONGINDEX:
 	SONGMAN		= new SongManager;
-	SONGMAN->InitAll( pLoadingWindow, /*onlyAdditions=*/false );	// this takes a long time
+#if defined(VITA)
+	VitaBootSplash::SetStage( BOOTSTAGE_SONGS );
+#endif
+	SONGMAN->InitAll( pLoadingWindow );	// this takes a long time
 #if defined(VITA)
 	VitaBootMark("sm:songman-done");
+#endif
+#if defined(VITA)
+	VitaBootMark("sm:cryptman-enter");
 #endif
 	CRYPTMAN	= new CryptManager;		// need to do this before ProfileMan
 	if( PREFSMAN->m_bSignProfileData )
 		CRYPTMAN->GenerateGlobalKeys();
+#if defined(VITA)
+	VitaBootMark("sm:cryptman-done");
+#endif
 	MEMCARDMAN	= new MemoryCardManager;
+#if defined(VITA)
+	VitaBootMark("sm:memcardman-done");
+#endif
 	CHARMAN		= new CharacterManager;
+#if defined(VITA)
+	VitaBootMark("sm:charman-done");
+#endif
 	PROFILEMAN	= new ProfileManager;
+#if defined(VITA)
+	VitaBootSplash::SetStage( BOOTSTAGE_PROFILES );
+	VitaBootMark("sm:profileman-ctor-done");
+#endif
 	PROFILEMAN->Init();				// must load after SONGMAN
 #if defined(VITA)
 	VitaBootMark("sm:profileman-done");
 #endif
 	UNLOCKMAN	= new UnlockManager;
+#if defined(VITA)
+	VitaBootMark("sm:unlockman-done");
+#endif
 	SONGMAN->UpdatePopular();
 	SONGMAN->UpdatePreferredSort();
-	NETWORK		= new NetworkManager;
+	NSMAN 		= new NetworkSyncManager( pLoadingWindow );
 	STATSMAN	= new StatsManager;
 
 	// Initialize which courses are ranking courses here.
 	SONGMAN->UpdateRankingCourses();
+#if defined(VITA)
+	VitaBootMark("sm:ranking-done");
+#endif
 
 	SAFE_DELETE( pLoadingWindow ); // destroy this before init'ing Display
 
@@ -1087,6 +1312,10 @@ int sm_main(int argc, char* argv[])
 		return 0;
 	}
 
+#if defined(VITA)
+	VitaBootMark("sm:predisplay");
+	VitaBootSplash::SetStage( BOOTSTAGE_DISPLAY );
+#endif
 	StartDisplay();
 
 	StoreActualGraphicOptions();
@@ -1121,6 +1350,9 @@ int sm_main(int argc, char* argv[])
 		SCREENMAN->SystemMessage( sMessage );
 
 	CodeDetector::RefreshCacheItems();
+
+	if( GetCommandlineArgument("netip") )
+		NSMAN->DisplayStartupStatus();	// If we're using networking show what happened
 
 	// Run the main loop.
 #if defined(VITA)
@@ -1188,18 +1420,15 @@ void StepMania::InsertCoin( int iNum, bool bCountInBookkeeping )
 	{
 		GAMESTATE->m_iCoins.Set( GAMESTATE->m_iCoins + iNum );
 	}
-
+	
 	int iCredits = GAMESTATE->m_iCoins / PREFSMAN->m_iCoinsPerCredit;
-	bool bMaxCredits = iCredits >= PREFSMAN->m_iMaxNumCredits;
+	bool bMaxCredits = iCredits >= MAX_NUM_CREDITS;
 	if( bMaxCredits )
 	{
-		GAMESTATE->m_iCoins.Set( PREFSMAN->m_iMaxNumCredits * PREFSMAN->m_iCoinsPerCredit );
+		GAMESTATE->m_iCoins.Set( MAX_NUM_CREDITS * PREFSMAN->m_iCoinsPerCredit );
 	}
-
+	
 	LOG->Trace("%i coins inserted, %i needed to play", GAMESTATE->m_iCoins.Get(), PREFSMAN->m_iCoinsPerCredit.Get() );
-
-    // On InsertCoin, make sure to update Coins file
-    BOOKKEEPER->WriteCoinsFile(GAMESTATE->m_iCoins.Get());
 
 	// If inserting coins, play an appropriate sound; if deducting coins, don't play anything.
 	if (iNum > 0)
@@ -1239,9 +1468,6 @@ void StepMania::ClearCredits()
 	LOG->Trace("%i coins cleared", GAMESTATE->m_iCoins.Get() );
 	GAMESTATE->m_iCoins.Set( 0 );
 	SCREENMAN->PlayInvalidSound();
-
-    // Update Coins file to make sure credits are cleared.
-    BOOKKEEPER->WriteCoinsFile(GAMESTATE->m_iCoins.Get());
 
 	// TODO: remove this redundant message and things that depend on it
 	Message msg( "CoinInserted" );
@@ -1400,7 +1626,7 @@ bool HandleGlobalInputs( const InputEventPlus &input )
 		 INPUTFILTER->IsBeingPressed(DeviceInput(DEVICE_KEYBOARD, KEY_LALT), &input.InputList)) )
 	{
 		// alt-enter
-		/* In macOS, this is a menu item and will be handled as such. This will
+		/* In OS X, this is a menu item and will be handled as such. This will
 		 * happen first and then the lower priority GUI thread will happen second,
 		 * causing the window to toggle twice. Another solution would be to put
 		 * a timer in ArchHooks::SetToggleWindowed() and just not set the bool
@@ -1426,21 +1652,8 @@ void HandleInputEvents(float fDeltaTime)
 	if( SCREENMAN->GetTopScreen()->IsFirstUpdate() )
 		return;
 
-	std::vector<InputEvent> ieArray;
+	vector<InputEvent> ieArray;
 	INPUTFILTER->GetInputEvents( ieArray );
-#if defined(VITA)
-	// Temporary bring-up logging. TODO(Vita): remove once input is verified.
-	{
-		static int s_nCount = 0;
-		if( !ieArray.empty() && s_nCount < 20 )
-		{
-			++s_nCount;
-			LOG->Info( "VitaDispatch: %u events, first dev=%d btn=%d type=%d",
-				(unsigned)ieArray.size(), (int)ieArray[0].di.device,
-				(int)ieArray[0].di.button, (int)ieArray[0].type );
-		}
-	}
-#endif
 
 	// If we don't have focus, discard input.
 	if( !HOOKS->AppHasFocus() )
@@ -1544,8 +1757,8 @@ int LuaFunc_SaveScreenshot(lua_State *L)
 	// If pn is provided, save to that player's profile.
 	// Otherwise, save to the machine.
 	PlayerNumber pn= Enum::Check<PlayerNumber>(L, 1, true);
-	bool compress= lua_toboolean(L, 2) > 0;
-	bool sign= lua_toboolean(L, 3) > 0;
+	bool compress= lua_toboolean(L, 2);
+	bool sign= lua_toboolean(L, 3);
 	RString prefix= luaL_optstring(L, 4, "");
 	RString suffix= luaL_optstring(L, 5, "");
 	RString dir;

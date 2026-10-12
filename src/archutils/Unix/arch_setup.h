@@ -9,6 +9,10 @@
 #include <alloca.h>
 #endif
 
+#if defined(HAVE_STDINT_H) /* need to define int64_t if so */
+#include <stdint.h>
+#endif
+
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -17,6 +21,7 @@
 #undef MACHINE
 #endif
 
+#include "archutils/Common/gcc_byte_swaps.h"
 #endif
 
 /*

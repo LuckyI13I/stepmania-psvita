@@ -12,7 +12,7 @@ class XNode;
 class AutoActor
 {
 public:
-	AutoActor(): m_pActor(nullptr) {}
+	AutoActor(): m_pActor(NULL) {}
 	~AutoActor()			{ Unload(); }
 	AutoActor( const AutoActor &cpy );
 	AutoActor &operator =( const AutoActor &cpy );
@@ -24,7 +24,7 @@ public:
 	/** 
 	 * @brief Determine if this actor is presently loaded.
 	 * @return true if it is loaded, or false otherwise. */
-	bool IsLoaded() const		{ return m_pActor != nullptr; }
+	bool IsLoaded() const		{ return m_pActor != NULL; }
 	void Load( Actor *pActor );	// transfer pointer
 	void Load( const RString &sPath );
 	void LoadB( const RString &sMetricsGroup, const RString &sElement );	// load a background and set up LuaThreadVariables for recursive loading

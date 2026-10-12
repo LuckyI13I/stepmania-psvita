@@ -4,12 +4,8 @@
 #include "RageUtil.h"
 #include "VideoDriverInfo.h"
 #include "RegistryAccess.h"
-
-#include <vector>
-
 #include <windows.h>
 #include <mmsystem.h>
-
 
 static void LogVideoDriverInfo( VideoDriverInfo info )
 {
@@ -83,7 +79,43 @@ static RString wo_ssprintf( MMRESULT err, const char *fmt, ...)
 	return s += ssprintf( "(%s)", buf );
 }
 
-static void GetDriveDebugInfo()
+static void GetDriveDebugInfo9x()
+{
+
+	/*
+	 * HKEY_LOCAL_MACHINE\Enum\ESDI
+	 *  *\  (disk id)
+	 *   *\  (eg. MF&CHILD0000&PCI&VEN_8086&DEV_7111&SUBSYS_197615AD&REV_01&BUS_00&DEV_07&FUNC_0100)
+	 *    DMACurrentlyUsed  0 or 1
+	 *    DeviceDesc        "GENERIC IDE  DISK TYPE01"
+	 */
+	vector<RString> Drives;
+	if( !RegistryAccess::GetRegSubKeys( "HKEY_LOCAL_MACHINE\\Enum\\ESDI", Drives ) )
+		return;
+
+	for( unsigned drive = 0; drive < Drives.size(); ++drive )
+	{
+		vector<RString> IDs;
+		if( !RegistryAccess::GetRegSubKeys( Drives[drive], IDs ) )
+			continue;
+
+		for( unsigned id = 0; id < IDs.size(); ++id )
+		{
+			RString DeviceDesc;
+
+			RegistryAccess::GetRegValue( IDs[id], "DeviceDesc", DeviceDesc );
+			TrimRight( DeviceDesc );
+
+			int DMACurrentlyUsed = -1;
+			RegistryAccess::GetRegValue( IDs[id], "DMACurrentlyUsed", DMACurrentlyUsed );
+
+			LOG->Info( "Drive: \"%s\" DMA: %s",
+				DeviceDesc.c_str(), DMACurrentlyUsed? "yes":"NO" );
+		}
+	}
+}
+
+static void GetDriveDebugInfoNT()
 {
 	/*
 	 * HKEY_LOCAL_MACHINE\HARDWARE\DEVICEMAP\Scsi\
@@ -96,7 +128,7 @@ static void GetDriveDebugInfo()
 	 *		     Identifier  "WDC WD1200JB-75CRA0"
 	 *			 Type        "DiskPeripheral"
 	 */
-	std::vector<RString> Ports;
+	vector<RString> Ports;
 	if( !RegistryAccess::GetRegSubKeys( "HKEY_LOCAL_MACHINE\\HARDWARE\\DEVICEMAP\\Scsi", Ports ) )
 		return;
 
@@ -108,19 +140,19 @@ static void GetDriveDebugInfo()
 		RString Driver;
 		RegistryAccess::GetRegValue( Ports[i], "Driver", Driver );
 
-		std::vector<RString> Busses;
+		vector<RString> Busses;
 		if( !RegistryAccess::GetRegSubKeys( Ports[i], Busses, "Scsi Bus .*" ) )
 			continue;
 
 		for( unsigned bus = 0; bus < Busses.size(); ++bus )
 		{
-			std::vector<RString> TargetIDs;
+			vector<RString> TargetIDs;
 			if( !RegistryAccess::GetRegSubKeys( Busses[bus], TargetIDs, "Target Id .*" ) )
 				continue;
 
 			for( unsigned tid = 0; tid < TargetIDs.size(); ++tid )
 			{
-				std::vector<RString> LUIDs;
+				vector<RString> LUIDs;
 				if( !RegistryAccess::GetRegSubKeys( TargetIDs[tid], LUIDs, "Logical Unit Id .*" ) )
 					continue;
 
@@ -137,15 +169,31 @@ static void GetDriveDebugInfo()
 	}
 }
 
+static void GetDriveDebugInfo()
+{
+	OSVERSIONINFO ovi;
+	ovi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+	if( !GetVersionEx(&ovi) )
+	{
+		LOG->Info("GetVersionEx failed!");
+		return;
+	}
+
+	switch( ovi.dwPlatformId )
+	{
+	case VER_PLATFORM_WIN32_WINDOWS:
+		GetDriveDebugInfo9x(); break;
+	case VER_PLATFORM_WIN32_NT:
+		GetDriveDebugInfoNT(); break;
+	}
+}
+
 static void GetWindowsVersionDebugInfo()
 {
 	// Detect operating system.
 	OSVERSIONINFO ovi;
 	ovi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-#pragma warning( push )
-#pragma warning( disable : 4996 )
 	if (!GetVersionEx(&ovi))
-#pragma warning( pop )
 	{
 		LOG->Info("GetVersionEx failed!");
 		return;

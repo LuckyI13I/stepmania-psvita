@@ -9,9 +9,6 @@
 #include "Steps.h"
 #include "Trail.h"
 
-#include <vector>
-
-
 static const char *DifficultyNames[] = {
 	"Beginner",
 	"Easy",
@@ -26,13 +23,13 @@ LuaXType( Difficulty );
 
 const RString &CourseDifficultyToLocalizedString( CourseDifficulty x )
 {
-	static std::unique_ptr<LocalizedString> g_CourseDifficultyName[NUM_Difficulty];
-	if( g_CourseDifficultyName[0].get() == nullptr )
+	static auto_ptr<LocalizedString> g_CourseDifficultyName[NUM_Difficulty];
+	if( g_CourseDifficultyName[0].get() == NULL )
 	{
 		FOREACH_ENUM( Difficulty,i)
 		{
-			std::unique_ptr<LocalizedString> ap( new LocalizedString("CourseDifficulty", DifficultyToString(i)) );
-			g_CourseDifficultyName[i] = std::move(ap);
+			auto_ptr<LocalizedString> ap( new LocalizedString("CourseDifficulty", DifficultyToString(i)) );
+			g_CourseDifficultyName[i] = ap;
 		}
 	}
 	return g_CourseDifficultyName[x]->GetValue();
@@ -115,20 +112,20 @@ RString GetCustomDifficulty( StepsType st, Difficulty dc, CourseType ct )
 		return "Edit";
 	}
 	// OPTIMIZATION OPPORTUNITY: cache these metrics and cache the splitting
-	std::vector<RString> vsNames;
+	vector<RString> vsNames;
 	split( NAMES, ",", vsNames );
-	for (RString const &sName: vsNames)
+	FOREACH( RString, vsNames, sName )
 	{
-		ThemeMetric<StepsType> STEPS_TYPE("CustomDifficulty",sName + "StepsType");
+		ThemeMetric<StepsType> STEPS_TYPE("CustomDifficulty",(*sName)+"StepsType");
 		if( STEPS_TYPE == StepsType_Invalid  ||  st == STEPS_TYPE )	// match
 		{
-			ThemeMetric<Difficulty> DIFFICULTY("CustomDifficulty",sName + "Difficulty");
+			ThemeMetric<Difficulty> DIFFICULTY("CustomDifficulty",(*sName)+"Difficulty");
 			if( DIFFICULTY == Difficulty_Invalid  ||  dc == DIFFICULTY )	// match
 			{
-				ThemeMetric<CourseType> COURSE_TYPE("CustomDifficulty",sName + "CourseType");
+				ThemeMetric<CourseType> COURSE_TYPE("CustomDifficulty",(*sName)+"CourseType");
 				if( COURSE_TYPE == CourseType_Invalid  ||  ct == COURSE_TYPE )	// match
 				{
-					ThemeMetric<RString> STRING("CustomDifficulty",sName + "String");
+					ThemeMetric<RString> STRING("CustomDifficulty",(*sName)+"String");
 					return STRING.GetValue();
 				}
 			}
@@ -168,7 +165,7 @@ LuaFunction( TrailToCustomDifficulty, TrailToCustomDifficulty(Luna<Trail>::check
 /*
  * (c) 2001-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -178,7 +175,7 @@ LuaFunction( TrailToCustomDifficulty, TrailToCustomDifficulty(Luna<Trail>::check
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

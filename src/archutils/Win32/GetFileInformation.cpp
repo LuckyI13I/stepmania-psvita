@@ -3,13 +3,13 @@
 
 #include "RageUtil.h"
 #include "archutils/Win32/ErrorStrings.h"
-
-#include <cstdint>
 #include <sys/stat.h>
 #include <windows.h>
 #include <tlhelp32.h>
 
+#if defined(_MSC_VER)
 #pragma comment(lib, "version.lib")
+#endif
 
 bool GetFileVersion( RString sFile, RString &sOut )
 {
@@ -22,7 +22,7 @@ bool GetFileVersion( RString sFile, RString &sOut )
 
 		RString VersionBuffer( iSize, ' ' );
 		// Also VC6:
-		if( !GetFileVersionInfo( const_cast<char *>(sFile.c_str()), 0, iSize, const_cast<char *>(VersionBuffer.c_str()) ) )
+		if( !GetFileVersionInfo( const_cast<char *>(sFile.c_str()), NULL, iSize, const_cast<char *>(VersionBuffer.c_str()) ) )
 			break;
 
 		WORD *iTrans;
@@ -73,7 +73,7 @@ RString FindSystemFile( RString sFile )
 		"/system/",
 		"/system/drivers/",
 		"/",
-		nullptr
+		NULL
 	};
 
 	for( int i = 0; szPaths[i]; ++i )
@@ -89,13 +89,13 @@ RString FindSystemFile( RString sFile )
 
 /* Get the full path of the process running in iProcessID. On error, false is
  * returned and an error message is placed in sName. */
-bool GetProcessFileName( std::uint32_t iProcessID, RString &sName )
+bool GetProcessFileName( uint32_t iProcessID, RString &sName )
 {
 	/* This method works in everything except for NT4, and only uses
 	 * kernel32.lib functions. */
 	do {
 		HANDLE hSnap = CreateToolhelp32Snapshot( TH32CS_SNAPMODULE, iProcessID );
-		if( hSnap == nullptr )
+		if( hSnap == NULL )
 		{
 			sName = werr_ssprintf( GetLastError(), "CreateToolhelp32Snapshot" );
 			break;
@@ -118,9 +118,9 @@ bool GetProcessFileName( std::uint32_t iProcessID, RString &sName )
 
 	// This method only works in NT/2K/XP.
 	do {
-		static HINSTANCE hPSApi = nullptr;
+		static HINSTANCE hPSApi = NULL;
 		typedef DWORD (WINAPI* pfnGetProcessImageFileNameA)(HANDLE hProcess, LPSTR lpImageFileName, DWORD nSize);
-		static pfnGetProcessImageFileNameA pGetProcessImageFileName = nullptr;
+		static pfnGetProcessImageFileNameA pGetProcessImageFileName = NULL;
 		static bool bTried = false;
 
 		if( !bTried )
@@ -128,7 +128,7 @@ bool GetProcessFileName( std::uint32_t iProcessID, RString &sName )
 			bTried = true;
 
 			hPSApi = LoadLibrary("psapi.dll");
-			if( hPSApi == nullptr )
+			if( hPSApi == NULL )
 			{
 				sName = werr_ssprintf( GetLastError(), "LoadLibrary" );
 				break;
@@ -136,7 +136,7 @@ bool GetProcessFileName( std::uint32_t iProcessID, RString &sName )
 			else
 			{
 				pGetProcessImageFileName = (pfnGetProcessImageFileNameA) GetProcAddress( hPSApi, "GetProcessImageFileNameA" );
-				if( pGetProcessImageFileName == nullptr )
+				if( pGetProcessImageFileName == NULL )
 				{
 					sName = werr_ssprintf( GetLastError(), "GetProcAddress" );
 					break;
@@ -144,10 +144,10 @@ bool GetProcessFileName( std::uint32_t iProcessID, RString &sName )
 			}
 		}
 
-		if( pGetProcessImageFileName != nullptr )
+		if( pGetProcessImageFileName != NULL )
 		{
-			HANDLE hProc = OpenProcess( PROCESS_VM_READ|PROCESS_QUERY_INFORMATION, FALSE, iProcessID );
-			if( hProc == nullptr )
+			HANDLE hProc = OpenProcess( PROCESS_VM_READ|PROCESS_QUERY_INFORMATION, NULL, iProcessID );
+			if( hProc == NULL )
 			{
 				sName = werr_ssprintf( GetLastError(), "OpenProcess" );
 				break;
@@ -175,7 +175,7 @@ bool GetProcessFileName( std::uint32_t iProcessID, RString &sName )
 /*
  * (c) 2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -185,7 +185,7 @@ bool GetProcessFileName( std::uint32_t iProcessID, RString &sName )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

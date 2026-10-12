@@ -21,7 +21,6 @@ bool NetworkSyncManager::Connect( const RString& addy, unsigned short port ) { r
 RString NetworkSyncManager::GetServerName() { return RString(); }
 void NetworkSyncManager::ReportNSSOnOff( int i ) { }
 void NetworkSyncManager::ReportScore( int playerID, int step, int score, int combo, float offset ) { }
-void NetworkSyncManager::ReportScore(int playerID, int step, int score, int combo, float offset, int numNotes) { }
 void NetworkSyncManager::ReportSongOver() { }
 void NetworkSyncManager::ReportStyle() {}
 void NetworkSyncManager::StartRequest( short position ) { }
@@ -56,7 +55,6 @@ AutoScreenMessage( SM_AddToChat );
 AutoScreenMessage( SM_ChangeSong );
 AutoScreenMessage( SM_GotEval );
 AutoScreenMessage( SM_UsersUpdate );
-AutoScreenMessage( SM_FriendsUpdate );
 AutoScreenMessage( SM_SMOnlinePack );
 
 int NetworkSyncManager::GetSMOnlineSalt()
@@ -67,8 +65,8 @@ int NetworkSyncManager::GetSMOnlineSalt()
 static LocalizedString INITIALIZING_CLIENT_NETWORK	( "NetworkSyncManager", "Initializing Client Network..." );
 NetworkSyncManager::NetworkSyncManager( LoadingWindow *ld )
 {
-	LANserver = nullptr;	//So we know if it has been created yet
-	BroadcastReception = nullptr;
+	LANserver = NULL;	//So we know if it has been created yet
+	BroadcastReception = NULL;
 
 	ld->SetText( INITIALIZING_CLIENT_NETWORK );
 	NetPlayerClient = new EzSockets;
@@ -212,7 +210,7 @@ void NetworkSyncManager::StartUp()
 		PostStartUp( ServerIP );
 
 	BroadcastReception = new EzSockets;
-	BroadcastReception->create( EZS_UDP );
+	BroadcastReception->create( IPPROTO_UDP );
 	BroadcastReception->bind( 8765 );
 	BroadcastReception->blocking = false;
 }
@@ -240,53 +238,6 @@ void NetworkSyncManager::ReportNSSOnOff(int i)
 RString NetworkSyncManager::GetServerName() 
 { 
 	return m_ServerName;
-}
-
-//Same as the one below except for ctr = uint8_t(STATSMAN->m_CurStageStats.m_player[playerID].GetGrade() * 16 + numNotes);
-//Im keeping the old one because it's used for single tap notes
-void NetworkSyncManager::ReportScore(int playerID, int step, int score, int combo, float offset, int numNotes)
-{
-	if (!useSMserver) //Make sure that we are using the network
-		return;
-
-	LOG->Trace("Player ID %i combo = %i", playerID, combo);
-	m_packet.ClearPacket();
-
-	m_packet.Write1(NSCGSU);
-	step = TranslateStepType(step);
-	uint8_t ctr = (uint8_t)(playerID * 16 + step - (SMOST_HITMINE - 1));
-	m_packet.Write1(ctr);
-
-	ctr = uint8_t(STATSMAN->m_CurStageStats.m_player[playerID].GetGrade() * 16 + numNotes);
-
-	if (STATSMAN->m_CurStageStats.m_player[playerID].m_bFailed)
-		ctr = uint8_t(112);	//Code for failed (failed constant seems not to work)
-
-	m_packet.Write1(ctr);
-	m_packet.Write4(score);
-	m_packet.Write2((uint16_t)combo);
-	m_packet.Write2((uint16_t)m_playerLife[playerID]);
-
-	// Offset Info
-	// Note: if a 0 is sent, then disregard data.
-
-	// ASSUMED: No step will be more than 16 seconds off center.
-	// If this assumption is false, read 16 seconds in either direction.
-	int iOffset = int((offset + 16.384)*2000.0f);
-
-	if (iOffset>65535)
-		iOffset = 65535;
-	if (iOffset<1)
-		iOffset = 1;
-
-	// Report 0 if hold, or miss (don't forget mines should report)
-	if (step == SMOST_HITMINE || step > SMOST_W1)
-		iOffset = 0;
-
-	m_packet.Write2((uint16_t)iOffset);
-
-	NetPlayerClient->SendPack((char*)m_packet.Data, m_packet.Position);
-
 }
 
 void NetworkSyncManager::ReportScore(int playerID, int step, int score, int combo, float offset)
@@ -384,11 +335,11 @@ void NetworkSyncManager::StartRequest( short position )
 
 	Steps * tSteps;
 	tSteps = GAMESTATE->m_pCurSteps[PLAYER_1];
-	if( tSteps!= nullptr && GAMESTATE->IsPlayerEnabled(PLAYER_1) )
+	if( tSteps!=NULL && GAMESTATE->IsPlayerEnabled(PLAYER_1) )
 		ctr = uint8_t(ctr+tSteps->GetMeter()*16);
 
 	tSteps = GAMESTATE->m_pCurSteps[PLAYER_2];
-	if( tSteps!= nullptr && GAMESTATE->IsPlayerEnabled(PLAYER_2) )
+	if( tSteps!=NULL && GAMESTATE->IsPlayerEnabled(PLAYER_2) )
 		ctr = uint8_t( ctr+tSteps->GetMeter() );
 
 	m_packet.Write1( ctr );
@@ -396,11 +347,11 @@ void NetworkSyncManager::StartRequest( short position )
 	ctr=0;
 
 	tSteps = GAMESTATE->m_pCurSteps[PLAYER_1];
-	if( tSteps!= nullptr && GAMESTATE->IsPlayerEnabled(PLAYER_1) )
+	if( tSteps!=NULL && GAMESTATE->IsPlayerEnabled(PLAYER_1) )
 		ctr = uint8_t( ctr + (int)tSteps->GetDifficulty()*16 );
 
 	tSteps = GAMESTATE->m_pCurSteps[PLAYER_2];
-	if( tSteps!= nullptr && GAMESTATE->IsPlayerEnabled(PLAYER_2) )
+	if( tSteps!=NULL && GAMESTATE->IsPlayerEnabled(PLAYER_2) )
 		ctr = uint8_t( ctr + (int)tSteps->GetDifficulty() );
 
 	m_packet.Write1( ctr );
@@ -409,7 +360,7 @@ void NetworkSyncManager::StartRequest( short position )
 	ctr = char( position*16 );
 	m_packet.Write1( ctr );
 
-	if( GAMESTATE->m_pCurSong != nullptr )
+	if( GAMESTATE->m_pCurSong != NULL )
 	{
 		m_packet.WriteNT( GAMESTATE->m_pCurSong->m_sMainTitle );
 		m_packet.WriteNT( GAMESTATE->m_pCurSong->m_sSubTitle );
@@ -422,7 +373,7 @@ void NetworkSyncManager::StartRequest( short position )
 		m_packet.WriteNT( "" );
 	}
 
-	if( GAMESTATE->m_pCurCourse != nullptr )
+	if( GAMESTATE->m_pCurCourse != NULL )
 		m_packet.WriteNT( GAMESTATE->m_pCurCourse->GetDisplayFullTitle() );
 	else
 		m_packet.WriteNT( RString() );
@@ -437,33 +388,8 @@ void NetworkSyncManager::StartRequest( short position )
 		m_packet.WriteNT( GAMESTATE->m_pPlayerState[p]->m_PlayerOptions.GetCurrent().GetString() );
 	}
 	for (int i=0; i<2-players; ++i)
-		m_packet.WriteNT("");	//Write a nullptr if no player
+		m_packet.WriteNT("");	//Write a NULL if no player
 
-	//Send song hash/chartkey
-	if (m_ServerVersion >= 129) {
-		tSteps = GAMESTATE->m_pCurSteps[PLAYER_1];
-		if (tSteps != nullptr && GAMESTATE->IsPlayerEnabled(PLAYER_1)) {
-			m_packet.WriteNT(tSteps->GetChartKey());
-		} 
-		else 
-		{
-			m_packet.WriteNT("");
-		}
-
-		tSteps = GAMESTATE->m_pCurSteps[PLAYER_2];
-		if (tSteps != nullptr && GAMESTATE->IsPlayerEnabled(PLAYER_2)) {
-			m_packet.WriteNT(tSteps->GetChartKey());
-		} 
-		else 
-		{
-			m_packet.WriteNT("");
-		}
-
-		int rate = (int)(GAMESTATE->m_SongOptions.GetCurrent().m_fMusicRate * 100);
-		m_packet.Write1(rate);
-		m_packet.WriteNT(GAMESTATE->m_pCurSong->GetFileHash());
-	}
-	
 	//This needs to be reset before ScreenEvaluation could possibly be called
 	m_EvalPlayerData.clear();
 
@@ -537,7 +463,7 @@ void NetworkSyncManager::Update(float fDeltaTime)
 			ThisServer.Name = BroadIn.ReadNT();
 			int port = BroadIn.Read2();
 			BroadIn.Read2();	//Num players connected.
-			uint32_t addy = BroadcastReception->getAddress();
+			uint32_t addy = EzSockets::LongFromAddrIn(BroadcastReception->fromAddr);
 			ThisServer.Address = ssprintf( "%u.%u.%u.%u:%d",
 				(addy<<0)>>24, (addy<<8)>>24, (addy<<16)>>24, (addy<<24)>>24, port );
 
@@ -681,12 +607,6 @@ void NetworkSyncManager::ProcessInput()
 				m_sMainTitle = m_packet.ReadNT();
 				m_sArtist = m_packet.ReadNT();
 				m_sSubTitle = m_packet.ReadNT();
-				//Read songhash
-				if (m_ServerVersion >= 129) {
-					m_sFileHash = m_packet.ReadNT();
-				} else {
-					m_sFileHash = "" ;
-				}
 				SCREENMAN->SendMessageToTopScreen( SM_ChangeSong );
 			}
 			break;
@@ -748,20 +668,6 @@ void NetworkSyncManager::ProcessInput()
 				m_packet.ClearPacket();
 			}
 			break;
-		case FLU:
-			{
-				int PlayersInThisPacket = m_packet.Read1();
-				fl_PlayerNames.clear();
-				fl_PlayerStates.clear();
-				for (int i = 0; i<PlayersInThisPacket; ++i)
-				{
-					int PStatus = m_packet.Read1();
-					fl_PlayerStates.push_back(PStatus);
-					fl_PlayerNames.push_back(m_packet.ReadNT());
-				}
-				SCREENMAN->SendMessageToTopScreen(SM_FriendsUpdate);
-			}
-			break;
 		}
 		m_packet.ClearPacket();
 	}
@@ -792,10 +698,6 @@ void NetworkSyncManager::ReportPlayerOptions()
 	NetPlayerClient->SendPack((char*)&m_packet.Data, m_packet.Position); 
 }
 
-int NetworkSyncManager::GetServerVersion()
-{
-	return m_ServerVersion;
-}
 void NetworkSyncManager::SelectUserSong()
 {
 	m_packet.ClearPacket();
@@ -804,10 +706,6 @@ void NetworkSyncManager::SelectUserSong()
 	m_packet.WriteNT( m_sMainTitle );
 	m_packet.WriteNT( m_sArtist );
 	m_packet.WriteNT( m_sSubTitle );
-	//Send songhash
-	if (m_ServerVersion >= 129) {
-		m_packet.WriteNT(GAMESTATE->m_pCurSong->GetFileHash());
-	}
 	NetPlayerClient->SendPack( (char*)&m_packet.Data, m_packet.Position );
 }
 
@@ -867,7 +765,7 @@ uint16_t PacketFunctions::Read2()
 	uint16_t Temp;
 	memcpy( &Temp, Data + Position,2 );
 	Position+=2;
-	return EzSockets::sm_ntohs(Temp);
+	return ntohs(Temp);
 }
 
 uint32_t PacketFunctions::Read4()
@@ -878,7 +776,7 @@ uint32_t PacketFunctions::Read4()
 	uint32_t Temp;
 	memcpy( &Temp, Data + Position,4 );
 	Position+=4;
-	return EzSockets::sm_ntohl(Temp);
+	return ntohl(Temp);
 }
 
 RString PacketFunctions::ReadNT()
@@ -905,7 +803,7 @@ void PacketFunctions::Write2(uint16_t data)
 {
 	if (Position>=NETMAXBUFFERSIZE-1)
 		return;
-	data = EzSockets::sm_htons(data);
+	data = htons(data);
 	memcpy( &Data[Position], &data, 2 );
 	Position+=2;
 }
@@ -915,7 +813,7 @@ void PacketFunctions::Write4(uint32_t data)
 	if (Position>=NETMAXBUFFERSIZE-3)
 		return ;
 
-	data = EzSockets::sm_htonl(data);
+	data = htonl(data);
 	memcpy( &Data[Position], &data, 4 );
 	Position+=4;
 }
@@ -998,7 +896,7 @@ unsigned long NetworkSyncManager::GetCurrentSMBuild( LoadingWindow* ld )
 		{
 			// \r\n\r\n = Separator from HTTP Header and Body
 			char* cBodyStart = strstr(cBuffer, "\r\n\r\n");
-			if( cBodyStart != nullptr )
+			if( cBodyStart != NULL )
 			{
 				// Get the HTTP Header only
 				int iHeaderLength = cBodyStart - cBuffer;
@@ -1032,13 +930,13 @@ unsigned long NetworkSyncManager::GetCurrentSMBuild( LoadingWindow* ld )
 							if( 0 == strcasecmp(sFieldName,"X-SM-Build") )
 							{
 								bSuccess = true;
-								uCurrentSMBuild = strtoul( sFieldValue, nullptr, 10 );
+								uCurrentSMBuild = strtoul( sFieldValue, NULL, 10 );
 								break;
 							}
 						}
 					}
 				} // if( svResponse[0].find("200") != RString::npos )
-			} // if( cBodyStart != nullptr )
+			} // if( cBodyStart != NULL )
 		} // if( iBytes )
 		SAFE_DELETE( cBuffer );
 	} // if( socket->connect(sHost, uPort) )

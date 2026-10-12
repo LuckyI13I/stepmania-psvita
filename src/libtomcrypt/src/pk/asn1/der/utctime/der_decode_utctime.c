@@ -5,6 +5,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -15,7 +17,7 @@
 
 #ifdef LTC_DER
 
-static int _char_to_int(unsigned char x)
+static int char_to_int(unsigned char x)
 {
    switch (x)  {
       case '0': return 0;
@@ -28,12 +30,12 @@ static int _char_to_int(unsigned char x)
       case '7': return 7;
       case '8': return 8;
       case '9': return 9;
-      default:  return 100;
    }
+   return 100;
 }
 
 #define DECODE_V(y, max) \
-   y  = _char_to_int(buf[x])*10 + _char_to_int(buf[x+1]); \
+   y  = char_to_int(buf[x])*10 + char_to_int(buf[x+1]); \
    if (y >= max) return CRYPT_INVALID_PACKET;           \
    x += 2;
 
@@ -47,7 +49,7 @@ static int _char_to_int(unsigned char x)
 int der_decode_utctime(const unsigned char *in, unsigned long *inlen,
                              ltc_utctime   *out)
 {
-   unsigned char buf[32] = { 0 }; /* initialize as all zeroes */
+   unsigned char buf[32];
    unsigned long x;
    int           y;
 
@@ -71,7 +73,7 @@ int der_decode_utctime(const unsigned char *in, unsigned long *inlen,
    *inlen = 2 + x;
 
 
-   /* possible encodings are
+   /* possible encodings are 
 YYMMDDhhmmZ
 YYMMDDhhmm+hh'mm'
 YYMMDDhhmm-hh'mm'
@@ -79,7 +81,7 @@ YYMMDDhhmmssZ
 YYMMDDhhmmss+hh'mm'
 YYMMDDhhmmss-hh'mm'
 
-    So let's do a trivial decode upto [including] mm
+    So let's do a trivial decode upto [including] mm 
    */
 
     x = 0;
@@ -120,6 +122,6 @@ YYMMDDhhmmss-hh'mm'
 
 #endif
 
-/* ref:         HEAD -> master, tag: v1.18.2 */
-/* git commit:  7e7eb695d581782f04b24dc444cbfde86af59853 */
-/* commit time: 2018-07-01 22:49:01 +0200 */
+/* $Source$ */
+/* $Revision: 24838 $ */
+/* $Date: 2007-01-23 23:16:57 -0600 (Tue, 23 Jan 2007) $ */

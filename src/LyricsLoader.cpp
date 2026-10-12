@@ -7,8 +7,6 @@
 #include "Song.h"
 
 #include <map>
-#include <vector>
-
 
 // TODO: Use a marker for default color instead of a specific color that may
 // accidentally get written back into a lyrics file.
@@ -58,7 +56,7 @@ bool LyricsLoader::LoadFromLRCFile(const RString& sPath, Song& out)
 		// "[data1] data2".  Ignore whitespace at the beginning of the line.
 		static Regex x("^ *\\[([^]]+)\\] *(.*)$");
 
-		std::vector<RString> matches;
+		vector<RString> matches;
 		if(!x.Compare(line, matches))
 		{
 			continue;
@@ -73,7 +71,7 @@ bool LyricsLoader::LoadFromLRCFile(const RString& sPath, Song& out)
 		if( sValueName.EqualsNoCase("COLOUR") || sValueName.EqualsNoCase("COLOR") )
 		{
 			// set color var here for this segment
-			unsigned int r, g, b;
+			int r, g, b;
 			int result = sscanf( sValueData.c_str(), "0x%2x%2x%2x", &r, &g, &b );
 			// According to the Dance With Intensity readme, one can set up to
 			// ten colors in a line and access them via "{cX}", where X is 0-9.
@@ -92,11 +90,10 @@ bool LyricsLoader::LoadFromLRCFile(const RString& sPath, Song& out)
 		// offsets each timestamp after the offset by that amount.
 		//float fLyricOffset = 0.0f;
 
-		// Enforce strict timestamp format to prevent crashing the program.
-		std::vector<RString> dummy;
-		static Regex timestamp("^([0-9]+:){0,2}[0-9]+(.[0-9]*)?$");
-		if (timestamp.Compare(sValueName, dummy))
 		{
+			/* If we've gotten this far, and no other statement caught this
+			 * value before this does, assume it's a time value. */
+
 			LyricSegment seg;
 			seg.m_Color = CurrentColor;
 			seg.m_fStartTime = HHMMSSToSeconds(sValueName);
@@ -116,7 +113,7 @@ bool LyricsLoader::LoadFromLRCFile(const RString& sPath, Song& out)
 /*
  * (c) 2003 Kevin Slaughter, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -126,7 +123,7 @@ bool LyricsLoader::LoadFromLRCFile(const RString& sPath, Song& out)
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

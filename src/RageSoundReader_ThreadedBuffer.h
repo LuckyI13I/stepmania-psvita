@@ -27,7 +27,7 @@ public:
 	virtual unsigned GetNumChannels() const { return m_iChannels; }
 	virtual bool SetProperty( const RString &sProperty, float fValue );
 	virtual float GetStreamToSourceRatio() const;
-	virtual RageSoundReader *GetSource() { return nullptr; }
+	virtual RageSoundReader *GetSource() { return NULL; }
 
 	/* Enable and disable threaded buffering.  Disable buffering before accessing
 	 * the underlying sound.  DisableBuffering returns true if buffering was enabled. */
@@ -56,7 +56,7 @@ private:
 		Mapping(): iFramesBuffered(0), iPositionOfFirstFrame(0),
 			fRate(1.0f) {}
 	};
-	std::list<Mapping> m_StreamPosition;
+	list<Mapping> m_StreamPosition;
 
 	bool m_bEOF;
 
@@ -70,12 +70,7 @@ private:
 
 	RageThread m_Thread;
 	bool m_bShutdownThread;
-	static int StartBufferingThread(void* p)
-	{
-		((RageSoundReader_ThreadedBuffer*)p)->BufferingThread();
-		return 0;
-	}
-
+	static int StartBufferingThread( void *p ) { ((RageSoundReader_ThreadedBuffer *) p)->BufferingThread(); return 0; }
 	void BufferingThread();
 };
 

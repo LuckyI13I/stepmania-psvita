@@ -8,9 +8,6 @@
 #include "PlayerNumber.h"
 #include "NoteData.h"
 #include "ThemeMetric.h"
-
-#include <array>
-
 class Model;
 /** @brief A dancing character that follows the steps of the Song. */
 class BeginnerHelper : public ActorFrame
@@ -32,13 +29,13 @@ public:
 protected:
 	void Step( PlayerNumber pn, int CSTEP );
 
-	std::array<NoteData, NUM_PLAYERS> m_NoteData;
-	std::array<bool, NUM_PLAYERS> m_bPlayerEnabled;
-	std::array<Model *, NUM_PLAYERS> m_pDancer;
+	NoteData m_NoteData[NUM_PLAYERS];
+	bool m_bPlayerEnabled[NUM_PLAYERS];
+	Model *m_pDancer[NUM_PLAYERS];
 	Model *m_pDancePad;
 	Sprite	m_sFlash;
 	AutoActor	m_sBackground;
-	std::array<std::array<Sprite, 4>, NUM_PLAYERS> m_sStepCircle; // More memory, but much easier to manage.
+	Sprite	m_sStepCircle[NUM_PLAYERS][4];	// More memory, but much easier to manage
 
 	int	m_iLastRowChecked;
 	int	m_iLastRowFlashed;
@@ -50,7 +47,7 @@ protected:
 
 /**
  * @file
- * @author Kevin Slaughter, Tracy Ward (c) 2003
+ * @author Kevin Slaughter, Thad Ward (c) 2003
  * @section LICENSE
  * All rights reserved.
  * 

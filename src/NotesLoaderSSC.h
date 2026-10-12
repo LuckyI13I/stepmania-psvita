@@ -58,7 +58,7 @@ struct SSCLoader : public SMLoader
 	 * @param bAddStepsToSong a flag to determine if we add the edit steps to the song file.
 	 * @return its success or failure.
 	 */
-	bool LoadEditFromFile( RString sEditFilePath, ProfileSlot slot, bool bAddStepsToSong, Song *givenSong=nullptr );
+	bool LoadEditFromFile( RString sEditFilePath, ProfileSlot slot, bool bAddStepsToSong, Song *givenSong=NULL );
 	/**
 	 * @brief Attempt to parse the edit file in question.
 	 * @param msd the edit file itself.
@@ -67,7 +67,7 @@ struct SSCLoader : public SMLoader
 	 * @param bAddStepsToSong a flag to determine if we add the edit steps to the song file.
 	 * @return its success or failure.
 	 */
-	bool LoadEditFromMsd( const MsdFile &msd, const RString &sEditFilePath, ProfileSlot slot, bool bAddStepsToSong, Song *givenSong=nullptr );
+	bool LoadEditFromMsd( const MsdFile &msd, const RString &sEditFilePath, ProfileSlot slot, bool bAddStepsToSong, Song *givenSong=NULL );
 	
 	/**
 	 * @brief Retrieve the specific NoteData from the file.

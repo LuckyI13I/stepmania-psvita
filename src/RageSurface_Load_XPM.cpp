@@ -6,15 +6,12 @@
 #include "RageUtil.h"
 #include "RageLog.h"
 #include "RageSurface.h"
-
-#include <cstdint>
 #include <map>
-#include <vector>
 
 #define CheckLine() \
-	if( xpm[line] == nullptr ) { \
+	if( xpm[line] == NULL ) { \
 		error = "short file"; \
-		return nullptr; \
+		return NULL; \
 	}
 
 RageSurface *RageSurface_Load_XPM( char * const *xpm, RString &error )
@@ -27,18 +24,18 @@ RageSurface *RageSurface_Load_XPM( char * const *xpm, RString &error )
 	if( sscanf( xpm[line++], "%i %i %i %i", &width, &height, &num_colors, &color_length ) != 4 )
 	{
 		error = "parse error reading specs";
-		return nullptr;
+		return NULL;
 	}
 
 	if( width > 2048 || height > 2048 || num_colors > 1024*16 || color_length > 4 )
 	{
 		error = "spec error";
-		return nullptr;
+		return NULL;
 	}
 
-	std::vector<RageSurfaceColor> colors;
+	vector<RageSurfaceColor> colors;
 
-	std::map<RString, int> name_to_color;
+	map<RString,int> name_to_color;
 	for( int i = 0; i < num_colors; ++i )
 	{
 		CheckLine();
@@ -56,13 +53,13 @@ RageSurface *RageSurface_Load_XPM( char * const *xpm, RString &error )
 			continue;
 
 		RString clr = color.substr( color_length+4 );
-		unsigned int r, g, b;
+		int r, g, b;
 		if( sscanf( clr, "%2x%2x%2x", &r, &g, &b ) != 3 )
 			continue;
 		RageSurfaceColor colorval;
-		colorval.r = (std::uint8_t) r;
-		colorval.g = (std::uint8_t) g;
-		colorval.b = (std::uint8_t) b;
+		colorval.r = (uint8_t) r;
+		colorval.g = (uint8_t) g;
+		colorval.b = (uint8_t) b;
 		colorval.a = 0xFF;
 
 		colors.push_back( colorval );
@@ -88,27 +85,27 @@ RageSurface *RageSurface_Load_XPM( char * const *xpm, RString &error )
 		{
 			error = ssprintf( "row %i is not expected length (%i != %i)", y, int(row.size()), width*color_length );
 			delete img;
-		    return nullptr;
+		    return NULL;
 		}
 
-		std::int8_t *p = (std::int8_t *) img->pixels;
+		int8_t *p = (int8_t *) img->pixels;
 		p += y * img->pitch;
-		std::int32_t *p32 = (std::int32_t *) p;
+		int32_t *p32 = (int32_t *) p;
 		for( int x = 0; x < width; ++x )
 		{
 			RString color_name = row.substr( x*color_length, color_length );
-			std::map<RString, int>::const_iterator it;
+			map<RString,int>::const_iterator it;
 			it = name_to_color.find( color_name );
 			if( it == name_to_color.end() )
 			{
 				error = ssprintf( "%ix%i is unknown color \"%s\"", x, y, color_name.c_str() );
 				delete img;
-				return nullptr;
+				return NULL;
 			}
 
 			if( colors.size() <= 256 )
 			{
-				p[x] = (std::int8_t) it->second;
+				p[x] = (int8_t) it->second;
 			} else {
 				const RageSurfaceColor &color = colors[it->second];
 				p32[x] = (color.r << 24) + (color.g << 16) + (color.b << 8);

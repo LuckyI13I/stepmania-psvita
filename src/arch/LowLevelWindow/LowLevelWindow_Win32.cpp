@@ -3,7 +3,6 @@
 #include "archutils/Win32/DirectXHelpers.h"
 #include "archutils/Win32/ErrorStrings.h"
 #include "archutils/Win32/GraphicsWindow.h"
-#include "PrefsManager.h"
 #include "RageUtil.h"
 #include "RageLog.h"
 #include "RageDisplay.h"
@@ -11,28 +10,25 @@
 #include "RageDisplay_OGL_Helpers.h"
 #include "RageDisplay_OGL.h"
 
-#include <cstdint>
-
 #include <GL/glew.h>
 
 static PIXELFORMATDESCRIPTOR g_CurrentPixelFormat;
-static HGLRC g_HGLRC = nullptr;
-static HGLRC g_HGLRC_Background = nullptr;
-static HMODULE g_HGL_Module = nullptr;
+static HGLRC g_HGLRC = NULL;
+static HGLRC g_HGLRC_Background = NULL;
 
 static void DestroyGraphicsWindowAndOpenGLContext()
 {
-	if( g_HGLRC != nullptr )
+	if( g_HGLRC != NULL )
 	{
-		wglMakeCurrent( nullptr, nullptr );
+		wglMakeCurrent( NULL, NULL );
 		wglDeleteContext( g_HGLRC );
-		g_HGLRC = nullptr;
+		g_HGLRC = NULL;
 	}
 
-	if( g_HGLRC_Background != nullptr )
+	if( g_HGLRC_Background != NULL )
 	{
 		wglDeleteContext( g_HGLRC_Background );
-		g_HGLRC_Background = nullptr;
+		g_HGLRC_Background = NULL;
 	}
 
 	ZERO( g_CurrentPixelFormat );
@@ -43,25 +39,16 @@ static void DestroyGraphicsWindowAndOpenGLContext()
 void *LowLevelWindow_Win32::GetProcAddress( RString s )
 {
 	void *pRet = (void*) wglGetProcAddress( s );
-	if( pRet != nullptr )
+	if( pRet != NULL )
 		return pRet;
 
-	if (g_HGL_Module != nullptr)
-	{
-		pRet = (void *) ::GetProcAddress( g_HGL_Module, s );
-
-		if (pRet != nullptr)
-			return pRet;
-	}
-
-	return (void*) ::GetProcAddress( GetModuleHandle(nullptr), s );
+	return (void*) ::GetProcAddress( GetModuleHandle(NULL), s );
 }
 
 LowLevelWindow_Win32::LowLevelWindow_Win32()
 {
-	ASSERT( g_HGLRC == nullptr );
-	ASSERT( g_HGLRC_Background == nullptr );
-	ASSERT( g_HGL_Module == nullptr );
+	ASSERT( g_HGLRC == NULL );
+	ASSERT( g_HGLRC_Background == NULL );
 
 	GraphicsWindow::Initialize( false );
 }
@@ -72,15 +59,15 @@ LowLevelWindow_Win32::~LowLevelWindow_Win32()
 	GraphicsWindow::Shutdown();
 }
 
-void LowLevelWindow_Win32::GetDisplaySpecs( DisplaySpecs &out ) const
+void LowLevelWindow_Win32::GetDisplayResolutions( DisplayResolutions &out ) const
 {
-	GraphicsWindow::GetDisplaySpecs( out );
+	GraphicsWindow::GetDisplayResolutions( out );
 }
 
 int ChooseWindowPixelFormat( const VideoModeParams &p, PIXELFORMATDESCRIPTOR *pixfmt )
 {
-	ASSERT( GraphicsWindow::GetHwnd() != nullptr );
-	ASSERT( GraphicsWindow::GetHDC() != nullptr );
+	ASSERT( GraphicsWindow::GetHwnd() != NULL );
+	ASSERT( GraphicsWindow::GetHDC() != NULL );
 
 	ZERO( *pixfmt );
 	pixfmt->nSize		= sizeof(PIXELFORMATDESCRIPTOR);
@@ -131,7 +118,7 @@ void DumpPixelFormat( const PIXELFORMATDESCRIPTOR &pfd )
 RString LowLevelWindow_Win32::TryVideoMode( const VideoModeParams &p, bool &bNewDeviceOut )
 {
 	//LOG->Warn( "LowLevelWindow_Win32::TryVideoMode" );
-
+	
 	ASSERT_M( p.bpp == 16 || p.bpp == 32, ssprintf("%i", p.bpp) );
 
 	bNewDeviceOut = false;
@@ -140,7 +127,7 @@ RString LowLevelWindow_Win32::TryVideoMode( const VideoModeParams &p, bool &bNew
 	bool bCanSetPixelFormat = true;
 
 	/* Do we have an old window? */
-	if( GraphicsWindow::GetHwnd() == nullptr )
+	if( GraphicsWindow::GetHwnd() == NULL )
 	{
 		/* No.  Always create and show the window before changing the video mode.
 		 * Otherwise, some other window may have focus, and changing the video mode will
@@ -153,7 +140,7 @@ RString LowLevelWindow_Win32::TryVideoMode( const VideoModeParams &p, bool &bNew
 		bCanSetPixelFormat = false;
 	}
 
-	ASSERT( GraphicsWindow::GetHwnd() != nullptr );
+	ASSERT( GraphicsWindow::GetHwnd() != NULL );
 
 	/* Set the display mode: switch to a fullscreen mode or revert to windowed mode. */
 	LOG->Trace("SetScreenMode ...");
@@ -195,13 +182,13 @@ RString LowLevelWindow_Win32::TryVideoMode( const VideoModeParams &p, bool &bNew
 		 * We have to create the new window first.
 		 */
 		LOG->Trace( "Mode requires new pixel format, and we've already set one; resetting OpenGL context" );
-		if( g_HGLRC != nullptr )
+		if( g_HGLRC != NULL )
 		{
-			wglMakeCurrent( nullptr, nullptr );
+			wglMakeCurrent( NULL, NULL );
 			wglDeleteContext( g_HGLRC );
-			g_HGLRC = nullptr;
+			g_HGLRC = NULL;
 			wglDeleteContext( g_HGLRC_Background );
-			g_HGLRC_Background = nullptr;
+			g_HGLRC_Background = NULL;
 		}
 
 		bNewDeviceOut = true;
@@ -216,11 +203,10 @@ RString LowLevelWindow_Win32::TryVideoMode( const VideoModeParams &p, bool &bNew
 		/* Set the pixel format. */
 		if( !SetPixelFormat(GraphicsWindow::GetHDC(), iPixelFormat, &pixfmt) )
 		{
-			DWORD err = GetLastError();
 			/* Destroy the window. */
 			DestroyGraphicsWindowAndOpenGLContext();
 
-			return werr_ssprintf( err, "Pixel format failed" );
+			return werr_ssprintf( GetLastError(), "Pixel format failed" );
 		}
 
 		DescribePixelFormat( GraphicsWindow::GetHDC(), iPixelFormat, sizeof(g_CurrentPixelFormat), &g_CurrentPixelFormat );
@@ -228,38 +214,33 @@ RString LowLevelWindow_Win32::TryVideoMode( const VideoModeParams &p, bool &bNew
 		DumpPixelFormat( g_CurrentPixelFormat );
 	}
 
-	if( g_HGLRC == nullptr )
+	if( g_HGLRC == NULL )
 	{
-		g_HGL_Module = LoadLibraryA("opengl32.dll");
-
 		g_HGLRC = wglCreateContext( GraphicsWindow::GetHDC() );
-		if ( g_HGLRC == nullptr )
+		if ( g_HGLRC == NULL )
 		{
-			DWORD err = GetLastError();
 			DestroyGraphicsWindowAndOpenGLContext();
-			return hr_ssprintf( err, "wglCreateContext" );
+			return hr_ssprintf( GetLastError(), "wglCreateContext" );
 		}
 
 		g_HGLRC_Background = wglCreateContext( GraphicsWindow::GetHDC() );
-		if( g_HGLRC_Background == nullptr )
+		if( g_HGLRC_Background == NULL )
 		{
-			DWORD err = GetLastError();
 			DestroyGraphicsWindowAndOpenGLContext();
-			return hr_ssprintf( err, "wglCreateContext" );
+			return hr_ssprintf( GetLastError(), "wglCreateContext" );
 		}
 
 		if( !wglShareLists(g_HGLRC, g_HGLRC_Background) )
 		{
 			LOG->Warn( werr_ssprintf(GetLastError(), "wglShareLists failed") );
 			wglDeleteContext( g_HGLRC_Background );
-			g_HGLRC_Background = nullptr;
+			g_HGLRC_Background = NULL;
 		}
 
 		if( !wglMakeCurrent( GraphicsWindow::GetHDC(), g_HGLRC ) )
 		{
-			DWORD err = GetLastError();
 			DestroyGraphicsWindowAndOpenGLContext();
-			return hr_ssprintf( err, "wglCreateContext" );
+			return hr_ssprintf( GetLastError(), "wglCreateContext" );
 		}
 	}
 	return RString();	// we set the video mode successfully
@@ -267,22 +248,21 @@ RString LowLevelWindow_Win32::TryVideoMode( const VideoModeParams &p, bool &bNew
 
 bool LowLevelWindow_Win32::SupportsThreadedRendering()
 {
-	return g_HGLRC_Background != nullptr;
+	return g_HGLRC_Background != NULL;
 }
 
 void LowLevelWindow_Win32::BeginConcurrentRendering()
 {
 	if( !wglMakeCurrent( GraphicsWindow::GetHDC(), g_HGLRC_Background ) )
 	{
-		DWORD err = GetLastError();
-		LOG->Warn( hr_ssprintf(err, "wglMakeCurrent") );
-		FAIL_M( hr_ssprintf(err, "wglMakeCurrent") );
+		LOG->Warn( hr_ssprintf(GetLastError(), "wglMakeCurrent") );
+		FAIL_M( hr_ssprintf(GetLastError(), "wglMakeCurrent") );
 	}
 }
 
 void LowLevelWindow_Win32::EndConcurrentRendering()
 {
-	wglMakeCurrent( nullptr, nullptr );
+	wglMakeCurrent( NULL, NULL );
 }
 
 static LocalizedString OPENGL_NOT_AVAILABLE( "LowLevelWindow_Win32", "OpenGL hardware acceleration is not available." );
@@ -309,11 +289,10 @@ void LowLevelWindow_Win32::SwapBuffers()
 
 void LowLevelWindow_Win32::Update()
 {
-	::ShowCursor(PREFSMAN->m_bShowMouseCursor);
 	GraphicsWindow::Update();
 }
 
-const ActualVideoModeParams LowLevelWindow_Win32::GetActualVideoModeParams() const
+const VideoModeParams &LowLevelWindow_Win32::GetActualVideoModeParams() const
 {
 	return GraphicsWindow::GetParams();
 }
@@ -325,10 +304,10 @@ public:
 	virtual ~RenderTarget_Win32();
 
 	void Create( const RenderTargetParam &param, int &iTextureWidthOut, int &iTextureHeightOut );
-	std::uintptr_t GetTexture() const { return static_cast<std::uintptr_t>(m_texHandle); }
+	unsigned int GetTexture() const { return m_texHandle; }
 	void StartRenderingTo();
 	void FinishRenderingTo();
-
+	
 	virtual bool InvertY() const { return true; }
 
 private:
@@ -344,8 +323,8 @@ RenderTarget_Win32::RenderTarget_Win32(LowLevelWindow_Win32 *pWind)
 {
 	m_pWind = pWind;
 	m_texHandle = 0;
-	m_hOldDeviceContext = nullptr;
-	m_hOldRenderContext = nullptr;
+	m_hOldDeviceContext = NULL;
+	m_hOldRenderContext = NULL;
 }
 
 RenderTarget_Win32::~RenderTarget_Win32()
@@ -378,7 +357,7 @@ void RenderTarget_Win32::Create(const RenderTargetParam &param, int &iTextureWid
 		internalformat = param.bWithAlpha? GL_RGBA8:GL_RGB8;
 
 	glTexImage2D(GL_TEXTURE_2D, 0, internalformat, iTextureWidth,
-		iTextureHeight, 0, type, GL_UNSIGNED_BYTE, nullptr);
+		iTextureHeight, 0, type, GL_UNSIGNED_BYTE, NULL);
 
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
@@ -417,7 +396,7 @@ void RenderTarget_Win32::FinishRenderingTo()
 
 	BOOL successful = wglMakeCurrent(m_hOldDeviceContext, m_hOldRenderContext);
 	ASSERT_M( successful == TRUE, "wglMakeCurrent failed in RenderTarget_Win32::FinishRenderingTo()" );
-
+	
 	m_hOldDeviceContext = 0;
 	m_hOldRenderContext = 0;
 }
@@ -430,7 +409,7 @@ RenderTarget* LowLevelWindow_Win32::CreateRenderTarget()
 /*
  * (c) 2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -440,7 +419,7 @@ RenderTarget* LowLevelWindow_Win32::CreateRenderTarget()
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -48,17 +48,17 @@ ver.cpp:
 	fi
 
 PNG = \
-../extern/libpng/png.c ../extern/libpng/.png.h \
-../extern/libpng/pngconf.h ../extern/libpng/pngdebug.h \
-../extern/libpng/pngerror.c ../extern/libpng/pngget.c \
-../extern/libpng/pnginfo.h ../extern/libpng/scripts/pnglibconf.h \
-../extern/libpng/pngmem.c ../extern/libpng/pngpread.c \
-../extern/libpng/pngpriv.h ../extern/libpng/pngread.c \
-../extern/libpng/pngrio.c ../extern/libpng/pngrtran.c \
-../extern/libpng/pngrutil.c ../extern/libpng/pngset.c \
-../extern/libpng/pngstruct.h ../extern/libpng/pngtrans.c \
-../extern/libpng/pngwio.c ../extern/libpng/pngwrite.c \
-../extern/libpng/pngwtran.c ../extern/libpng/pngwutil.c
+../extern/libpng/include/png.c ../extern/libpng/include/.png.h \
+../extern/libpng/include/pngconf.h ../extern/libpng/include/pngdebug.h \
+../extern/libpng/include/pngerror.c ../extern/libpng/include/pngget.c \
+../extern/libpng/include/pnginfo.h ../extern/libpng/include/scripts/pnglibconf.h \
+../extern/libpng/include/pngmem.c ../extern/libpng/include/pngpread.c \
+../extern/libpng/include/pngpriv.h ../extern/libpng/include/pngread.c \
+../extern/libpng/include/pngrio.c ../extern/libpng/include/pngrtran.c \
+../extern/libpng/include/pngrutil.c ../extern/libpng/include/pngset.c \
+../extern/libpng/include/pngstruct.h ../extern/libpng/include/pngtrans.c \
+../extern/libpng/include/pngwio.c ../extern/libpng/include/pngwrite.c \
+../extern/libpng/include/pngwtran.c ../extern/libpng/include/pngwutil.c
 
 Screens = \
 Screen.cpp Screen.h ScreenAttract.cpp ScreenAttract.h \
@@ -131,7 +131,7 @@ DataStructures = \
 Attack.cpp Attack.h AutoKeysounds.cpp AutoKeysounds.h \
 AdjustSync.cpp AdjustSync.h \
 BackgroundUtil.cpp BackgroundUtil.h \
-ImageCache.cpp ImageCache.h \
+BannerCache.cpp BannerCache.h \
 Character.cpp Character.h \
 CodeDetector.cpp CodeDetector.h \
 CodeSet.cpp CodeSet.h \
@@ -145,7 +145,7 @@ CreateZip.cpp CreateZip.h \
 CryptHelpers.cpp CryptHelpers.h \
 DateTime.cpp DateTime.h \
 Difficulty.cpp Difficulty.h \
-DisplaySpec.h \
+DisplayResolutions.h \
 EnumHelper.cpp EnumHelper.h \
 FileDownload.cpp FileDownload.h \
 Font.cpp Font.h \
@@ -205,7 +205,7 @@ XmlToLua.cpp XmlToLua.h \
 XmlFileUtil.cpp XmlFileUtil.h
 
 StepMania = CommandLineActions.h CommandLineActions.cpp \
-StdString.h \
+StdString.h Foreach.h \
 StepMania.cpp StepMania.h \
 GameLoop.cpp GameLoop.h \
 global.cpp global.h \
@@ -244,8 +244,7 @@ InputHandler += arch/InputHandler/InputHandler_MonkeyKeyboard.cpp arch/InputHand
 
 Lights += arch/Lights/LightsDriver_Export.cpp arch/Lights/LightsDriver_Export.h \
 	arch/Lights/LightsDriver_SystemMessage.cpp arch/Lights/LightsDriver_SystemMessage.h \
-	arch/Lights/LightsDriver_SextetStream.cpp arch/Lights/LightsDriver_SextetStream.h \
-	arch/Lights/SextetUtils.h
+	arch/Lights/LightsDriver_SextetStream.cpp arch/Lights/LightsDriver_SextetStream.h
 
 LoadingWindow += arch/LoadingWindow/LoadingWindow_Null.h
 
@@ -393,11 +392,7 @@ if WINDOWS
 		arch/InputHandler/InputHandler_DirectInputHelper.cpp arch/InputHandler/InputHandler_DirectInputHelper.h \
 		arch/InputHandler/InputHandler_Win32_MIDI.cpp arch/InputHandler/InputHandler_Win32_MIDI.h \
 		arch/InputHandler/InputHandler_Win32_Para.cpp arch/InputHandler/InputHandler_Win32_Para.h \
-		arch/InputHandler/InputHandler_Win32_Pump.cpp arch/InputHandler/InputHandler_Win32_Pump.h \
-		arch/InputHandler/InputHandler_Win32_RTIO.cpp arch/InputHandler/InputHandler_Win32_RTIO.h \
-		arch/InputHandler/InputHandler_Win32_ddrio.cpp arch/InputHandler/InputHandler_Win32_ddrio.h
-
- Lights += arch/Lights/LightsDriver_Win32Serial.cpp arch/Lights/LightsDriver_Win32Serial.h
+		arch/InputHandler/InputHandler_Win32_Pump.cpp arch/InputHandler/InputHandler_Win32_Pump.h
 
  Sound += arch/Sound/RageSoundDriver_DSound_Software.cpp arch/Sound/RageSoundDriver_DSound_Software.h \
 	arch/Sound/DSoundHelpers.cpp arch/Sound/DSoundHelpers.h \
@@ -502,7 +497,17 @@ Lua = ../extern/lua-5.1/src/lapi.c ../extern/lua-5.1/src/lauxlib.c ../extern/lua
 ../extern/lua-5.1/src/lstring.h ../extern/lua-5.1/src/ltable.h ../extern/lua-5.1/src/ltm.h ../extern/lua-5.1/src/luaconf.h ../extern/lua-5.1/src/lua.h ../extern/lua-5.1/src/lualib.h \
 ../extern/lua-5.1/src/lundump.h ../extern/lua-5.1/src/lvm.h ../extern/lua-5.1/src/lzio.h
 
-jsoncpp = ../extern/jsoncpp/jsoncpp.cpp
+jsoncpp = ../extern/jsoncpp/src/lib_json/json_reader.cpp \
+../extern/jsoncpp/src/lib_json/json_value.cpp \
+../extern/jsoncpp/src/lib_json/json_writer.cpp \
+../extern/jsoncpp/include/json/autolink.h \
+../extern/jsoncpp/include/json/config.h \
+../extern/jsoncpp/include/json/features.h \
+../extern/jsoncpp/include/json/forwards.h \
+../extern/jsoncpp/include/json/json.h \
+../extern/jsoncpp/include/json/reader.h \
+../extern/jsoncpp/include/json/value.h \
+../extern/jsoncpp/include/json/writer.h
 
 RageFile = \
 RageFileBasic.cpp RageFileBasic.h \
@@ -712,7 +717,7 @@ noinst_LIBRARIES += libtomcrypt.a
 
 main_CPPFLAGS = \
 	$(VIDEO_CFLAGS) \
-	-I$(top_srcdir)/extern/jsoncpp
+	-I$(top_srcdir)/extern/jsoncpp/include
 #-I$(top_srcdir)/extern/glew-1.5.8/include
 
 main_SOURCES = $(Screens) \

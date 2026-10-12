@@ -5,14 +5,10 @@
 #include "RageUtil.h"
 #include <memory>
 
-#ifndef _MSC_VER
 extern "C"
 {
-#endif
 #include "../extern/lua-5.1/src/lua.h"
-#ifndef _MSC_VER
 }
-#endif
 
 /** @brief A general foreach loop for enumerators, going up to a max value. */
 #define FOREACH_ENUM_N( e, max, var )	for( e var=(e)0; var<max; enum_add<e>( var, +1 ) )
@@ -68,22 +64,16 @@ namespace Enum
 	}
 
 	void SetMetatable( lua_State *L, LuaReference &EnumTable, LuaReference &EnumIndexTable, const char *szName );
-
-	template<typename E>
-	constexpr auto to_integral(E e)
-	{
-		return static_cast<typename std::underlying_type<E>::type>(e);
-	}
 };
 
-const RString &EnumToString( int iVal, int iMax, const char **szNameArray, std::unique_ptr<RString> *pNameCache ); // XToString helper
+const RString &EnumToString( int iVal, int iMax, const char **szNameArray, auto_ptr<RString> *pNameCache ); // XToString helper
 
 #define XToString(X) \
 const RString& X##ToString(X x); \
-static_assert( NUM_##X == ARRAYLEN(X##Names) ); \
+COMPILE_ASSERT( NUM_##X == ARRAYLEN(X##Names) ); \
 const RString& X##ToString( X x ) \
 {	\
-	static std::unique_ptr<RString> as_##X##Name[NUM_##X+2]; \
+	static auto_ptr<RString> as_##X##Name[NUM_##X+2]; \
 	return EnumToString( x, NUM_##X, X##Names, as_##X##Name ); \
 } \
 namespace StringConversion { template<> RString ToString<X>( const X &value ) { return X##ToString(value); } }
@@ -92,12 +82,12 @@ namespace StringConversion { template<> RString ToString<X>( const X &value ) { 
 const RString &X##ToLocalizedString(X x); \
 const RString &X##ToLocalizedString( X x ) \
 {       \
-	static std::unique_ptr<LocalizedString> g_##X##Name[NUM_##X]; \
-	if( g_##X##Name[0].get() == nullptr ) { \
+	static auto_ptr<LocalizedString> g_##X##Name[NUM_##X]; \
+	if( g_##X##Name[0].get() == NULL ) { \
 		for( unsigned i = 0; i < NUM_##X; ++i ) \
 		{ \
-			std::unique_ptr<LocalizedString> ap( new LocalizedString(#X, X##ToString((X)i)) ); \
-			g_##X##Name[i] = std::move(ap); \
+			auto_ptr<LocalizedString> ap( new LocalizedString(#X, X##ToString((X)i)) ); \
+			g_##X##Name[i] = ap; \
 		} \
 	} \
 	return g_##X##Name[x]->GetValue();  \
@@ -186,7 +176,7 @@ namespace LuaHelpers \
  * @author Chris Danford, Glenn Maynard (c) 2004-2006
  * @section LICENSE
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -196,7 +186,7 @@ namespace LuaHelpers \
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

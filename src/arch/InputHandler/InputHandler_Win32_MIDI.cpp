@@ -3,9 +3,6 @@
 #include "InputHandler_Win32_MIDI.h"
 #include "RageLog.h"
 
-#include <vector>
-
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <mmsystem.h>
 
@@ -14,7 +11,7 @@
 REGISTER_INPUT_HANDLER_CLASS2( MIDI, Win32_MIDI );
 
 static HMIDIIN g_device;
-static void CALLBACK midiCallback(HMIDIIN g_device, UINT status, DWORD_PTR instancePtr, DWORD_PTR data, DWORD_PTR timestamp);
+static void CALLBACK midiCallback(HMIDIIN g_device, UINT status, DWORD instancePtr, DWORD data, DWORD timestamp);
 
 static RString GetMidiError( MMRESULT result )
 {
@@ -27,7 +24,7 @@ InputHandler_Win32_MIDI::InputHandler_Win32_MIDI()
 {
 	int device_id = 0;
 
-	g_device = nullptr;
+	g_device = NULL;
 
 	if( device_id >= (int) midiInGetNumDevs() )
 	{
@@ -36,7 +33,7 @@ InputHandler_Win32_MIDI::InputHandler_Win32_MIDI()
 	}
 	m_bFoundDevice = true;
 
-	MMRESULT result = midiInOpen( &g_device, device_id, reinterpret_cast<DWORD_PTR>(&midiCallback), reinterpret_cast<DWORD_PTR>(this), CALLBACK_FUNCTION );
+	MMRESULT result = midiInOpen( &g_device, device_id, (DWORD) &midiCallback, (DWORD) this, CALLBACK_FUNCTION );
 	if( result != MMSYSERR_NOERROR )
 	{
 		LOG->Warn( "Error opening MIDI device: %s", GetMidiError(result).c_str() );
@@ -70,7 +67,7 @@ InputHandler_Win32_MIDI::~InputHandler_Win32_MIDI()
 	}
 }
 
-void InputHandler_Win32_MIDI::GetDevicesAndDescriptions( std::vector<InputDeviceInfo>& vDevicesOut )
+void InputHandler_Win32_MIDI::GetDevicesAndDescriptions( vector<InputDeviceInfo>& vDevicesOut )
 {
 	if( m_bFoundDevice )
 	{
@@ -78,7 +75,7 @@ void InputHandler_Win32_MIDI::GetDevicesAndDescriptions( std::vector<InputDevice
 	}
 }
 
-static void CALLBACK midiCallback( HMIDIIN device, UINT status, DWORD_PTR instancePtr, DWORD_PTR data, DWORD_PTR timestamp )
+static void CALLBACK midiCallback( HMIDIIN device, UINT status, DWORD instancePtr, DWORD data, DWORD timestamp )
 {
 	if( status == MIM_DATA )
 	{
@@ -94,7 +91,7 @@ static void CALLBACK midiCallback( HMIDIIN device, UINT status, DWORD_PTR instan
 		{
 			DeviceInput di = DeviceInput( DEVICE_MIDI, enum_add2(MIDI_FIRST, iChannel), iValue > 0 );
 			di.ts.Touch();
-			(reinterpret_cast<InputHandler_Win32_MIDI*>(instancePtr))->SetDev( di );
+			((InputHandler_Win32_MIDI *)instancePtr)->SetDev( di );
 		}
 	}
 }

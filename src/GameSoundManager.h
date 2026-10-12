@@ -21,7 +21,7 @@ public:
 	{
 		PlayMusicParams()
 		{
-			pTiming = nullptr;
+			pTiming = NULL;
 			bForceLoop = false;
 			fStartSecond = 0;
 			fLengthSeconds = -1;
@@ -44,7 +44,7 @@ public:
 	void PlayMusic( PlayMusicParams params, PlayMusicParams FallbackMusicParams = PlayMusicParams() );
 	void PlayMusic( 
 		RString sFile, 
-		const TimingData *pTiming = nullptr, 
+		const TimingData *pTiming = NULL, 
 		bool force_loop = false, 
 		float start_sec = 0, 
 		float length_sec = -1, 

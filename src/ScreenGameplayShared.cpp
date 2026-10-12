@@ -7,12 +7,9 @@
 #include "Song.h"
 #include "StatsManager.h"
 
-#include <vector>
-
-
 REGISTER_SCREEN_CLASS( ScreenGameplayShared );
 
-void ScreenGameplayShared::FillPlayerInfo( std::vector<PlayerInfo> &vPlayerInfoOut )
+void ScreenGameplayShared::FillPlayerInfo( vector<PlayerInfo> &vPlayerInfoOut )
 {
 	const PlayerNumber master = GAMESTATE->GetMasterPlayerNumber();
 	const PlayerNumber other = (master == PLAYER_1? PLAYER_2:PLAYER_1);
@@ -32,7 +29,7 @@ PlayerInfo &ScreenGameplayShared::GetPlayerInfoForInput( const InputEventPlus& i
 /*
  * (c) 2006 Steve Checkoway
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -42,7 +39,7 @@ PlayerInfo &ScreenGameplayShared::GetPlayerInfoForInput( const InputEventPlus& i
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

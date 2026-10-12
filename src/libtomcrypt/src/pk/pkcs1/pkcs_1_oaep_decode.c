@@ -5,15 +5,17 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
-/**
+/** 
   @file pkcs_1_oaep_decode.c
-  OAEP Padding for PKCS #1, Tom St Denis
+  OAEP Padding for PKCS #1, Tom St Denis 
 */
 
-#ifdef LTC_PKCS_1
+#ifdef PKCS_1
 
 /**
    PKCS #1 v2.00 OAEP decode
@@ -26,7 +28,7 @@
    @param out              [out] Destination of decoding
    @param outlen           [in/out] The max size and resulting size of the decoding
    @param res              [out] Result of decoding, 1==valid, 0==invalid
-   @return CRYPT_OK if successful
+   @return CRYPT_OK if successful (even if invalid)
 */
 int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
                        const unsigned char *lparam, unsigned long lparamlen,
@@ -36,7 +38,7 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
 {
    unsigned char *DB, *seed, *mask;
    unsigned long hLen, x, y, modulus_len;
-   int           err, ret;
+   int           err;
 
    LTC_ARGCHK(msg    != NULL);
    LTC_ARGCHK(out    != NULL);
@@ -45,9 +47,9 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
 
    /* default to invalid packet */
    *res = 0;
-
+   
    /* test valid hash */
-   if ((err = hash_is_valid(hash_idx)) != CRYPT_OK) {
+   if ((err = hash_is_valid(hash_idx)) != CRYPT_OK) { 
       return err;
    }
    hLen        = hash_descriptor[hash_idx].hashsize;
@@ -76,18 +78,17 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    }
 
    /* ok so it's now in the form
-
-      0x00  || maskedseed || maskedDB
-
+  
+      0x00  || maskedseed || maskedDB 
+  
        1    ||   hLen     ||  modulus_len - hLen - 1
-
+   
     */
-
-   ret = CRYPT_OK;
 
    /* must have leading 0x00 byte */
    if (msg[0] != 0x00) {
-      ret = CRYPT_INVALID_PACKET;
+      err = CRYPT_OK;
+      goto LBL_ERR;
    }
 
    /* now read the masked seed */
@@ -99,7 +100,7 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    XMEMCPY(DB, msg + x, modulus_len - hLen - 1);
    x += modulus_len - hLen - 1;
 
-   /* compute MGF1 of maskedDB (hLen) */
+   /* compute MGF1 of maskedDB (hLen) */ 
    if ((err = pkcs_1_mgf1(hash_idx, DB, modulus_len - hLen - 1, mask, hLen)) != CRYPT_OK) {
       goto LBL_ERR;
    }
@@ -116,7 +117,7 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
 
    /* xor against DB */
    for (y = 0; y < (modulus_len - hLen - 1); y++) {
-       DB[y] ^= mask[y];
+       DB[y] ^= mask[y]; 
    }
 
    /* now DB == lhash || PS || 0x01 || M, PS == k - mlen - 2hlen - 2 zeroes */
@@ -135,8 +136,9 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    }
 
    /* compare the lhash'es */
-   if (XMEM_NEQ(seed, DB, hLen) != 0) {
-      ret = CRYPT_INVALID_PACKET;
+   if (XMEMCMP(seed, DB, hLen) != 0) {
+      err = CRYPT_OK;
+      goto LBL_ERR;
    }
 
    /* now zeroes before a 0x01 */
@@ -144,26 +146,28 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
       /* step... */
    }
 
-   /* error if wasn't 0x01 */
+   /* error out if wasn't 0x01 */
    if (x == (modulus_len - hLen - 1) || DB[x] != 0x01) {
-      ret = CRYPT_INVALID_PACKET;
+      err = CRYPT_INVALID_PACKET;
+      goto LBL_ERR;
    }
 
    /* rest is the message (and skip 0x01) */
    if ((modulus_len - hLen - 1 - ++x) > *outlen) {
-      ret = CRYPT_INVALID_PACKET;
-   }
-
-   if (ret == CRYPT_OK) {
-      /* copy message */
       *outlen = modulus_len - hLen - 1 - x;
-      XMEMCPY(out, DB + x, modulus_len - hLen - 1 - x);
-
-      /* valid packet */
-      *res = 1;
+      err = CRYPT_BUFFER_OVERFLOW;
+      goto LBL_ERR;
    }
-   err = ret;
 
+   /* copy message */
+   *outlen = modulus_len - hLen - 1 - x;
+   XMEMCPY(out, DB + x, modulus_len - hLen - 1 - x);
+   x += modulus_len - hLen - 1;
+
+   /* valid packet */
+   *res = 1;
+
+   err = CRYPT_OK;
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK
    zeromem(DB,   modulus_len);
@@ -178,8 +182,8 @@ LBL_ERR:
    return err;
 }
 
-#endif /* LTC_PKCS_1 */
+#endif /* PKCS_1 */
 
-/* ref:         HEAD -> master, tag: v1.18.2 */
-/* git commit:  7e7eb695d581782f04b24dc444cbfde86af59853 */
-/* commit time: 2018-07-01 22:49:01 +0200 */
+/* $Source$ */
+/* $Revision: 24838 $ */
+/* $Date: 2007-01-23 23:16:57 -0600 (Tue, 23 Jan 2007) $ */

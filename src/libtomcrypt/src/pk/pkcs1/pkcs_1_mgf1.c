@@ -5,21 +5,23 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
-/**
+/** 
   @file pkcs_1_mgf1.c
-  The Mask Generation Function (MGF1) for PKCS #1, Tom St Denis
+  The Mask Generation Function (MGF1) for PKCS #1, Tom St Denis 
 */
 
-#ifdef LTC_PKCS_1
+#ifdef PKCS_1
 
 /**
    Perform PKCS #1 MGF1 (internal)
-   @param hash_idx    The index of the hash desired
    @param seed        The seed for MGF1
    @param seedlen     The length of the seed
+   @param hash_idx    The index of the hash desired
    @param mask        [out] The destination
    @param masklen     The length of the mask desired
    @return CRYPT_OK if successful
@@ -33,12 +35,12 @@ int pkcs_1_mgf1(int                  hash_idx,
    int           err;
    hash_state    *md;
    unsigned char *buf;
-
+ 
    LTC_ARGCHK(seed != NULL);
    LTC_ARGCHK(mask != NULL);
 
    /* ensure valid hash */
-   if ((err = hash_is_valid(hash_idx)) != CRYPT_OK) {
+   if ((err = hash_is_valid(hash_idx)) != CRYPT_OK) { 
       return err;
    }
 
@@ -99,8 +101,8 @@ LBL_ERR:
    return err;
 }
 
-#endif /* LTC_PKCS_1 */
+#endif /* PKCS_1 */
 
-/* ref:         HEAD -> master, tag: v1.18.2 */
-/* git commit:  7e7eb695d581782f04b24dc444cbfde86af59853 */
-/* commit time: 2018-07-01 22:49:01 +0200 */
+/* $Source$ */
+/* $Revision: 24838 $ */
+/* $Date: 2007-01-23 23:16:57 -0600 (Tue, 23 Jan 2007) $ */

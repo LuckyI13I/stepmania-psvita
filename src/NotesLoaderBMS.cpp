@@ -18,10 +18,6 @@
 #include "ActorUtil.h"
 #include "RageFileManager.h"
 
-#include <cstddef>
-#include <vector>
-
-
 /* BMS encoding:	tap-hold
  * 4&8panel:	Player1		Player2
  * Left			11-51		21-61
@@ -110,7 +106,7 @@ static void SlideDuplicateDifficulties( Song &p )
 			if( dc == Difficulty_Edit )
 				continue;
 
-			std::vector<Steps*> vSteps;
+			vector<Steps*> vSteps;
 			SongUtil::GetSteps( &p, vSteps, st, dc );
 
 			StepsUtil::SortNotesArrayByDifficulty( vSteps );
@@ -118,14 +114,14 @@ static void SlideDuplicateDifficulties( Song &p )
 			{
 				Steps* pSteps = vSteps[k];
 
-				Difficulty dc2 = std::min( (Difficulty)(dc+1), Difficulty_Challenge );
+				Difficulty dc2 = min( (Difficulty)(dc+1), Difficulty_Challenge );
 				pSteps->SetDifficulty( dc2 );
 			}
 		}
 	}
 }
 
-void BMSLoader::GetApplicableFiles( const RString &sPath, std::vector<RString> &out )
+void BMSLoader::GetApplicableFiles( const RString &sPath, vector<RString> &out )
 {
 	GetDirListing( sPath + RString("*.bms"), out );
 	GetDirListing( sPath + RString("*.bme"), out );
@@ -183,9 +179,9 @@ struct BMSMeasure
 };
 
 const int MaxBMSElements = 1296; // ZZ in b36
-typedef std::map<RString, RString> BMSHeaders;
-typedef std::map<int, BMSMeasure> BMSMeasures;
-typedef std::vector<BMSObject> BMSObjects;
+typedef map<RString, RString> BMSHeaders;
+typedef map<int, BMSMeasure> BMSMeasures;
+typedef vector<BMSObject> BMSObjects;
 
 class BMSChart
 {
@@ -199,7 +195,7 @@ public:
 	BMSObjects objects;
 	BMSHeaders headers;
 	BMSMeasures measures;
-	std::map<int, bool> referencedTracks;
+	map<int, bool> referencedTracks;
 
 	void TidyUpData();
 };
@@ -235,29 +231,29 @@ struct bmsCommandTree
 		};
 
 		BMSHeaders Commands;
-		std::vector<RString> ChannelCommands;
-		std::vector<bmsNodeS*> branches;
+		vector<RString> ChannelCommands;
+		vector<bmsNodeS*> branches;
 		bmsNodeS* parent;
 
 		bmsNodeS()
 		{
-			parent = nullptr;
+			parent = NULL;
 			conditionValue = 0;
 			conditionType = CT_NULL;
 		}
 
 		~bmsNodeS()
 		{
-			for (bmsNodeS *b : branches)
+			FOREACH(bmsNodeS*, branches, b)
 			{
-				delete b;
+				delete *b;
 			}
 		}
 	};
 
 	bmsNodeS *currentNode;
 	bmsNodeS root;
-	std::vector<unsigned int> randomStack;
+	vector<unsigned int> randomStack;
 
 	int line;
 	RString path;
@@ -268,7 +264,7 @@ struct bmsCommandTree
 		root.branchHeight = 0;
 		root.conditionValue = 0;
 		root.conditionTriggerValue = -1;
-		root.parent = nullptr;
+		root.parent = NULL;
 		root.conditionType = bmsNodeS::CT_NULL;
 
 		currentNode = &root;
@@ -343,23 +339,23 @@ struct bmsCommandTree
 		-az
 	*/
 
-	void appendNodeElements(bmsNodeS* node, BMSHeaders &headersOut, std::vector<RString> &linesOut)
+	void appendNodeElements(bmsNodeS* node, BMSHeaders &headersOut, vector<RString> &linesOut)
 	{
 		for (BMSHeaders::iterator i = node->Commands.begin(); i != node->Commands.end(); ++i)
 		{
 			headersOut[i->first] = i->second;
 		}
 
-		for (std::vector<RString>::iterator i = node->ChannelCommands.begin(); i != node->ChannelCommands.end(); ++i)
+		for (vector<RString>::iterator i = node->ChannelCommands.begin(); i != node->ChannelCommands.end(); ++i)
 		{
 			linesOut.push_back(*i);
 		}
 	}
 
-	bool triggerBranches(bmsNodeS* node, BMSHeaders &headersOut, std::vector<RString> &linesOut)
+	bool triggerBranches(bmsNodeS* node, BMSHeaders &headersOut, vector<RString> &linesOut)
 	{
-		for (bmsNodeS *b : node->branches)
-			if (evaluateNode(b, headersOut, linesOut))
+		FOREACH(bmsNodeS*, node->branches, b)
+			if (evaluateNode(*b, headersOut, linesOut))
 			{
 				return true;
 			}
@@ -367,7 +363,7 @@ struct bmsCommandTree
 		return false;
 	}
 
-	bool evaluateNode(bmsNodeS* node, BMSHeaders &headersOut, std::vector<RString> &linesOut)
+	bool evaluateNode(bmsNodeS* node, BMSHeaders &headersOut, vector<RString> &linesOut)
 	{
 		switch (node->conditionType)
 		{
@@ -399,12 +395,12 @@ struct bmsCommandTree
 		return false;
 	}
 
-	void evaluateBMSTree(BMSHeaders &headersOut, std::vector<RString> &linesOut)
+	void evaluateBMSTree(BMSHeaders &headersOut, vector<RString> &linesOut)
 	{
 		evaluateNode(&root, headersOut, linesOut);
 	}
 
-	void doStatement(RString statement, std::map<int, bool> &referencedTracks)
+	void doStatement(RString statement, map<int, bool> &referencedTracks)
 	{
 		line++;
 
@@ -412,14 +408,14 @@ struct bmsCommandTree
 			return;
 
 		// LTrim the statement to allow indentation
-		std::size_t hash = statement.find('#');
+		size_t hash = statement.find('#');
 
 		if (hash == RString::npos)
 			return;
 
 		statement = statement.substr(hash);
 
-		std::size_t space = statement.find(' ');
+		size_t space = statement.find(' ');
 		RString name = statement.substr(0, space);
 		RString value = "";
 
@@ -442,7 +438,7 @@ struct bmsCommandTree
 		}
 		else if (name == "#else")
 		{
-			if (currentNode->parent != nullptr) // Not the root node.
+			if (currentNode->parent != NULL) // Not the root node.
 			{
 				if (currentNode->parent->conditionType == bmsNodeS::CT_CONDITIONALCHAIN)
 				{
@@ -456,7 +452,7 @@ struct bmsCommandTree
 		}
 		else if (name == "#elseif")
 		{
-			if (currentNode->parent != nullptr) // Not the root node.
+			if (currentNode->parent != NULL) // Not the root node.
 			{
 				if (currentNode->parent->conditionType == bmsNodeS::CT_CONDITIONALCHAIN)
 				{
@@ -468,7 +464,7 @@ struct bmsCommandTree
 		}
 		else if (name == "#endif" || name == "#end")
 		{
-			if (currentNode->parent != nullptr) // not the root node
+			if (currentNode->parent != NULL) // not the root node
 			{
 				currentNode = currentNode->parent;
 			}
@@ -545,11 +541,12 @@ bool BMSChart::Load( const RString &chartPath )
 		Tree.doStatement(line, referencedTracks);
 	}
 
-	std::vector<RString> lines;
+	vector<RString> lines;
 	Tree.evaluateBMSTree(headers, lines);
 
-	for (const RString& line : lines)
+	for (vector<RString>::iterator i = lines.begin(); i != lines.end(); ++i)
 	{
+		RString line = *i;
 		RString data = line.substr(7);
 		int measure = atoi(line.substr(1, 3).c_str());
 		int channel = atoi(line.substr(4, 2).c_str());
@@ -595,12 +592,12 @@ void BMSChart::TidyUpData()
 
 class BMSSong {
 
-	std::map<RString, int> mapKeysoundToIndex;
+	map<RString, int> mapKeysoundToIndex;
 	Song *out;
 
 	bool backgroundsPrecached;
 	void PrecacheBackgrounds(const RString &dir);
-	std::map<RString, RString> mapBackground;
+	map<RString, RString> mapBackground;
 
 public:
 	BMSSong( Song *song );
@@ -652,8 +649,8 @@ int BMSSong::AllocateKeysound( RString filename, RString path )
 
 	if( !IsAFile(dir + normalizedFilename) )
 	{
-		std::vector<RString> const& exts= ActorUtil::GetTypeExtensionList(FT_Sound);
-		for(std::size_t i = 0; i < exts.size(); ++i)
+		vector<RString> const& exts= ActorUtil::GetTypeExtensionList(FT_Sound);
+		for(size_t i = 0; i < exts.size(); ++i)
 		{
 			RString fn = SetExtension( normalizedFilename, exts[i] );
 			if( IsAFile(dir + fn) )
@@ -717,10 +714,10 @@ bool BMSSong::GetBackground( RString filename, RString path, RString &bgfile )
 
 	if( !IsAFile(dir + normalizedFilename) )
 	{
-		std::vector<RString> exts;
+		vector<RString> exts;
 		ActorUtil::AddTypeExtensionsToList(FT_Movie, exts);
 		ActorUtil::AddTypeExtensionsToList(FT_Bitmap, exts);
-		for(std::size_t i = 0; i < exts.size(); ++i)
+		for(size_t i = 0; i < exts.size(); ++i)
 		{
 			RString fn = SetExtension( normalizedFilename, exts[i] );
 			if( IsAFile(dir + fn) )
@@ -748,9 +745,9 @@ void BMSSong::PrecacheBackgrounds(const RString &dir)
 {
 	if( backgroundsPrecached ) return;
 	backgroundsPrecached = true;
-	std::vector<RString> arrayPossibleFiles;
+	vector<RString> arrayPossibleFiles;
 
-	std::vector<RString> exts;
+	vector<RString> exts;
 	ActorUtil::AddTypeExtensionsToList(FT_Movie, exts);
 	ActorUtil::AddTypeExtensionsToList(FT_Bitmap, exts);
 	FILEMAN->GetDirListingWithMultipleExtensions(dir + RString("*."), exts, arrayPossibleFiles);
@@ -777,7 +774,7 @@ struct BMSChartInfo {
 	RString musicFile;
 	RString previewFile;
 
-	std::map<int, RString> backgroundChanges;
+	map<int, RString> backgroundChanges;
 	float previewStart;
 	BMSChartInfo() { previewStart = 0; }
 };
@@ -798,11 +795,11 @@ class BMSChartReader {
 	RString lnobj;
 
 	int nonEmptyTracksCount;
-	std::map<int, bool> nonEmptyTracks;
+	map<int, bool> nonEmptyTracks;
 
 	int GetKeysound( const BMSObject &obj );
 
-	std::map<RString, int> mapValueToKeysoundIndex;
+	map<RString, int> mapValueToKeysoundIndex;
 
 public:
 	BMSChartReader(BMSChart *chart, Steps *steps, BMSSong *song);
@@ -966,8 +963,6 @@ StepsType BMSChartReader::DetermineStepsType()
 				case 4:		return StepsType_dance_single;
 				case 5:
 					if( nonEmptyTracks.find(BMS_RAW_P2_KEY2) != nonEmptyTracks.end() ) return StepsType_popn_five;
-
-					[[fallthrough]];
 				case 6:
 					// FIXME: There's no way to distinguish between these types.
 					// They use the same number of tracks. Assume it's a Beat
@@ -1055,7 +1050,7 @@ StepsType BMSChartReader::DetermineStepsType()
 
 int BMSChartReader::GetKeysound( const BMSObject &obj )
 {
-	std::map<RString, int>::iterator it = mapValueToKeysoundIndex.find(obj.value);
+	map<RString, int>::iterator it = mapValueToKeysoundIndex.find(obj.value);
 	if( it == mapValueToKeysoundIndex.end() )
 	{
 		int index = -1;
@@ -1092,7 +1087,7 @@ bmFrac toFraction(double f)
 	long long upper = 1LL, lower = 1LL;
 	df = 1;
 
-	while (std::abs(df - f) > 0.000001)
+	while (abs(df - f) > 0.000001)
 	{
 		if (df < f)
 		{
@@ -1292,7 +1287,7 @@ bool BMSChartReader::ReadNoteData()
 		}
 	}
 
-	std::vector<BMSAutoKeysound> autos;
+	vector<BMSAutoKeysound> autos;
 
 	for( unsigned i = 0; i < in->objects.size(); i ++ )
 	{
@@ -1331,7 +1326,7 @@ bool BMSChartReader::ReadNoteData()
 
 		if( channel == 3 ) // bpm change
 		{
-			unsigned int bpm;
+			int bpm;
 			if( sscanf(obj.value, "%x", &bpm) == 1 )
 			{
 				if( bpm > 0 ) td.SetBPMAtRow( row, measureAdjust * (currentBPM = bpm) );
@@ -1487,7 +1482,7 @@ class BMSSongLoader
 {
 	RString dir;
 	BMSSong song;
-	std::vector<BMSStepsInfo> loadedSteps;
+	vector<BMSStepsInfo> loadedSteps;
 public:
 	BMSSongLoader( RString songDir, Song *outSong );
 	bool Load( RString fileName );
@@ -1661,7 +1656,7 @@ void BMSSongLoader::AddToSong()
 				break;
 		}
 
-		std::map<int, RString>::const_iterator it = main.info.backgroundChanges.begin();
+		map<int, RString>::const_iterator it = main.info.backgroundChanges.begin();
 
 		for (; it != main.info.backgroundChanges.end(); it++)
 		{
@@ -1736,7 +1731,7 @@ bool BMSLoader::LoadFromDir( const RString &sDir, Song &out )
 
 	ASSERT( out.m_vsKeysoundFile.empty() );
 
-	std::vector<RString> arrayBMSFileNames;
+	vector<RString> arrayBMSFileNames;
 	GetApplicableFiles( sDir, arrayBMSFileNames );
 
 	/* We should have at least one; if we had none, we shouldn't have been

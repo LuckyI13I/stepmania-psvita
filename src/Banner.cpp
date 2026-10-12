@@ -1,6 +1,6 @@
 #include "global.h"
 #include "Banner.h"
-#include "ImageCache.h"
+#include "BannerCache.h"
 #include "SongManager.h"
 #include "RageUtil.h"
 #include "Song.h"
@@ -43,6 +43,7 @@ void Banner::Load( RageTextureID ID, bool bIsBanner )
 	m_bScrolling = false;
 
 	TEXTUREMAN->DisableOddDimensionWarning();
+	TEXTUREMAN->VolatileTexture( ID );
 	Sprite::Load( ID );
 	TEXTUREMAN->EnableOddDimensionWarning();
 };
@@ -56,7 +57,7 @@ void Banner::LoadFromCachedBanner( const RString &sPath )
 	}
 
 	RageTextureID ID;
-	bool bLowRes = (PREFSMAN->m_ImageCache != IMGCACHE_FULL);
+	bool bLowRes = (PREFSMAN->m_BannerCache != BNCACHE_FULL);
 	if( !bLowRes )
 	{
 		ID = Sprite::SongBannerTexture( sPath );
@@ -64,7 +65,7 @@ void Banner::LoadFromCachedBanner( const RString &sPath )
 	else
 	{
 		// Try to load the low quality version.
-		ID = IMAGECACHE->LoadCachedImage( "Banner", sPath );
+		ID = BANNERCACHE->LoadCachedBanner( sPath );
 	}
 
 	if( TEXTUREMAN->IsTextureRegistered(ID) )
@@ -106,9 +107,9 @@ void Banner::SetScrolling( bool bScroll, float Percent)
 	Update(0);
 }
 
-void Banner::LoadFromSong( Song* pSong ) // nullptr means no song
+void Banner::LoadFromSong( Song* pSong ) // NULL means no song
 {
-	if( pSong == nullptr )	LoadFallback();
+	if( pSong == NULL )	LoadFallback();
 	else if( pSong->HasBanner() ) Load( pSong->GetBannerPath() );
 	else					LoadFallback();
 
@@ -129,9 +130,9 @@ void Banner::LoadFromSongGroup( RString sSongGroup )
 	m_bScrolling = false;
 }
 
-void Banner::LoadFromCourse( const Course *pCourse )		// nullptr means no course
+void Banner::LoadFromCourse( const Course *pCourse )		// NULL means no course
 {
-	if( pCourse == nullptr )				LoadFallback();
+	if( pCourse == NULL )				LoadFallback();
 	else if( pCourse->GetBannerPath() != "" )	Load( pCourse->GetBannerPath() );
 	else						LoadCourseFallback();
 
@@ -140,7 +141,7 @@ void Banner::LoadFromCourse( const Course *pCourse )		// nullptr means no course
 
 void Banner::LoadCardFromCharacter( const Character *pCharacter )
 {
-	if( pCharacter == nullptr )			LoadFallback();
+	if( pCharacter == NULL )			LoadFallback();
 	else if( pCharacter->GetCardPath() != "" )	Load( pCharacter->GetCardPath() );
 	else						LoadFallback();
 
@@ -149,7 +150,7 @@ void Banner::LoadCardFromCharacter( const Character *pCharacter )
 
 void Banner::LoadIconFromCharacter( const Character *pCharacter )
 {
-	if( pCharacter == nullptr )			LoadFallbackCharacterIcon();
+	if( pCharacter == NULL )			LoadFallbackCharacterIcon();
 	else if( pCharacter->GetIconPath() != "" )	Load( pCharacter->GetIconPath(), false );
 	else						LoadFallbackCharacterIcon();
 
@@ -158,7 +159,7 @@ void Banner::LoadIconFromCharacter( const Character *pCharacter )
 
 void Banner::LoadBannerFromUnlockEntry( const UnlockEntry* pUE )
 {
-	if( pUE == nullptr )
+	if( pUE == NULL )
 		LoadFallback();
 	else 
 	{
@@ -170,7 +171,7 @@ void Banner::LoadBannerFromUnlockEntry( const UnlockEntry* pUE )
 
 void Banner::LoadBackgroundFromUnlockEntry( const UnlockEntry* pUE )
 {
-	if( pUE == nullptr )
+	if( pUE == NULL )
 		LoadFallback();
 	else 
 	{
@@ -223,7 +224,7 @@ void Banner::LoadRandom()
 
 void Banner::LoadFromSortOrder( SortOrder so )
 {
-	// TODO: See if the check for nullptr/PREFERRED(?) is needed.
+	// TODO: See if the check for NULL/PREFERRED(?) is needed.
 	if( so == SortOrder_Invalid )
 	{
 		LoadFallback();
@@ -247,13 +248,13 @@ public:
 	static int ScaleToClipped( T* p, lua_State *L )			{ p->ScaleToClipped(FArg(1),FArg(2)); COMMON_RETURN_SELF; }
 	static int LoadFromSong( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadFromSong(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadFromSong( NULL ); }
 		else { Song *pS = Luna<Song>::check(L,1); p->LoadFromSong( pS ); }
 		COMMON_RETURN_SELF;
 	}
 	static int LoadFromCourse( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadFromCourse(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadFromCourse( NULL ); }
 		else { Course *pC = Luna<Course>::check(L,1); p->LoadFromCourse( pC ); }
 		COMMON_RETURN_SELF;
 	}
@@ -264,25 +265,25 @@ public:
 	}
 	static int LoadIconFromCharacter( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadIconFromCharacter(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadIconFromCharacter( NULL ); }
 		else { Character *pC = Luna<Character>::check(L,1); p->LoadIconFromCharacter( pC ); }
 		COMMON_RETURN_SELF;
 	}
 	static int LoadCardFromCharacter( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadIconFromCharacter(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadIconFromCharacter( NULL ); }
 		else { Character *pC = Luna<Character>::check(L,1); p->LoadIconFromCharacter( pC ); }
 		COMMON_RETURN_SELF;
 	}
 	static int LoadBannerFromUnlockEntry( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadBannerFromUnlockEntry(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadBannerFromUnlockEntry( NULL ); }
 		else { UnlockEntry *pUE = Luna<UnlockEntry>::check(L,1); p->LoadBannerFromUnlockEntry( pUE ); }
 		COMMON_RETURN_SELF;
 	}
 	static int LoadBackgroundFromUnlockEntry( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadBackgroundFromUnlockEntry(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadBackgroundFromUnlockEntry( NULL ); }
 		else { UnlockEntry *pUE = Luna<UnlockEntry>::check(L,1); p->LoadBackgroundFromUnlockEntry( pUE ); }
 		COMMON_RETURN_SELF;
 	}

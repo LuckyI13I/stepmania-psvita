@@ -4,10 +4,7 @@
 #define GAME_CONSTANTS_AND_TYPES_H
 
 #include "EnumHelper.h"
-
-#include <cfloat>
-#include <vector>
-
+#include <float.h> // need the max for default.
 
 // Note definitions
 /** @brief Define the mininum difficulty value allowed. */
@@ -152,12 +149,12 @@ const RString& PlayModeToLocalizedString( PlayMode pm );
 PlayMode StringToPlayMode( const RString& s );
 LuaDeclareType( PlayMode );
 
-/**
+/** 
  * @brief The list of ways to sort songs and courses.
  *
  * All song sorts should be listed before course sorts.
  */
-enum SortOrder
+enum SortOrder 
 {
 	// song sorts
 	SORT_PREFERRED, /**< Sort by the user's preferred settings. */
@@ -166,11 +163,8 @@ enum SortOrder
 	SORT_BPM, /**< Sort by the Song's BPM. */
 	SORT_POPULARITY, /**< Sort by how popular the Song is. */
 	SORT_TOP_GRADES, /**< Sort by the highest grades earned on a Song. */
-	SORT_TOP_GRADES_P1, /**< Sort by the highest grades earned on a Song for P1. */
-	SORT_TOP_GRADES_P2, /**< Sort by the highest grades earned on a Song for P2. */
 	SORT_ARTIST, /**< Sort by the name of the artist of the Song. */
 	SORT_GENRE, /**< Sort by the Song's genre. */
-	SORT_METER, /**< Sort by the difficulty of all meters */
 	SORT_BEGINNER_METER, /**< Sort by the difficulty of the single beginner meter. */
 	SORT_EASY_METER, /**< Sort by the difficulty of the single easy meter. */
 	SORT_MEDIUM_METER, /**< Sort by the difficulty of the single medium meter. */
@@ -187,7 +181,7 @@ enum SortOrder
 	SORT_NONSTOP_COURSES, /**< View only the nonstop courses. */
 	SORT_ONI_COURSES, /**< View only the oni/survival courses. */
 	SORT_ENDLESS_COURSES, /**< View only the endless courses. */
-	SORT_LENGTH, /**< Sort the songs/courses by how long they would last. */
+	SORT_LENGTH, /**< Sort the courses by how long they would last. */
 	SORT_ROULETTE,
 	SORT_RECENT,
 	NUM_SortOrder,
@@ -219,10 +213,10 @@ LuaDeclareType( SortOrder );
  *
  * This function is mainly used for saving sort order to the profile. -aj
  */
-inline bool IsSongSort( SortOrder so ) { return (so >= SORT_PREFERRED && so <= SORT_DOUBLE_CHALLENGE_METER) || so == SORT_LENGTH; }
+inline bool IsSongSort( SortOrder so ) { return so >= SORT_PREFERRED && so <= SORT_DOUBLE_CHALLENGE_METER; }
 
 /** @brief The list of tap note scores available during play. */
-enum TapNoteScore {
+enum TapNoteScore { 
 	TNS_None, /**< There is no score involved with this one. */
 	TNS_HitMine, /**< A mine was hit successfully. */
 	TNS_AvoidMine, /**< A mine was avoided successfully. */
@@ -258,8 +252,8 @@ TapNoteScore StringToTapNoteScore( const RString& str );
 LuaDeclareType( TapNoteScore );
 
 /** @brief The list of hold note scores available during play. */
-enum HoldNoteScore
-{
+enum HoldNoteScore 
+{ 
 	HNS_None,		/**< The HoldNote was not scored yet. */
 	HNS_LetGo,		/**< The HoldNote has passed, but the player missed it. */
 	HNS_Held,		/**< The HoldNote has passed, and was successfully held all the way. */
@@ -300,11 +294,9 @@ enum TimingWindow
 	TW_Hold,
 	TW_Roll,
 	TW_Checkpoint,
-	NUM_TimingWindow,
-	TimingWindow_Invalid,
+	NUM_TimingWindow
 };
 const RString& TimingWindowToString( TimingWindow tw );
-LuaDeclareType( TimingWindow );
 
 /** @brief The list of score events that can take place while playing. */
 enum ScoreEvent
@@ -358,11 +350,11 @@ LuaDeclareType( ProfileSlot );
 
 /** @brief The states of the memory card during play. */
 enum MemoryCardState
-{
-	MemoryCardState_Ready,
-	MemoryCardState_Checking,
-	MemoryCardState_TooLate,
-	MemoryCardState_Error,
+{ 
+	MemoryCardState_Ready, 
+	MemoryCardState_Checking, 
+	MemoryCardState_TooLate, 
+	MemoryCardState_Error, 
 	MemoryCardState_Removed,
 	MemoryCardState_NoCard,
 	NUM_MemoryCardState,
@@ -386,7 +378,7 @@ const RString& RankingCategoryToString( RankingCategory rc );
 RankingCategory StringToRankingCategory( const RString& rc );
 LuaDeclareType( RankingCategory );
 
-extern const std::vector<RString> RANKING_TO_FILL_IN_MARKER;
+extern const vector<RString> RANKING_TO_FILL_IN_MARKER;
 inline bool IsRankingToFillIn( const RString& sName ) { return !sName.empty() && sName[0]=='#'; }
 
 RankingCategory AverageMeterToRankingCategory( int iAverageMeter );
@@ -495,8 +487,8 @@ StageAward StringToStageAward( const RString& pma );
 LuaDeclareType( StageAward );
 
 /** @brief The various peak combo awards should such a combo be attained during play. */
-enum PeakComboAward
-{
+enum PeakComboAward 
+{ 
 	PeakComboAward_1000,
 	PeakComboAward_2000,
 	PeakComboAward_3000,
@@ -553,7 +545,7 @@ struct DisplayBpms
 	/**
 	 * @brief The list of the BPMs for the song or course.
 	 */
-	std::vector<float> vfBpms;
+	vector<float> vfBpms;
 };
 
 /** @brief The various style types available. */
@@ -571,10 +563,10 @@ StyleType StringToStyleType( const RString& s );
 LuaDeclareType( StyleType );
 
 /** @brief The different goal types, mainly meant for fitness modes. */
-enum GoalType
+enum GoalType 
 {
-	GoalType_Calories,
-	GoalType_Time,
+	GoalType_Calories, 
+	GoalType_Time, 
 	GoalType_None,
 	NUM_GoalType,
 	GoalType_Invalid,
@@ -612,8 +604,8 @@ LuaDeclareType( EditMode );
 enum SampleMusicPreviewMode
 {
 	SampleMusicPreviewMode_Normal,		/**< Music is played as the song is highlighted. */
-	SampleMusicPreviewMode_StartToPreview,
-	SampleMusicPreviewMode_ScreenMusic,	/**< No music plays. Select it once to preview the music,
+	SampleMusicPreviewMode_StartToPreview,	
+	SampleMusicPreviewMode_ScreenMusic,	/**< No music plays. Select it once to preview the music, 
 						 * then once more to select the song. */
 	SampleMusicPreviewMode_LastSong,	/**< continue playing the last song */
 	NUM_SampleMusicPreviewMode,
@@ -636,7 +628,7 @@ enum Stage
 	Stage_4th, /**< The fourth stage. */
 	Stage_5th, /**< The fifth stage. */
 	Stage_6th, /**< The sixth stage. */
-	Stage_Next, /**< Somewhere between the sixth and final stage.
+	Stage_Next, /**< Somewhere between the sixth and final stage. 
 		     * This won't normally happen because 7 stages is the max in the UI. */
 	Stage_Final, /**< The last stage. */
 	Stage_Extra1, /**< The first bonus stage, AKA the extra stage. */
@@ -668,8 +660,8 @@ LuaDeclareType( EarnedExtraStage );
 /** @brief The different results of loading a profile. */
 enum ProfileLoadResult
 {
-	ProfileLoadResult_Success,
-	ProfileLoadResult_FailedNoProfile,
+	ProfileLoadResult_Success, 
+	ProfileLoadResult_FailedNoProfile, 
 	ProfileLoadResult_FailedTampered
 };
 
@@ -724,7 +716,7 @@ LuaDeclareType( FailType );
  * @author Chris Danford, Chris Gomez (c) 2001-2004
  * @section LICENSE
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -734,7 +726,7 @@ LuaDeclareType( FailType );
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

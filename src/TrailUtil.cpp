@@ -5,7 +5,7 @@
 #include "XmlFile.h"
 #include "GameManager.h"
 #include "Song.h"
-#include <numeric>
+
 
 int TrailUtil::GetNumSongs( const Trail *pTrail )
 {
@@ -14,15 +14,17 @@ int TrailUtil::GetNumSongs( const Trail *pTrail )
 
 float TrailUtil::GetTotalSeconds( const Trail *pTrail )
 {
-	auto const &entries = pTrail->m_vEntries;
-	return std::accumulate(entries.begin(), entries.end(), 0.f, [](float total, TrailEntry const &e) { return total + e.pSong->m_fMusicLengthSeconds; });
+	float fSecs = 0;
+	FOREACH_CONST( TrailEntry, pTrail->m_vEntries, e )
+		fSecs += e->pSong->m_fMusicLengthSeconds;
+	return fSecs;
 }
 
 ///////////////////////////////////////////////////////////////////////
 
 void TrailID::FromTrail( const Trail *p )
 {
-	if( p == nullptr )
+	if( p == NULL )
 	{
 		st = StepsType_Invalid;
 		cd = Difficulty_Invalid;
@@ -32,17 +34,22 @@ void TrailID::FromTrail( const Trail *p )
 		st = p->m_StepsType;
 		cd = p->m_CourseDifficulty;
 	}
+	m_Cache.Unset();
 }
 
 Trail *TrailID::ToTrail( const Course *p, bool bAllowNull ) const
 {
-	ASSERT( p != nullptr );
+	ASSERT( p != NULL );
 
-	Trail *pRet = nullptr;
-	if( st != StepsType_Invalid && cd != Difficulty_Invalid )
-		pRet = p->GetTrail( st, cd );
+	Trail *pRet = NULL;
+	if( !m_Cache.Get(&pRet) )
+	{
+		if( st != StepsType_Invalid && cd != Difficulty_Invalid )
+			pRet = p->GetTrail( st, cd );
+		m_Cache.Set( pRet );
+	}
 
-	if( !bAllowNull && pRet == nullptr )
+	if( !bAllowNull && pRet == NULL )
 		RageException::Throw( "%i, %i, \"%s\"", st, cd, p->GetDisplayFullTitle().c_str() );	
 
 	return pRet;
@@ -69,6 +76,7 @@ void TrailID::LoadFromNode( const XNode* pNode )
 
 	pNode->GetAttrValue( "CourseDifficulty", sTemp );
 	cd = StringToDifficulty( sTemp );
+	m_Cache.Unset();
 }
 
 RString TrailID::ToString() const
@@ -117,7 +125,7 @@ namespace
 	{
 		LIST_METHOD( GetNumSongs ),
 		LIST_METHOD( GetTotalSeconds ),
-		{ nullptr, nullptr }
+		{ NULL, NULL }
 	};
 }
 

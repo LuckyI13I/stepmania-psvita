@@ -7,11 +7,12 @@
 #include "RageMath.h"
 #include "RageTypes.h"
 #include "RageUtil.h"
-#include "DisplaySpec.h"
+#include "DisplayResolutions.h"
 #include "ModelTypes.h"
 #include "arch/LowLevelWindow/LowLevelWindow.h"
 
 #include <cstring>
+#include <cstddef>
 #include <vector>
 
 #ifdef VITA
@@ -19,6 +20,9 @@
 #include <vitaGL.h>
 #endif
 #include <psp2/display.h>
+#endif
+#if defined(VITA) && __has_include("vita_build_number.h")
+#include "vita_build_number.h"
 #endif
 
 namespace
@@ -37,39 +41,43 @@ namespace
 		{ 16, { 0x7C00, 0x03E0, 0x001F, 0x0000 } },                // X1R5G5B5
 	};
 
-	// All uploads are normalized to this format (matches GL_RGBA/UBYTE bytes).
-	const std::uint32_t VITA_TEX_RMASK = 0xFF000000;
-	const std::uint32_t VITA_TEX_GMASK = 0x00FF0000;
-	const std::uint32_t VITA_TEX_BMASK = 0x0000FF00;
-	const std::uint32_t VITA_TEX_AMASK = 0x000000FF;
+	// All uploads use GL_RGBA/GL_UNSIGNED_BYTE, i.e. raw R,G,B,A byte order
+	// in memory. On little-endian ARM that means R in the low byte, which
+	// is Swap32() of the RageSurface-style masks, matching upstream
+	// RageDisplay_GLES2::FixLittleEndian(). (Uploading with the unflipped
+	// masks swaps R<->A and G<->B: transparent-white becomes opaque cyan,
+	// text edges lose their alpha, etc.)
+	const uint32_t VITA_TEX_RMASK = 0x000000FF;
+	const uint32_t VITA_TEX_GMASK = 0x0000FF00;
+	const uint32_t VITA_TEX_BMASK = 0x00FF0000;
+	const uint32_t VITA_TEX_AMASK = 0xFF000000;
 
-	// Software copy of a mesh for DrawCompiledGeometryInternal.
 	struct VitaCompiledGeometry : public RageCompiledGeometry
 	{
 		struct Mesh
 		{
-			std::vector<float> pos;   // xyz per vert
-			std::vector<float> norm;  // xyz per vert
-			std::vector<float> tex;   // uv per vert
-			std::vector<std::uint16_t> idx;
+			vector<float> pos;
+			vector<float> norm;
+			vector<float> tex;
+			vector<uint16_t> idx;
 		};
-		std::vector<Mesh> meshes;
+		vector<Mesh> meshes;
 
-		void Allocate(const std::vector<msMesh> &vMeshes) override
+		void Allocate(const vector<msMesh> &vMeshes)
 		{
 			meshes.resize(vMeshes.size());
 			Change(vMeshes);
 		}
-		void Change(const std::vector<msMesh> &vMeshes) override
+		void Change(const vector<msMesh> &vMeshes)
 		{
-			for (std::size_t m = 0; m < vMeshes.size() && m < meshes.size(); ++m)
+			for (size_t m = 0; m < vMeshes.size() && m < meshes.size(); ++m)
 			{
 				const msMesh &src = vMeshes[m];
 				Mesh &dst = meshes[m];
 				dst.pos.resize(src.Vertices.size() * 3);
 				dst.norm.resize(src.Vertices.size() * 3);
 				dst.tex.resize(src.Vertices.size() * 2);
-				for (std::size_t i = 0; i < src.Vertices.size(); ++i)
+				for (size_t i = 0; i < src.Vertices.size(); ++i)
 				{
 					dst.pos[i * 3 + 0] = src.Vertices[i].p[0];
 					dst.pos[i * 3 + 1] = src.Vertices[i].p[1];
@@ -81,7 +89,7 @@ namespace
 					dst.tex[i * 2 + 1] = src.Vertices[i].t[1];
 				}
 				dst.idx.resize(src.Triangles.size() * 3);
-				for (std::size_t i = 0; i < src.Triangles.size(); ++i)
+				for (size_t i = 0; i < src.Triangles.size(); ++i)
 				{
 					dst.idx[i * 3 + 0] = src.Triangles[i].nVertexIndices[0];
 					dst.idx[i * 3 + 1] = src.Triangles[i].nVertexIndices[1];
@@ -89,7 +97,7 @@ namespace
 				}
 			}
 		}
-		void Draw(int iMeshIndex) const override
+		void Draw(int iMeshIndex) const
 		{
 			// Driven by RageDisplay_Vita::DrawCompiledGeometryInternal.
 			(void)iMeshIndex;
@@ -98,7 +106,8 @@ namespace
 }
 
 RageDisplay_Vita::RageDisplay_Vita()
-	: m_pWind(nullptr), m_bZWrite(false), m_bZTest(false)
+	: m_pWind(NULL), m_bZWrite(false), m_bZTest(false),
+	m_DrawCalls(0), m_DrawTris(0)
 {
 }
 
@@ -135,15 +144,18 @@ RString RageDisplay_Vita::Init(const VideoModeParams &p, bool bAllowUnaccelerate
 
 RString RageDisplay_Vita::TryVideoMode(const VideoModeParams &p, bool &bNewDeviceOut)
 {
-	if (m_pWind == nullptr)
+	if (m_pWind == NULL)
 		m_pWind = LowLevelWindow::Create();
 	return m_pWind->TryVideoMode(p, bNewDeviceOut);
 }
 
-void RageDisplay_Vita::GetDisplaySpecs(DisplaySpecs &out) const
+void RageDisplay_Vita::GetDisplayResolutions(DisplayResolutions &out) const
 {
-	DisplayMode mode{ 960, 544, 60.0 };
-	out.insert(DisplaySpec("Vita LCD", "PS Vita LCD", mode));
+	DisplayResolution res;
+	res.iWidth = 960;
+	res.iHeight = 544;
+	res.bStretched = false;
+	out.insert(res);
 }
 
 const RageDisplay::RagePixelFormatDesc *RageDisplay_Vita::GetPixelFormatDesc(RagePixelFormat pf) const
@@ -152,14 +164,14 @@ const RageDisplay::RagePixelFormatDesc *RageDisplay_Vita::GetPixelFormatDesc(Rag
 	return &PIXEL_FORMAT_DESC_VITA[pf];
 }
 
-ActualVideoModeParams RageDisplay_Vita::GetActualVideoModeParams() const
+VideoModeParams RageDisplay_Vita::GetActualVideoModeParams() const
 {
 	return m_pWind->GetActualVideoModeParams();
 }
 
 bool RageDisplay_Vita::BeginFrame()
 {
-	ActualVideoModeParams avmp = m_pWind->GetActualVideoModeParams();
+	VideoModeParams avmp = m_pWind->GetActualVideoModeParams();
 	glViewport(0, 0, avmp.width, avmp.height);
 	glClearColor(0, 0, 0, 0);
 	SetZWrite(true);
@@ -176,15 +188,21 @@ void RageDisplay_Vita::EndFrame()
 	m_pWind->Update();
 
 #if defined(VITA)
-	// Frame heartbeat: distinguishes "loop dead" from "loop alive, static
-	// content". Logs every 600 presented frames (~10s at 60fps).
 	{
 		static int s_nFrames = 0;
 		++s_nFrames;
 		if (s_nFrames == 1 || s_nFrames % 600 == 0)
 		{
 			GLenum e = glGetError();
-			LOG->Info("Vita: frame %d, glGetError=0x%x", s_nFrames, (unsigned)e);
+#ifdef VITA_BUILD_NUMBER
+			LOG->Info("Vita: build %d frame %d, %d draws %d tris, glGetError=0x%x",
+				VITA_BUILD_NUMBER, s_nFrames, m_DrawCalls / 600, m_DrawTris / 600, (unsigned)e);
+#else
+			LOG->Info("Vita: frame %d, %d draws %d tris, glGetError=0x%x",
+				s_nFrames, m_DrawCalls / 600, m_DrawTris / 600, (unsigned)e);
+#endif
+			m_DrawCalls = 0;
+			m_DrawTris = 0;
 		}
 	}
 #endif
@@ -214,12 +232,12 @@ bool RageDisplay_Vita::SupportsTextureFormat(RagePixelFormat /*pixfmt*/, bool /*
 	return true;
 }
 
-std::uintptr_t RageDisplay_Vita::CreateTexture(
+unsigned RageDisplay_Vita::CreateTexture(
 	RagePixelFormat /*pixfmt*/,
 	RageSurface *img,
 	bool /*bGenerateMipMaps*/)
 {
-	if (img == nullptr || img->pixels == nullptr)
+	if (img == NULL || img->pixels == NULL)
 		return 0;
 
 	RageSurface *conv = CreateSurface(img->w, img->h, 32,
@@ -238,30 +256,66 @@ std::uintptr_t RageDisplay_Vita::CreateTexture(
 		GL_RGBA, GL_UNSIGNED_BYTE, conv->pixels);
 	delete conv;
 
-	m_Textures.insert((std::uintptr_t)tex);
-	return (std::uintptr_t)tex;
+	m_Textures.insert(tex);
+	return tex;
 }
 
 void RageDisplay_Vita::UpdateTexture(
-	std::uintptr_t iTexHandle,
+	unsigned iTexHandle,
 	RageSurface *img,
 	int xoffset, int yoffset, int width, int height)
 {
-	if (iTexHandle == 0 || img == nullptr || img->pixels == nullptr)
+	if (iTexHandle == 0 || img == NULL || img->pixels == NULL)
 		return;
 
-	RageSurface *conv = CreateSurface(img->w, img->h, 32,
-		VITA_TEX_RMASK, VITA_TEX_GMASK, VITA_TEX_BMASK, VITA_TEX_AMASK);
-	RageSurfaceUtils::Blit(img, conv, img->w, img->h);
+	// Clamp the subrect to the source surface.
+	if (xoffset < 0) { width += xoffset; xoffset = 0; }
+	if (yoffset < 0) { height += yoffset; yoffset = 0; }
+	if (xoffset + width > img->w) width = img->w - xoffset;
+	if (yoffset + height > img->h) height = img->h - yoffset;
+	if (width <= 0 || height <= 0)
+		return;
+
+	// Fast path: source already matches the GL_RGBA/UBYTE upload layout,
+	// so skip the full-surface per-pixel Blit (steady-state cost of dynamic
+	// font atlases and movie frames).
+	RageSurface *conv = NULL;
+	const RageSurface *srcSurf = img;
+	const RageSurfaceFormat *fmt = img->format;
+	bool bDirect = (fmt != NULL && fmt->BitsPerPixel == 32 &&
+		fmt->Mask[0] == VITA_TEX_RMASK && fmt->Mask[1] == VITA_TEX_GMASK &&
+		fmt->Mask[2] == VITA_TEX_BMASK && fmt->Mask[3] == VITA_TEX_AMASK &&
+		fmt->palette == NULL);
+	if (!bDirect)
+	{
+		conv = CreateSurface(img->w, img->h, 32,
+			VITA_TEX_RMASK, VITA_TEX_GMASK, VITA_TEX_BMASK, VITA_TEX_AMASK);
+		RageSurfaceUtils::Blit(img, conv, img->w, img->h);
+		srcSurf = conv;
+	}
+
+	// Pack the subrect tightly: the GL upload reads rows as width*4-byte
+	// contiguous (UNPACK_ALIGNMENT 1), while surface rows may be padded.
+	const int rowBytes = width * 4;
+	if ((int)m_UploadBuf.size() < rowBytes * height)
+		m_UploadBuf.resize((size_t)rowBytes * height);
+	uint8_t *dst = &m_UploadBuf[0];
+	const uint8_t *src = srcSurf->pixels + yoffset * srcSurf->pitch + xoffset * 4;
+	for (int y = 0; y < height; ++y)
+	{
+		memcpy(dst, src, rowBytes);
+		dst += rowBytes;
+		src += srcSurf->pitch;
+	}
 
 	glBindTexture(GL_TEXTURE_2D, (GLuint)iTexHandle);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height,
-		GL_RGBA, GL_UNSIGNED_BYTE, conv->pixels);
+		GL_RGBA, GL_UNSIGNED_BYTE, &m_UploadBuf[0]);
 	delete conv;
 }
 
-void RageDisplay_Vita::DeleteTexture(std::uintptr_t iTexHandle)
+void RageDisplay_Vita::DeleteTexture(unsigned iTexHandle)
 {
 	if (iTexHandle == 0)
 		return;
@@ -272,55 +326,32 @@ void RageDisplay_Vita::DeleteTexture(std::uintptr_t iTexHandle)
 
 void RageDisplay_Vita::ClearAllTextures()
 {
-	for (std::uintptr_t h : m_Textures)
-	{
-		GLuint tex = (GLuint)h;
-		glDeleteTextures(1, &tex);
-	}
-	m_Textures.clear();
-	m_Locked.clear();
+	// Upstream contract (RageDisplay_Legacy::ClearAllTextures): unbind all
+	// texture units so the next draw starts from a clean binding state.
+	// Must NOT delete textures here: callers (Sprite, ActorMultiVertex,
+	// BitmapText, NoteDisplay, ...) invoke this before EVERY draw and bind
+	// their own texture right after. Deleting live textures makes vitaGL
+	// evict them under CDRAM pressure; the engine never re-uploads, so the
+	// evicted quads sample GPU garbage (rainbow strips, noisy glyphs).
+	SetTexture(TextureUnit_1, 0);
 }
 
-void RageDisplay_Vita::Lock(std::uintptr_t iTexHandle, RageSurface *pSurface)
+void RageDisplay_Vita::Lock(unsigned iTexHandle, RageSurface *pSurface)
 {
 	m_Locked[pSurface] = iTexHandle;
 }
 
 void RageDisplay_Vita::Unlock(RageSurface *pSurface, bool bChanged)
 {
-	auto it = m_Locked.find(pSurface);
+	std::map<RageSurface *, unsigned>::iterator it = m_Locked.find(pSurface);
 	if (it == m_Locked.end())
 		return;
-	if (bChanged && pSurface != nullptr)
+	if (bChanged && pSurface != NULL)
 		UpdateTexture(it->second, pSurface, 0, 0, pSurface->w, pSurface->h);
 	m_Locked.erase(it);
 }
 
-namespace
-{
-	struct RageTextureLock_Vita : public RageTextureLock
-	{
-		RageDisplay_Vita *m_pDisplay;
-		std::uintptr_t m_iHandle;
-		RageTextureLock_Vita(RageDisplay_Vita *pDisplay) : m_pDisplay(pDisplay), m_iHandle(0) {}
-		void Lock(std::uintptr_t iTexHandle, RageSurface *pSurface) override
-		{
-			m_iHandle = iTexHandle;
-			m_pDisplay->Lock(iTexHandle, pSurface);
-		}
-		void Unlock(RageSurface *pSurface, bool bChanged = true) override
-		{
-			m_pDisplay->Unlock(pSurface, bChanged);
-		}
-	};
-}
-
-RageTextureLock *RageDisplay_Vita::CreateTextureLock()
-{
-	return new RageTextureLock_Vita(this);
-}
-
-void RageDisplay_Vita::SetTexture(TextureUnit tu, std::uintptr_t iTexture)
+void RageDisplay_Vita::SetTexture(TextureUnit tu, unsigned iTexture)
 {
 	(void)tu; // single texture unit on Vita stage 1
 	if (iTexture == 0)
@@ -371,26 +402,24 @@ void RageDisplay_Vita::SetBlendMode(BlendMode mode)
 	glEnable(GL_BLEND);
 
 	int srcRGB = GL_SRC_ALPHA, dstRGB = GL_ONE_MINUS_SRC_ALPHA;
-	int srcA = GL_ONE, dstA = GL_ONE_MINUS_SRC_ALPHA;
 	switch (mode)
 	{
 	case BLEND_NORMAL:        srcRGB = GL_SRC_ALPHA; dstRGB = GL_ONE_MINUS_SRC_ALPHA; break;
 	case BLEND_ADD:           srcRGB = GL_SRC_ALPHA; dstRGB = GL_ONE; break;
 	case BLEND_SUBTRACT:      glBlendEquation(GL_FUNC_REVERSE_SUBTRACT); srcRGB = GL_SRC_ALPHA; dstRGB = GL_ONE_MINUS_SRC_ALPHA; break;
 	case BLEND_MODULATE:      srcRGB = GL_ZERO; dstRGB = GL_SRC_COLOR; break;
-	case BLEND_COPY_SRC:      srcRGB = GL_ONE; dstRGB = GL_ZERO; srcA = GL_ONE; dstA = GL_ZERO; break;
-	case BLEND_ALPHA_MASK:    srcRGB = GL_ZERO; dstRGB = GL_ONE; srcA = GL_ZERO; dstA = GL_SRC_ALPHA; break;
-	case BLEND_ALPHA_KNOCK_OUT: srcRGB = GL_ZERO; dstRGB = GL_ONE; srcA = GL_ZERO; dstA = GL_ONE_MINUS_SRC_ALPHA; break;
+	case BLEND_COPY_SRC:      srcRGB = GL_ONE; dstRGB = GL_ZERO; break;
+	case BLEND_ALPHA_MASK:    srcRGB = GL_ZERO; dstRGB = GL_ONE; break;
+	case BLEND_ALPHA_KNOCK_OUT: srcRGB = GL_ZERO; dstRGB = GL_ONE; break;
 	case BLEND_ALPHA_MULTIPLY: srcRGB = GL_SRC_ALPHA; dstRGB = GL_ZERO; break;
 	case BLEND_WEIGHTED_MULTIPLY: srcRGB = GL_DST_COLOR; dstRGB = GL_SRC_COLOR; break;
 	case BLEND_INVERT_DEST:   glBlendEquation(GL_FUNC_SUBTRACT); srcRGB = GL_ONE; dstRGB = GL_ONE; break;
-	case BLEND_NO_EFFECT:     srcRGB = GL_ZERO; dstRGB = GL_ONE; srcA = GL_ZERO; dstA = GL_ONE; break;
+	case BLEND_NO_EFFECT:     srcRGB = GL_ZERO; dstRGB = GL_ONE; break;
 	default: break;
 	}
 	if (mode != BLEND_SUBTRACT && mode != BLEND_INVERT_DEST)
 		glBlendEquation(GL_FUNC_ADD);
 	glBlendFunc(srcRGB, dstRGB);
-	(void)srcA; (void)dstA;
 }
 
 void RageDisplay_Vita::SetZWrite(bool b)
@@ -511,17 +540,17 @@ void RageDisplay_Vita::DeleteCompiledGeometry(RageCompiledGeometry *p)
 
 RageSurface *RageDisplay_Vita::CreateScreenshot()
 {
-	ActualVideoModeParams avmp = m_pWind->GetActualVideoModeParams();
+	VideoModeParams avmp = m_pWind->GetActualVideoModeParams();
 	RageSurface *img = CreateSurface(avmp.width, avmp.height, 32,
 		VITA_TEX_RMASK, VITA_TEX_GMASK, VITA_TEX_BMASK, VITA_TEX_AMASK);
 	glReadPixels(0, 0, avmp.width, avmp.height, GL_RGBA, GL_UNSIGNED_BYTE, img->pixels);
 	// GL origin is bottom-left; RageSurface expects top-left: flip rows.
 	const int rowBytes = avmp.width * 4;
-	std::vector<std::uint8_t> row(rowBytes);
+	vector<uint8_t> row(rowBytes);
 	for (int y = 0; y < avmp.height / 2; ++y)
 	{
-		std::uint8_t *a = img->pixels + y * rowBytes;
-		std::uint8_t *b = img->pixels + (avmp.height - 1 - y) * rowBytes;
+		uint8_t *a = img->pixels + y * rowBytes;
+		uint8_t *b = img->pixels + (avmp.height - 1 - y) * rowBytes;
 		memcpy(row.data(), a, rowBytes);
 		memcpy(a, b, rowBytes);
 		memcpy(b, row.data(), rowBytes);
@@ -531,141 +560,156 @@ RageSurface *RageDisplay_Vita::CreateScreenshot()
 
 // --- draw helpers ---
 
-void RageDisplay_Vita::DrawTris(const RageSpriteVertex v[], const std::uint16_t *indices, int iNumIndices)
+void RageDisplay_Vita::DrawTris(const RageSpriteVertex v[], const uint16_t *indices, int iNumIndices)
 {
 	SendCurrentMatrices();
 
-	// Expand indexed triangles into a flat vertex soup (simplest correct path;
-	// typical UI batches are small).
-	std::size_t need = (std::size_t)iNumIndices;
-	if (m_Pos.size() < need * 3) { m_Pos.resize(need * 3); m_Tex.resize(need * 2); m_Norm.resize(need * 3); m_Col.resize(need * 4); }
+	// RageSpriteVertex is tightly packed (p[3f] n[3f] c[BGRA bytes] t[2f],
+	// 36 bytes); feed position/normal/texcoords to GL directly with a stride
+	// and glDrawElements instead of expanding a vertex soup per draw call.
+	// Only colors are expanded (BGRA struct order -> RGBA for GL).
+	COMPILE_ASSERT(sizeof(RageSpriteVertex) == 36);
+	COMPILE_ASSERT(offsetof(RageSpriteVertex, p) == 0);
+	COMPILE_ASSERT(offsetof(RageSpriteVertex, n) == 12);
+	COMPILE_ASSERT(offsetof(RageSpriteVertex, c) == 24);
+	COMPILE_ASSERT(offsetof(RageSpriteVertex, t) == 28);
+
+	m_DrawCalls++;
+	m_DrawTris += iNumIndices / 3;
+
+	const GLsizei stride = (GLsizei)sizeof(RageSpriteVertex);
+	const uint8_t *base = reinterpret_cast<const uint8_t *>(v);
+	glVertexPointer(3, GL_FLOAT, stride, base + offsetof(RageSpriteVertex, p));
+	glNormalPointer(GL_FLOAT, stride, base + offsetof(RageSpriteVertex, n));
+	glTexCoordPointer(2, GL_FLOAT, stride, base + offsetof(RageSpriteVertex, t));
+
+	size_t need = (size_t)iNumIndices;
+	if (m_Col.size() < need * 4)
+		m_Col.resize(need * 4);
 	for (int i = 0; i < iNumIndices; ++i)
 	{
 		const RageSpriteVertex &sv = v[indices[i]];
-		m_Pos[i * 3 + 0] = sv.p[0]; m_Pos[i * 3 + 1] = sv.p[1]; m_Pos[i * 3 + 2] = sv.p[2];
-		m_Tex[i * 2 + 0] = sv.t[0]; m_Tex[i * 2 + 1] = sv.t[1];
-		m_Norm[i * 3 + 0] = sv.n[0]; m_Norm[i * 3 + 1] = sv.n[1]; m_Norm[i * 3 + 2] = sv.n[2];
 		m_Col[i * 4 + 0] = sv.c.r; m_Col[i * 4 + 1] = sv.c.g; m_Col[i * 4 + 2] = sv.c.b; m_Col[i * 4 + 3] = sv.c.a;
 	}
-	glVertexPointer(3, GL_FLOAT, 0, m_Pos.data());
-	glTexCoordPointer(2, GL_FLOAT, 0, m_Tex.data());
-	glNormalPointer(GL_FLOAT, 0, m_Norm.data());
-	glColorPointer(4, GL_UNSIGNED_BYTE, 0, m_Col.data());
-	glDrawArrays(GL_TRIANGLES, 0, iNumIndices);
+	glColorPointer(4, GL_UNSIGNED_BYTE, 0, &m_Col[0]);
+	glDrawElements(GL_TRIANGLES, iNumIndices, GL_UNSIGNED_SHORT, indices);
 }
 
 void RageDisplay_Vita::DrawQuadsInternal(const RageSpriteVertex v[], int iNumVerts)
 {
-	if (m_Idx.size() < (std::size_t)iNumVerts * 3 / 2)
-		m_Idx.resize((std::size_t)iNumVerts * 3 / 2 + 6);
+	if (m_Idx.size() < (size_t)iNumVerts * 3 / 2)
+		m_Idx.resize((size_t)iNumVerts * 3 / 2 + 6);
 	int n = 0;
 	for (int q = 0; q + 3 < iNumVerts + 1; q += 4)
 	{
-		m_Idx[n++] = (std::uint16_t)(q + 0);
-		m_Idx[n++] = (std::uint16_t)(q + 1);
-		m_Idx[n++] = (std::uint16_t)(q + 2);
-		m_Idx[n++] = (std::uint16_t)(q + 0);
-		m_Idx[n++] = (std::uint16_t)(q + 2);
-		m_Idx[n++] = (std::uint16_t)(q + 3);
+		m_Idx[n++] = (uint16_t)(q + 0);
+		m_Idx[n++] = (uint16_t)(q + 1);
+		m_Idx[n++] = (uint16_t)(q + 2);
+		m_Idx[n++] = (uint16_t)(q + 0);
+		m_Idx[n++] = (uint16_t)(q + 2);
+		m_Idx[n++] = (uint16_t)(q + 3);
 	}
-	DrawTris(v, m_Idx.data(), n);
+	DrawTris(v, &m_Idx[0], n);
 }
 
 void RageDisplay_Vita::DrawQuadStripInternal(const RageSpriteVertex v[], int iNumVerts)
 {
-	if (m_Idx.size() < (std::size_t)iNumVerts * 3)
-		m_Idx.resize((std::size_t)iNumVerts * 3);
+	if (m_Idx.size() < (size_t)iNumVerts * 3)
+		m_Idx.resize((size_t)iNumVerts * 3);
 	int n = 0;
 	for (int i = 0; i + 3 < iNumVerts + 1; i += 2)
 	{
-		m_Idx[n++] = (std::uint16_t)(i + 0);
-		m_Idx[n++] = (std::uint16_t)(i + 1);
-		m_Idx[n++] = (std::uint16_t)(i + 2);
-		m_Idx[n++] = (std::uint16_t)(i + 1);
-		m_Idx[n++] = (std::uint16_t)(i + 3);
-		m_Idx[n++] = (std::uint16_t)(i + 2);
+		m_Idx[n++] = (uint16_t)(i + 0);
+		m_Idx[n++] = (uint16_t)(i + 1);
+		m_Idx[n++] = (uint16_t)(i + 2);
+		m_Idx[n++] = (uint16_t)(i + 1);
+		m_Idx[n++] = (uint16_t)(i + 3);
+		m_Idx[n++] = (uint16_t)(i + 2);
 	}
-	DrawTris(v, m_Idx.data(), n);
+	DrawTris(v, &m_Idx[0], n);
 }
 
 void RageDisplay_Vita::DrawFanInternal(const RageSpriteVertex v[], int iNumVerts)
 {
-	if (m_Idx.size() < (std::size_t)iNumVerts * 3)
-		m_Idx.resize((std::size_t)iNumVerts * 3);
+	if (m_Idx.size() < (size_t)iNumVerts * 3)
+		m_Idx.resize((size_t)iNumVerts * 3);
 	int n = 0;
 	for (int i = 1; i + 1 < iNumVerts + 1; ++i)
 	{
 		m_Idx[n++] = 0;
-		m_Idx[n++] = (std::uint16_t)i;
-		m_Idx[n++] = (std::uint16_t)(i + 1);
+		m_Idx[n++] = (uint16_t)i;
+		m_Idx[n++] = (uint16_t)(i + 1);
 	}
-	DrawTris(v, m_Idx.data(), n);
+	DrawTris(v, &m_Idx[0], n);
 }
 
 void RageDisplay_Vita::DrawStripInternal(const RageSpriteVertex v[], int iNumVerts)
 {
-	if (m_Idx.size() < (std::size_t)iNumVerts * 3)
-		m_Idx.resize((std::size_t)iNumVerts * 3);
+	if (m_Idx.size() < (size_t)iNumVerts * 3)
+		m_Idx.resize((size_t)iNumVerts * 3);
 	int n = 0;
 	for (int i = 0; i + 2 < iNumVerts + 1; ++i)
 	{
 		if (i & 1)
 		{
-			m_Idx[n++] = (std::uint16_t)(i + 1);
-			m_Idx[n++] = (std::uint16_t)(i + 0);
-			m_Idx[n++] = (std::uint16_t)(i + 2);
+			m_Idx[n++] = (uint16_t)(i + 1);
+			m_Idx[n++] = (uint16_t)(i + 0);
+			m_Idx[n++] = (uint16_t)(i + 2);
 		}
 		else
 		{
-			m_Idx[n++] = (std::uint16_t)(i + 0);
-			m_Idx[n++] = (std::uint16_t)(i + 1);
-			m_Idx[n++] = (std::uint16_t)(i + 2);
+			m_Idx[n++] = (uint16_t)(i + 0);
+			m_Idx[n++] = (uint16_t)(i + 1);
+			m_Idx[n++] = (uint16_t)(i + 2);
 		}
 	}
-	DrawTris(v, m_Idx.data(), n);
+	DrawTris(v, &m_Idx[0], n);
 }
 
 void RageDisplay_Vita::DrawTrianglesInternal(const RageSpriteVertex v[], int iNumVerts)
 {
 	// Already triangles: identity index.
-	if (m_Idx.size() < (std::size_t)iNumVerts)
-		m_Idx.resize((std::size_t)iNumVerts);
+	if (m_Idx.size() < (size_t)iNumVerts)
+		m_Idx.resize((size_t)iNumVerts);
 	for (int i = 0; i < iNumVerts; ++i)
-		m_Idx[i] = (std::uint16_t)i;
-	DrawTris(v, m_Idx.data(), iNumVerts);
+		m_Idx[i] = (uint16_t)i;
+	DrawTris(v, &m_Idx[0], iNumVerts);
 }
 
 void RageDisplay_Vita::DrawCompiledGeometryInternal(const RageCompiledGeometry *p, int iMeshIndex)
 {
 	const VitaCompiledGeometry *g = static_cast<const VitaCompiledGeometry *>(p);
-	if (g == nullptr || iMeshIndex < 0 || (std::size_t)iMeshIndex >= g->meshes.size())
+	if (g == NULL || iMeshIndex < 0 || (size_t)iMeshIndex >= g->meshes.size())
 		return;
-	const VitaCompiledGeometry::Mesh &m = g->meshes[(std::size_t)iMeshIndex];
+	const VitaCompiledGeometry::Mesh &m = g->meshes[(size_t)iMeshIndex];
 	if (m.idx.empty())
 		return;
 	SendCurrentMatrices();
-	glVertexPointer(3, GL_FLOAT, 0, m.pos.data());
-	glTexCoordPointer(2, GL_FLOAT, 0, m.tex.data());
-	glNormalPointer(GL_FLOAT, 0, m.norm.data());
+	glVertexPointer(3, GL_FLOAT, 0, &m.pos[0]);
+	glTexCoordPointer(2, GL_FLOAT, 0, &m.tex[0]);
+	glNormalPointer(GL_FLOAT, 0, &m.norm[0]);
 	glDisableClientState(GL_COLOR_ARRAY);
 	glColor4f(1, 1, 1, 1);
-	glDrawElements(GL_TRIANGLES, (GLsizei)m.idx.size(), GL_UNSIGNED_SHORT, m.idx.data());
+	glDrawElements(GL_TRIANGLES, (GLsizei)m.idx.size(), GL_UNSIGNED_SHORT, &m.idx[0]);
 	glEnableClientState(GL_COLOR_ARRAY);
 }
 
 void RageDisplay_Vita::DrawLineStripInternal(const RageSpriteVertex v[], int iNumVerts, float LineWidth)
 {
 	SendCurrentMatrices();
-	if (m_Pos.size() < (std::size_t)iNumVerts * 3) { m_Pos.resize((std::size_t)iNumVerts * 3); m_Col.resize((std::size_t)iNumVerts * 4); }
+	// Positions feed GL directly with a stride (see DrawTris); only colors
+	// are expanded (BGRA struct order -> RGBA for GL).
+	const GLsizei stride = (GLsizei)sizeof(RageSpriteVertex);
+	const uint8_t *base = reinterpret_cast<const uint8_t *>(v);
+	if (m_Col.size() < (size_t)iNumVerts * 4) { m_Col.resize((size_t)iNumVerts * 4); }
 	for (int i = 0; i < iNumVerts; ++i)
 	{
-		m_Pos[i * 3 + 0] = v[i].p[0]; m_Pos[i * 3 + 1] = v[i].p[1]; m_Pos[i * 3 + 2] = v[i].p[2];
 		m_Col[i * 4 + 0] = v[i].c.r; m_Col[i * 4 + 1] = v[i].c.g; m_Col[i * 4 + 2] = v[i].c.b; m_Col[i * 4 + 3] = v[i].c.a;
 	}
 	glLineWidth(LineWidth);
 	glDisable(GL_TEXTURE_2D);
-	glVertexPointer(3, GL_FLOAT, 0, m_Pos.data());
-	glColorPointer(4, GL_UNSIGNED_BYTE, 0, m_Col.data());
+	glVertexPointer(3, GL_FLOAT, stride, base + offsetof(RageSpriteVertex, p));
+	glColorPointer(4, GL_UNSIGNED_BYTE, 0, &m_Col[0]);
 	glDrawArrays(GL_LINE_STRIP, 0, iNumVerts);
 	glEnable(GL_TEXTURE_2D);
 }
@@ -676,18 +720,18 @@ void RageDisplay_Vita::DrawSymmetricQuadStripInternal(const RageSpriteVertex v[]
 	int iNumPieces = (iNumVerts - 3) / 3;
 	if (iNumPieces <= 0)
 		return;
-	if (m_Idx.size() < (std::size_t)iNumPieces * 12)
-		m_Idx.resize((std::size_t)iNumPieces * 12);
+	if (m_Idx.size() < (size_t)iNumPieces * 12)
+		m_Idx.resize((size_t)iNumPieces * 12);
 	int n = 0;
 	for (int i = 0; i < iNumPieces; ++i)
 	{
-		const std::uint16_t base[12] = {
-			(std::uint16_t)(i * 3 + 1), (std::uint16_t)(i * 3 + 3), (std::uint16_t)(i * 3 + 0),
-			(std::uint16_t)(i * 3 + 1), (std::uint16_t)(i * 3 + 4), (std::uint16_t)(i * 3 + 3),
-			(std::uint16_t)(i * 3 + 1), (std::uint16_t)(i * 3 + 5), (std::uint16_t)(i * 3 + 4),
-			(std::uint16_t)(i * 3 + 1), (std::uint16_t)(i * 3 + 2), (std::uint16_t)(i * 3 + 5) };
+		const uint16_t base[12] = {
+			(uint16_t)(i * 3 + 1), (uint16_t)(i * 3 + 3), (uint16_t)(i * 3 + 0),
+			(uint16_t)(i * 3 + 1), (uint16_t)(i * 3 + 4), (uint16_t)(i * 3 + 3),
+			(uint16_t)(i * 3 + 1), (uint16_t)(i * 3 + 5), (uint16_t)(i * 3 + 4),
+			(uint16_t)(i * 3 + 1), (uint16_t)(i * 3 + 2), (uint16_t)(i * 3 + 5) };
 		for (int k = 0; k < 12; ++k)
 			m_Idx[n++] = base[k];
 	}
-	DrawTris(v, m_Idx.data(), n);
+	DrawTris(v, &m_Idx[0], n);
 }

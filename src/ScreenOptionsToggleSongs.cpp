@@ -9,9 +9,6 @@
 #include "PrefsManager.h"
 #include "MessageManager.h"
 
-#include <vector>
-
-
 // main page (group list)
 REGISTER_SCREEN_CLASS( ScreenOptionsToggleSongs );
 
@@ -19,14 +16,15 @@ void ScreenOptionsToggleSongs::BeginScreen()
 {
 	m_asGroups.clear();
 
-	std::vector<OptionRowHandler*> vHands;
+	vector<OptionRowHandler*> vHands;
 
-	std::vector<RString> asAllGroups;
+	vector<RString> asAllGroups;
 	SONGMAN->GetSongGroupNames(asAllGroups);
-	for (RString const &sGroup : asAllGroups)
+	FOREACH_CONST( RString, asAllGroups , s )
 	{
 		vHands.push_back( OptionRowHandlerUtil::MakeNull() );
 		OptionRowDefinition &def = vHands.back()->m_Def;
+		RString sGroup = *s;
 
 		def.m_sName = sGroup;
 		def.m_sExplanationName = "Select Group";
@@ -60,11 +58,11 @@ void ScreenOptionsToggleSongs::ProcessMenuStart( const InputEventPlus &input )
 	SCREENMAN->SetNewScreen("ScreenOptionsToggleSongsSubPage");
 }
 
-void ScreenOptionsToggleSongs::ImportOptions( int row, const std::vector<PlayerNumber> &vpns )
+void ScreenOptionsToggleSongs::ImportOptions( int row, const vector<PlayerNumber> &vpns )
 {
 
 }
-void ScreenOptionsToggleSongs::ExportOptions( int row, const std::vector<PlayerNumber> &vpns )
+void ScreenOptionsToggleSongs::ExportOptions( int row, const vector<PlayerNumber> &vpns )
 {
 
 }
@@ -75,11 +73,12 @@ void ScreenOptionsToggleSongsSubPage::BeginScreen()
 {
 	m_apSongs.clear();
 
-	std::vector<OptionRowHandler*> vHands;
+	vector<OptionRowHandler*> vHands;
 
-	const std::vector<Song*> &apAllSongs = SONGMAN->GetSongs(ToggleSongs::m_sGroup);
-	for (Song *pSong : apAllSongs)
+	const vector<Song *> &apAllSongs = SONGMAN->GetSongs(ToggleSongs::m_sGroup);
+	FOREACH_CONST( Song *, apAllSongs , s )
 	{
+		Song *pSong = *s;
 		if( UNLOCKMAN->SongIsLocked(pSong) & ~LOCKED_DISABLED )
 			continue;
 
@@ -103,7 +102,7 @@ void ScreenOptionsToggleSongsSubPage::BeginScreen()
 	ScreenOptions::BeginScreen();
 }
 
-void ScreenOptionsToggleSongsSubPage::ImportOptions( int iRow, const std::vector<PlayerNumber> &vpns )
+void ScreenOptionsToggleSongsSubPage::ImportOptions( int iRow, const vector<PlayerNumber> &vpns )
 {
 	if( iRow >= (int)m_apSongs.size() )	// exit row
 		return;
@@ -114,7 +113,7 @@ void ScreenOptionsToggleSongsSubPage::ImportOptions( int iRow, const std::vector
 	row.SetOneSharedSelection( iSelection );
 }
 
-void ScreenOptionsToggleSongsSubPage::ExportOptions( int iRow, const std::vector<PlayerNumber> &vpns )
+void ScreenOptionsToggleSongsSubPage::ExportOptions( int iRow, const vector<PlayerNumber> &vpns )
 {
 	if( iRow >= (int)m_apSongs.size() )	// exit row
 		return;
@@ -131,7 +130,7 @@ void ScreenOptionsToggleSongsSubPage::ExportOptions( int iRow, const std::vector
 /*
  * (c) 2007 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -141,7 +140,7 @@ void ScreenOptionsToggleSongsSubPage::ExportOptions( int iRow, const std::vector
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -3,11 +3,9 @@
 #ifndef RAGE_SOUND_MANAGER_H
 #define RAGE_SOUND_MANAGER_H
 
-#include "RageUtil_CircularBuffer.h"
-
-#include <cstdint>
-#include <map>
 #include <set>
+#include <map>
+#include "RageUtil_CircularBuffer.h"
 
 class RageSound;
 class RageSoundBase;
@@ -31,6 +29,7 @@ public:
 
 	void Init();
 
+	float GetMixVolume() const { return m_fMixVolume; }
 	void SetMixVolume();
 	float GetVolumeOfNonCriticalSounds() const { return m_fVolumeOfNonCriticalSounds; }
 	void SetVolumeOfNonCriticalSounds( float fVolumeOfNonCriticalSounds );
@@ -39,7 +38,7 @@ public:
 	void StartMixing( RageSoundBase *snd );	/* used by RageSound */
 	void StopMixing( RageSoundBase *snd );	/* used by RageSound */
 	bool Pause( RageSoundBase *snd, bool bPause );	/* used by RageSound */
-	std::int64_t GetPosition( RageTimer *pTimer ) const;	/* used by RageSound */
+	int64_t GetPosition( RageTimer *pTimer ) const;	/* used by RageSound */
 	float GetPlayLatency() const;
 	int GetDriverSampleRate() const;
 
@@ -47,14 +46,14 @@ public:
 	void AddLoadedSound( const RString &sPath, RageSoundReader_Preload *pSound );
 
 	void fix_bogus_sound_driver_pref(RString const& valid_setting);
-	void low_sample_count_workaround();
 
 private:
-	std::map<RString, RageSoundReader_Preload *> m_mapPreloadedSounds;
+	map<RString, RageSoundReader_Preload *> m_mapPreloadedSounds;
 
 	RageSoundDriver *m_pDriver;
 
 	/* Prefs: */
+	float m_fMixVolume;
 	float m_fVolumeOfNonCriticalSounds;
 	// Swallow up warnings. If they must be used, define them.
 	RageSoundManager& operator=(const RageSoundManager& rhs);

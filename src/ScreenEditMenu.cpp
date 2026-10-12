@@ -32,7 +32,7 @@ REGISTER_SCREEN_CLASS( ScreenEditMenu );
 void ScreenEditMenu::Init()
 {
 	// HACK: Disable any style set by the editor.
-	GAMESTATE->SetCurrentStyle( nullptr, PLAYER_INVALID );
+	GAMESTATE->SetCurrentStyle( NULL, PLAYER_INVALID );
 
 	// Enable all players.
 	FOREACH_PlayerNumber( pn )
@@ -91,7 +91,7 @@ void ScreenEditMenu::HandleScreenMessage( const ScreenMessage SM )
 		Steps* pStepsToDelete = GAMESTATE->m_pCurSteps[PLAYER_1];
 		FOREACH_PlayerNumber(pn)
 		{
-			GAMESTATE->m_pCurSteps[pn].Set(nullptr);
+			GAMESTATE->m_pCurSteps[pn].Set(NULL);
 		}
 		bool bSaveSong = !pStepsToDelete->WasLoadedFromProfile();
 		pSong->DeleteSteps( pStepsToDelete );
@@ -174,7 +174,7 @@ static void SetCurrentStepsDescription( const RString &s )
 static void DeleteCurrentSteps()
 {
 	GAMESTATE->m_pCurSong->DeleteSteps( GAMESTATE->m_pCurSteps[0] );
-	GAMESTATE->m_pCurSteps[0].Set(nullptr);
+	GAMESTATE->m_pCurSteps[0].Set( NULL );
 }
 
 static LocalizedString MISSING_MUSIC_FILE	( "ScreenEditMenu", "This song is missing a music file and cannot be edited." );
@@ -216,7 +216,7 @@ bool ScreenEditMenu::MenuStart( const InputEventPlus & )
 	}
 
 	GAMESTATE->m_pCurSong.Set( pSong );
-	GAMESTATE->m_pCurCourse.Set( nullptr );
+	GAMESTATE->m_pCurCourse.Set( NULL );
 	GAMESTATE->SetCurrentStyle( GAMEMAN->GetEditorStyleForStepsType(st), PLAYER_INVALID );
 	GAMESTATE->m_pCurSteps[PLAYER_1].Set( pSteps );
 
@@ -252,7 +252,7 @@ bool ScreenEditMenu::MenuStart( const InputEventPlus & )
 	{
 		case EditMenuAction_Delete:
 		{
-			ASSERT( pSteps != nullptr );
+			ASSERT( pSteps != NULL );
 			if( pSteps->IsAutogen() )
 			{
 				SCREENMAN->PlayInvalidSound();
@@ -270,7 +270,7 @@ bool ScreenEditMenu::MenuStart( const InputEventPlus & )
 	case EditMenuAction_Practice:
 		break;
 	case EditMenuAction_Delete:
-		ASSERT( pSteps != nullptr );
+		ASSERT( pSteps != NULL );
 		ScreenPrompt::Prompt( SM_None, STEPS_WILL_BE_LOST.GetValue() + "\n\n" + CONTINUE_WITH_DELETE.GetValue(),
 		                      PROMPT_YES_NO, ANSWER_NO );
 		break;
@@ -279,7 +279,7 @@ bool ScreenEditMenu::MenuStart( const InputEventPlus & )
 		{
 			FOREACH_PlayerNumber(pn)
 			{
-				GAMESTATE->m_pCurSteps[pn].Set(nullptr);
+				GAMESTATE->m_pCurSteps[pn].Set(NULL);
 			}
 			pSong->LoadAutosaveFile();
 			SONGMAN->Invalidate(pSong);
@@ -327,7 +327,7 @@ bool ScreenEditMenu::MenuStart( const InputEventPlus & )
 
 			GAMESTATE->m_pCurSong.Set( pSong );
 			GAMESTATE->m_pCurSteps[PLAYER_1].Set( pSteps );
-			GAMESTATE->m_pCurCourse.Set(nullptr);
+			GAMESTATE->m_pCurCourse.Set( NULL );
 		}
 		break;
 	default:
@@ -342,7 +342,7 @@ bool ScreenEditMenu::MenuStart( const InputEventPlus & )
 	case EditMenuAction_Practice:
 		{
 			// Prepare for ScreenEdit
-			ASSERT( pSteps != nullptr );
+			ASSERT( pSteps != NULL );
 			bool bPromptToNameSteps = (action == EditMenuAction_Create && dc == Difficulty_Edit);
 			if( bPromptToNameSteps )
 			{

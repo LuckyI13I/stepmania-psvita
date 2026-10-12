@@ -4,8 +4,10 @@
 #include "RageUtil.h"
 #include "archutils/Win32/ErrorStrings.h"
 
-#pragma comment(lib, "setupapi.lib")
-#pragma comment(lib, "hid.lib")
+#if defined(_MSC_VER)
+#pragma comment(lib, "setupapi.lib") 
+#pragma comment(lib, "hid.lib") 
+#endif
 
 extern "C" {
 #include "archutils/Win32/ddk/setupapi.h"
@@ -13,35 +15,32 @@ extern "C" {
 #include "archutils/Win32/ddk/hidsdi.h"
 }
 
-#include <vector>
-
-
 static RString GetUSBDevicePath( int iNum )
 {
 	GUID guid;
 	HidD_GetHidGuid( &guid );
 
-	HDEVINFO DeviceInfo = SetupDiGetClassDevs( &guid, nullptr, nullptr, (DIGCF_PRESENT | DIGCF_DEVICEINTERFACE) );
+	HDEVINFO DeviceInfo = SetupDiGetClassDevs( &guid, NULL, NULL, (DIGCF_PRESENT | DIGCF_DEVICEINTERFACE) );
 
 	SP_DEVICE_INTERFACE_DATA DeviceInterface;
 	DeviceInterface.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
 
 	if( !SetupDiEnumDeviceInterfaces (DeviceInfo,
-		nullptr, &guid, iNum, &DeviceInterface) )
+		NULL, &guid, iNum, &DeviceInterface) )
 	{
 		SetupDiDestroyDeviceInfoList( DeviceInfo );
 		return RString();
 	}
 
 	unsigned long iSize;
-	SetupDiGetDeviceInterfaceDetail( DeviceInfo, &DeviceInterface, nullptr, 0, &iSize, 0 );
+	SetupDiGetDeviceInterfaceDetail( DeviceInfo, &DeviceInterface, NULL, 0, &iSize, 0 );
 
 	PSP_INTERFACE_DEVICE_DETAIL_DATA DeviceDetail = (PSP_INTERFACE_DEVICE_DETAIL_DATA) malloc( iSize );
 	DeviceDetail->cbSize = sizeof(SP_INTERFACE_DEVICE_DETAIL_DATA);
 
 	RString sRet;
 	if( SetupDiGetDeviceInterfaceDetail(DeviceInfo, &DeviceInterface,
-		DeviceDetail, iSize, &iSize, nullptr) )
+		DeviceDetail, iSize, &iSize, NULL) ) 
 		sRet = DeviceDetail->DevicePath;
 	free( DeviceDetail );
 
@@ -57,7 +56,7 @@ bool USBDevice::Open( int iVID, int iPID, int iBlockSize, int iNum, void (*pfnIn
 	while( (path = GetUSBDevicePath(iIndex++)) != "" )
 	{
 		HANDLE h = CreateFile( path, GENERIC_READ,
-			FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr );
+			FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL );
 
 		if( h == INVALID_HANDLE_VALUE )
 			continue;
@@ -116,7 +115,7 @@ WindowsFileIO::WindowsFileIO()
 {
 	ZeroMemory( &m_Overlapped, sizeof(m_Overlapped) );
 	m_Handle = INVALID_HANDLE_VALUE;
-	m_pBuffer = nullptr;
+	m_pBuffer = NULL;
 }
 
 WindowsFileIO::~WindowsFileIO()
@@ -139,7 +138,7 @@ bool WindowsFileIO::Open( RString path, int iBlockSize )
 		CloseHandle( m_Handle );
 
 	m_Handle = CreateFile( path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-		nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr );
+		NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL );
 
 	if( m_Handle == INVALID_HANDLE_VALUE )
 		return false;
@@ -192,7 +191,7 @@ int WindowsFileIO::read( void *p )
 	return finish_read(p);
 }
 
-int WindowsFileIO::read_several(const std::vector<WindowsFileIO *> &sources, void *p, int &actual, float timeout)
+int WindowsFileIO::read_several(const vector<WindowsFileIO *> &sources, void *p, int &actual, float timeout)
 {
 	HANDLE *Handles = new HANDLE[sources.size()];
 	for( unsigned i = 0; i < sources.size(); ++i )
@@ -224,7 +223,7 @@ bool WindowsFileIO::IsOpen() const
 /*
  * (c) 2002-2005 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -234,7 +233,7 @@ bool WindowsFileIO::IsOpen() const
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

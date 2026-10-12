@@ -2,15 +2,12 @@
 #include "CharacterManager.h"
 #include "Character.h"
 #include "GameState.h"
-
+#include "Foreach.h"
 #include "LuaManager.h"
-
-#include <vector>
-
 
 #define CHARACTERS_DIR "/Characters/"
 
-CharacterManager*	CHARMAN = nullptr;	// global object accessible from anywhere in the program
+CharacterManager*	CHARMAN = NULL;	// global object accessible from anywhere in the program
 
 CharacterManager::CharacterManager()
 {
@@ -27,7 +24,7 @@ CharacterManager::CharacterManager()
 		SAFE_DELETE( m_pCharacters[i] );
 	m_pCharacters.clear();
 
-	std::vector<RString> as;
+	vector<RString> as;
 	GetDirListing( CHARACTERS_DIR "*", as, true, true );
 	StripCvsAndSvn( as );
 	StripMacResourceForks( as );
@@ -48,7 +45,7 @@ CharacterManager::CharacterManager()
 		else
 			delete pChar;
 	}
-
+	
 	if( !FoundDefault )
 		RageException::Throw( "'Characters/default' is missing." );
 
@@ -66,7 +63,7 @@ CharacterManager::~CharacterManager()
 	LUA->UnsetGlobal( "CHARMAN" );
 }
 
-void CharacterManager::GetCharacters( std::vector<Character*> &apCharactersOut )
+void CharacterManager::GetCharacters( vector<Character*> &apCharactersOut )
 {
 	for( unsigned i=0; i<m_pCharacters.size(); i++ )
 		if( !m_pCharacters[i]->IsDefaultCharacter() )
@@ -75,7 +72,7 @@ void CharacterManager::GetCharacters( std::vector<Character*> &apCharactersOut )
 
 Character* CharacterManager::GetRandomCharacter()
 {
-	std::vector<Character*> apCharacters;
+	vector<Character*> apCharacters;
 	GetCharacters( apCharacters );
 	if( apCharacters.size() )
 		return apCharacters[RandomInt(apCharacters.size())];
@@ -85,26 +82,27 @@ Character* CharacterManager::GetRandomCharacter()
 
 Character* CharacterManager::GetDefaultCharacter()
 {
-	for (Character *c : m_pCharacters)
+	for( unsigned i=0; i<m_pCharacters.size(); i++ )
 	{
-		if( c->IsDefaultCharacter() )
-			return c;
+		if( m_pCharacters[i]->IsDefaultCharacter() )
+			return m_pCharacters[i];
 	}
 
 	/* We always have the default character. */
 	FAIL_M("There must be a default character available!");
+	return NULL;
 }
 
 void CharacterManager::DemandGraphics()
 {
-	for (Character *c : m_pCharacters)
-		c->DemandGraphics();
+	FOREACH( Character*, m_pCharacters, c )
+		(*c)->DemandGraphics();
 }
 
 void CharacterManager::UndemandGraphics()
 {
-	for (Character *c : m_pCharacters)
-		c->UndemandGraphics();
+	FOREACH( Character*, m_pCharacters, c )
+		(*c)->UndemandGraphics();
 }
 
 Character* CharacterManager::GetCharacterFromID( RString sCharacterID )
@@ -115,21 +113,21 @@ Character* CharacterManager::GetCharacterFromID( RString sCharacterID )
 			return m_pCharacters[i];
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the CharacterManager. */
+/** @brief Allow Lua to have access to the CharacterManager. */ 
 class LunaCharacterManager: public Luna<CharacterManager>
 {
 public:
 	static int GetCharacter( T* p, lua_State *L )
 	{
 		Character *pCharacter = p->GetCharacterFromID(SArg(1));
-		if( pCharacter != nullptr )
+		if( pCharacter != NULL )
 			pCharacter->PushSelf( L );
 		else
 			lua_pushnil( L );
@@ -139,7 +137,7 @@ public:
 	static int GetRandomCharacter( T* p, lua_State *L )
 	{
 		Character *pCharacter = p->GetRandomCharacter();
-		if( pCharacter != nullptr )
+		if( pCharacter != NULL )
 			pCharacter->PushSelf( L );
 		else
 			lua_pushnil( L );
@@ -148,7 +146,7 @@ public:
 	}
 	static int GetAllCharacters( T* p, lua_State *L )
 	{
-		std::vector<Character*> vChars;
+		vector<Character*> vChars;
 		p->GetCharacters(vChars);
 
 		LuaHelpers::CreateTableFromArray(vChars, L);
@@ -156,7 +154,7 @@ public:
 	}
 	static int GetCharacterCount(T* p, lua_State *L)
 	{
-		std::vector<Character*> chars;
+		vector<Character*> chars;
 		p->GetCharacters(chars);
 		lua_pushnumber(L, chars.size());
 		return 1;
@@ -179,7 +177,7 @@ LUA_REGISTER_CLASS( CharacterManager )
 /*
  * (c) 2001-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -189,7 +187,7 @@ LUA_REGISTER_CLASS( CharacterManager )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

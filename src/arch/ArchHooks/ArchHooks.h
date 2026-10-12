@@ -1,9 +1,6 @@
 #ifndef ARCH_HOOKS_H
 #define ARCH_HOOKS_H
 
-#include <cstdint>
-#include <ctime>
-
 struct lua_State;
 class ArchHooks
 {
@@ -13,7 +10,7 @@ public:
 	virtual ~ArchHooks() { }
 	virtual void Init() { }
 	/*
-	 * Return the general name of the architecture, eg. "Windows", "macOS", "Unix".
+	 * Return the general name of the architecture, eg. "Windows", "OS X", "Unix".
 	 */
 	virtual RString GetArchName() const { return "generic"; }
 
@@ -44,7 +41,7 @@ public:
 
 	/**
 	 * @brief Setup the rendering threads for concurrency.
-	 *
+	 * 
 	 * The priority of the concurrent rendering thread may need to be boosted
 	 * on some schedulers.
 	 */
@@ -55,7 +52,7 @@ public:
 	 * @return true if the user wants to quit, false otherwise. */
 	static bool UserQuit() { return g_bQuitting; }
 	static void SetUserQuit() { g_bQuitting = true; }
-
+	
 	/*
 	 * Returns true if the user wants to toggle windowed mode and atomically clears
 	 * the boolean.
@@ -87,15 +84,15 @@ public:
 	 * underlying timers may be 32-bit, but implementations should try to avoid
 	 * wrapping if possible.
 	 */
-	static std::int64_t GetMicrosecondsSinceStart( bool bAccurate );
+	static int64_t GetMicrosecondsSinceStart( bool bAccurate );
 
-	/*
-	 * Add file search paths, higher priority first.
+	/* 
+	 * Add file search paths, higher priority first. 
 	 */
 	static void MountInitialFilesystems( const RString &sDirOfExecutable );
 
-	/*
-	 * Add file search paths for user-writable directories.
+	/* 
+	 * Add file search paths for user-writable directories. 
 	 */
 	static void MountUserFilesystems( const RString &sDirOfExecutable );
 
@@ -120,10 +117,10 @@ public:
 	virtual bool GoToURL( RString sUrl );
 
 	virtual float GetDisplayAspectRatio() = 0;
-
+	
 	/** @brief Fetch the contents of the system clipboard. */
 	virtual RString GetClipboard();
-
+	
 	// Lua
 	void PushSelf( lua_State *L );
 	void RegisterWithLua();
@@ -131,8 +128,8 @@ public:
 private:
 	/* This are helpers for GetMicrosecondsSinceStart on systems with a timer
 	 * that may loop or move backwards. */
-	static std::int64_t FixupTimeIfLooped( std::int64_t usecs );
-	static std::int64_t FixupTimeIfBackwards( std::int64_t usecs );
+	static int64_t FixupTimeIfLooped( int64_t usecs );
+	static int64_t FixupTimeIfBackwards( int64_t usecs );
 
 	static bool g_bQuitting;
 	static bool g_bToggleWindowed;
@@ -149,7 +146,7 @@ extern ArchHooks *HOOKS;	// global and accessible from anywhere in our program
  * @author Glenn Maynard, Chris Danford (c) 2003-2004
  * @section LICENSE
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -159,7 +156,7 @@ extern ArchHooks *HOOKS;	// global and accessible from anywhere in our program
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

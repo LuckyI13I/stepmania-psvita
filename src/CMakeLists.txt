@@ -1,7 +1,12 @@
+file(MAKE_DIRECTORY "${SM_SRC_DIR}/generated")
+
 if(MSVC)
   # Add the mapconv program of the past to allow for debugging information.
   include("CMakeProject-mapconv.cmake")
-  if(WITH_TEXTURE_GENERATOR OR WITH_FULL_RELEASE)
+  if (WITH_IRC_POST_HOOK)
+    include("CMakeProject-irc.cmake")
+  endif()
+  if (WITH_TEXTURE_GENERATOR OR WITH_FULL_RELEASE)
     include("CMakeProject-texture.cmake")
   endif()
 endif()
@@ -22,30 +27,33 @@ endif()
 include(CMakeData-actor.cmake)
 include(CMakeData-screen.cmake)
 include(CMakeData-data.cmake)
+include(CMakeData-gtk.cmake)
 include(CMakeData-file-types.cmake)
 include(CMakeData-globals.cmake)
 include(CMakeData-singletons.cmake)
 
 list(APPEND SMDATA_ALL_FILES_SRC
-            ${SMDATA_GLOBAL_FILES_SRC}
-            ${SMDATA_GLOBAL_SINGLETON_SRC}
-            ${SMDATA_ALL_ACTORS_SRC}
-            ${SMDATA_ALL_ARCH_SRC}
-            ${SMDATA_ALL_DATA_SRC}
-            ${SMDATA_ALL_RAGE_SRC}
-            ${SMDATA_ALL_SCREENS_SRC}
-            ${SMDATA_OS_SRC}
-            ${SMDATA_FILE_TYPES_SRC})
+  ${SMDATA_GLOBAL_FILES_SRC}
+  ${SMDATA_GLOBAL_SINGLETON_SRC}
+  ${SMDATA_ALL_ACTORS_SRC}
+  ${SMDATA_ALL_ARCH_SRC}
+  ${SMDATA_ALL_DATA_SRC}
+  ${SMDATA_ALL_RAGE_SRC}
+  ${SMDATA_ALL_SCREENS_SRC}
+  ${SMDATA_OS_SRC}
+  ${SMDATA_FILE_TYPES_SRC}
+)
 list(APPEND SMDATA_ALL_FILES_HPP
-            ${SMDATA_GLOBAL_FILES_HPP}
-            ${SMDATA_GLOBAL_SINGLETON_HPP}
-            ${SMDATA_ALL_ACTORS_HPP}
-            ${SMDATA_ALL_ARCH_HPP}
-            ${SMDATA_ALL_DATA_HPP}
-            ${SMDATA_ALL_RAGE_HPP}
-            ${SMDATA_ALL_SCREENS_HPP}
-            ${SMDATA_OS_HPP}
-            ${SMDATA_FILE_TYPES_HPP})
+  ${SMDATA_GLOBAL_FILES_HPP}
+  ${SMDATA_GLOBAL_SINGLETON_HPP}
+  ${SMDATA_ALL_ACTORS_HPP}
+  ${SMDATA_ALL_ARCH_HPP}
+  ${SMDATA_ALL_DATA_HPP}
+  ${SMDATA_ALL_RAGE_HPP}
+  ${SMDATA_ALL_SCREENS_HPP}
+  ${SMDATA_OS_HPP}
+  ${SMDATA_FILE_TYPES_HPP}
+)
 
 if(NOT APPLE)
   list(APPEND SMDATA_ALL_FILES_SRC "Main.cpp")
@@ -64,332 +72,337 @@ else()
   set(SM_NAME_RELWITHDEBINFO "stepmania-release-symbols")
 endif()
 
+# Configure generated files here.
+configure_file("${SM_XCODE_DIR}/Info.plist.in.xml" "${SM_XCODE_DIR}/Info.StepMania.plist")
+configure_file("${SM_XCODE_DIR}/plistHelper.in.hpp" "${SM_XCODE_DIR}/plistHelper.hpp")
+
+# TODO: Make this actually be data and not an executable.
 if(APPLE)
-  add_executable("${SM_EXE_NAME}"
-                 MACOSX_BUNDLE
-                 ${SMDATA_ALL_FILES_SRC}
-                 ${SMDATA_ALL_FILES_HPP})
+  set(MACOSX_BUNDLE_BUNDLE_NAME ${SM_EXE_NAME})
+  add_executable("${SM_EXE_NAME}" MACOSX_BUNDLE ${SMDATA_ALL_FILES_SRC} ${SMDATA_ALL_FILES_HPP})
+  set_target_properties("${SM_EXE_NAME}" PROPERTIES
+    MACOSX_BUNDLE TRUE
+  )
 else()
-  if(MSVC)
-    foreach(sm_src_file ${SMDATA_ALL_FILES_SRC})
+  if (MSVC)
+    foreach ( sm_src_file ${SMDATA_ALL_FILES_SRC} )
       get_filename_component(sm_src_raw "${sm_src_file}" NAME_WE)
-      if(${sm_src_raw} MATCHES "global")
-        set_source_files_properties("${sm_src_raw}.cpp"
-                                    PROPERTIES
-                                    COMPILE_FLAGS
-                                    "/Ycglobal.h")
+      if( ${sm_src_raw} MATCHES "global" )
+        set_source_files_properties("${sm_src_raw}.cpp" PROPERTIES COMPILE_FLAGS "/Ycglobal.h")
       elseif(NOT (${sm_src_raw} MATCHES "verstub"))
-        set_source_files_properties("${sm_src_raw}.cpp"
-                                    PROPERTIES
-                                    COMPILE_FLAGS
-                                    "/Yuglobal.h")
+        set_source_files_properties("${sm_src_raw}.cpp" PROPERTIES COMPILE_FLAGS "/Yuglobal.h")
       endif()
     endforeach()
   endif()
-  add_executable("${SM_EXE_NAME}" ${SMDATA_ALL_FILES_SRC}
-                 ${SMDATA_ALL_FILES_HPP})
+  add_executable("${SM_EXE_NAME}" ${SMDATA_ALL_FILES_SRC} ${SMDATA_ALL_FILES_HPP})
 endif()
 
-set_property(TARGET "${SM_EXE_NAME}" PROPERTY CXX_STANDARD 17)
-set_property(TARGET "${SM_EXE_NAME}" PROPERTY CXX_STANDARD_REQUIRED ON)
-set_property(TARGET "${SM_EXE_NAME}" PROPERTY CXX_EXTENSIONS ON)
+set_target_properties("${SM_EXE_NAME}" PROPERTIES
+  OUTPUT_NAME "${SM_NAME_RELEASE}"
+  RELEASE_OUTPUT_NAME "${SM_NAME_RELEASE}"
+  DEBUG_OUTPUT_NAME "${SM_NAME_DEBUG}"
+  MINSIZEREL_OUTPUT_NAME "${SM_NAME_MINSIZEREL}"
+  RELWITHDEBINFO_OUTPUT_NAME "${SM_NAME_RELWITHDEBINFO}"
+)
 
-set_target_properties("${SM_EXE_NAME}"
-                      PROPERTIES OUTPUT_NAME "${SM_NAME_RELEASE}"
-                                 RELEASE_OUTPUT_NAME "${SM_NAME_RELEASE}"
-                                 DEBUG_OUTPUT_NAME "${SM_NAME_DEBUG}"
-                                 MINSIZEREL_OUTPUT_NAME "${SM_NAME_MINSIZEREL}"
-                                 RELWITHDEBINFO_OUTPUT_NAME "${SM_NAME_RELWITHDEBINFO}")
-
-if(WITH_LTO)
-  include(CheckIPOSupported)
-  check_ipo_supported()
-  set_property(TARGET "${SM_EXE_NAME}" PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+if (WITH_PORTABLE_TOMCRYPT)
+  sm_add_compile_definition("${SM_EXE_NAME}" LTC_NO_ASM)
+elseif (WITH_NO_ROLC_TOMCRYPT OR APPLE)
+  sm_add_compile_definition("${SM_EXE_NAME}" LTC_NO_ROLC)
 endif()
 
-if(WITH_PORTABLE_TOMCRYPT)
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE LTC_NO_ASM)
-endif()
-if(WITH_NO_ROLC_TOMCRYPT)
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE LTC_NO_ROLC)
+sm_add_compile_definition("${SM_EXE_NAME}" CMAKE_POWERED)
+
+if (NOT WITH_NETWORKING)
+  sm_add_compile_definition("${SM_EXE_NAME}" WITHOUT_NETWORKING)
 endif()
 
 # Compilation flags per project here.
-target_compile_definitions("${SM_EXE_NAME}" PRIVATE $<$<CONFIG:Debug>:DEBUG>)
-target_compile_definitions("${SM_EXE_NAME}" PRIVATE $<$<CONFIG:Release>:RELEASE>)
-target_compile_definitions("${SM_EXE_NAME}" PRIVATE $<$<CONFIG:MinSizeRel>:MINSIZEREL>)
-target_compile_definitions("${SM_EXE_NAME}" PRIVATE
-                           $<$<CONFIG:RelWithDebInfo>:RELWITHDEBINFO>)
-
-# For Apple Clang, CMAKE_<LANG>_COMPILER_ID will be set to AppleClang instead of Clang.
-if (POLICY CMP0025)
-  cmake_policy(SET CMP0025 NEW)
-endif()
-
-if(VITA)
-  # Vita (GCC 15): -Wtype-limits fires on pre-existing enum-range idioms
-  # (e.g. `d < 0` on Difficulty); downgrade to warning for stage 1.
-  target_compile_options("${SM_EXE_NAME}" PRIVATE
-    $<$<CXX_COMPILER_ID:GNU>:
-    -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wno-unknown-pragmas -Wno-error=type-limits -Wno-type-limits>)
-else()
-  target_compile_options("${SM_EXE_NAME}" PRIVATE
-    $<$<CXX_COMPILER_ID:GNU>:
-    -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wno-unknown-pragmas -Werror=type-limits>)
-endif()
-target_compile_options("${SM_EXE_NAME}" PRIVATE
-  $<$<CXX_COMPILER_ID:Clang>:
-    -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wno-unknown-pragmas -Wno-undefined-var-template>
-  $<$<CXX_COMPILER_ID:AppleClang>:
-    -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wno-unknown-pragmas -Wno-undefined-var-template -Wno-deprecated-declarations -Wno-unused-command-line-argument>
-  $<$<CXX_COMPILER_ID:MSVC>:
-    /W4 /wd4100 /wd4189 /wd4244 /wd4267 /wd4702>
-)
-
-if(VITA)
-  # ARM defaults to unsigned char; StepMania's char-sized enums (Difficulty,
-  # PlayerNumber, etc.) rely on x86 signed-char semantics (e.g. `d < 0`).
-  target_compile_options("${SM_EXE_NAME}" PRIVATE -fsigned-char -fno-strict-aliasing)
-endif()
+sm_add_compile_definition("${SM_EXE_NAME}" $<$<CONFIG:Debug>:DEBUG>)
+sm_add_compile_definition("${SM_EXE_NAME}" $<$<CONFIG:Release>:RELEASE>)
+sm_add_compile_definition("${SM_EXE_NAME}" $<$<CONFIG:MinSizeRel>:MINSIZEREL>)
+sm_add_compile_definition("${SM_EXE_NAME}" $<$<CONFIG:RelWithDebInfo>:RELWITHDEBINFO>)
 
 set(SM_COMPILE_FLAGS "")
 
 if(WITH_SSE2)
   if(MSVC)
-    if(SM_WIN32_ARCH MATCHES "x86")
-      set(SM_COMPILE_FLAGS "${SM_COMPILE_FLAGS} /arch:SSE2")
-    endif()
-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
-    set(SM_COMPILE_FLAGS "${SM_COMPILE_FLAGS} -msse2")
-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-    set(SM_COMPILE_FLAGS "${SM_COMPILE_FLAGS} -mtune=cortex-a72")
+    set(SM_COMPILE_FLAGS "${SM_COMPILE_FLAGS} /arch:SSE2")
   else()
-    message("Unrecognized host processor type")
+    set(SM_COMPILE_FLAGS "${SM_COMPILE_FLAGS} -msse2")
+  endif()
+endif()
+
+if(WITH_LTO)
+  if(MSVC)
+    set(SM_COMPILE_FLAGS "${SM_COMPILE_FLAGS} /GL")
+  else()
+    set(SM_COMPILE_FLAGS "${SM_COMPILE_FLAGS} -flto")
   endif()
 endif()
 
 if(MSVC)
   # TODO: Find a way to do this cleanly for non MSVC users.
-  set(SM_COMPILE_FLAGS "${SM_COMPILE_FLAGS} /MP2 /utf-8")
+  set(SM_COMPILE_FLAGS "${SM_COMPILE_FLAGS} /MP2")
 endif()
 
-set_target_properties("${SM_EXE_NAME}"
-                      PROPERTIES COMPILE_FLAGS "${SM_COMPILE_FLAGS}")
+set_target_properties("${SM_EXE_NAME}" PROPERTIES
+  COMPILE_FLAGS "${SM_COMPILE_FLAGS}"
+)
 
-set_target_properties("${SM_EXE_NAME}"
-                      PROPERTIES OUTPUT_NAME_DEBUG "${SM_NAME_DEBUG}"
-                                 OUTPUT_NAME_MINSIZEREL "${SM_NAME_MINSIZEREL}"
-                                 OUTPUT_NAME_RELWITHDEBINFO "${SM_NAME_RELWITHDEBINFO}")
+set_target_properties("${SM_EXE_NAME}" PROPERTIES
+  OUTPUT_NAME_DEBUG "${SM_NAME_DEBUG}"
+  OUTPUT_NAME_MINSIZEREL "${SM_NAME_MINSIZEREL}"
+  OUTPUT_NAME_RELWITHDEBINFO "${SM_NAME_RELWITHDEBINFO}"
+)
+
+list(APPEND SM_WINDOWS_PROGRAM_DLLS
+  "${SM_PROGRAM_DIR}/avcodec-55.dll"
+  "${SM_PROGRAM_DIR}/avformat-55.dll"
+  "${SM_PROGRAM_DIR}/avutil-52.dll"
+  "${SM_PROGRAM_DIR}/parallel_lights_io.dll"
+  "${SM_PROGRAM_DIR}/swscale-2.dll"
+)
 
 if(WIN32)
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE WINDOWS)
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE _WINDOWS) # TODO: Remove this potential duplicate.
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE _CRT_SECURE_NO_WARNINGS)
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE _WINSOCK_DEPRECATED_NO_WARNINGS)
-
-  set_target_properties("${SM_EXE_NAME}"
-                        PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-                                   "${SM_PROGRAM_DIR}"
-                                   RUNTIME_OUTPUT_DIRECTORY_RELEASE
-                                   "${SM_PROGRAM_DIR}"
-                                   RUNTIME_OUTPUT_DIRECTORY_DEBUG
-                                   "${SM_PROGRAM_DIR}"
-                                   RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL
-                                   "${SM_PROGRAM_DIR}"
-                                   RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
-                                   "${SM_PROGRAM_DIR}")
-
+  sm_add_compile_definition("${SM_EXE_NAME}" WINDOWS)
+  sm_add_compile_definition("${SM_EXE_NAME}" _WINDOWS) # TODO: Remove this potential duplicate.
+  sm_add_compile_definition("${SM_EXE_NAME}" _CRT_SECURE_NO_WARNINGS)
+  sm_add_compile_definition("${SM_EXE_NAME}" _WINSOCK_DEPRECATED_NO_WARNINGS)
+  sm_add_compile_definition("${SM_EXE_NAME}" GLEW_STATIC)
+  
+  set_target_properties("${SM_EXE_NAME}" PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${SM_PROGRAM_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${SM_PROGRAM_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${SM_PROGRAM_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${SM_PROGRAM_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${SM_PROGRAM_DIR}"
+  )
+  
   if(MSVC)
     # Allow for getting a virtualdub stack trace.
-    add_custom_command(
-      TARGET "${SM_EXE_NAME}" POST_BUILD
-      COMMAND
-        "mapconv"
-        "${SM_PROGRAM_DIR}/$<$<CONFIG:DEBUG>:${SM_NAME_DEBUG}>$<$<CONFIG:MINSIZEREL>:${SM_NAME_MINSIZEREL}>$<$<CONFIG:RELWITHDEBINFO>:${SM_NAME_RELWITHDEBINFO}>$<$<CONFIG:RELEASE>:${SM_NAME_RELEASE}>.map"
-        "${SM_PROGRAM_DIR}/$<$<CONFIG:DEBUG>:${SM_NAME_DEBUG}>$<$<CONFIG:MINSIZEREL>:${SM_NAME_MINSIZEREL}>$<$<CONFIG:RELWITHDEBINFO>:${SM_NAME_RELWITHDEBINFO}>$<$<CONFIG:RELEASE>:${SM_NAME_RELEASE}>.vdi"
-      COMMENT "Generating file to allow for easier stack traces.")
+    add_custom_command(TARGET "${SM_EXE_NAME}"
+      POST_BUILD
+      COMMAND "mapconv" "${SM_PROGRAM_DIR}/$<$<CONFIG:DEBUG>:${SM_NAME_DEBUG}>$<$<CONFIG:MINSIZEREL>:${SM_NAME_MINSIZEREL}>$<$<CONFIG:RELWITHDEBINFO>:${SM_NAME_RELWITHDEBINFO}>$<$<CONFIG:RELEASE>:${SM_NAME_RELEASE}>.map" "${SM_PROGRAM_DIR}/$<$<CONFIG:DEBUG>:${SM_NAME_DEBUG}>$<$<CONFIG:MINSIZEREL>:${SM_NAME_MINSIZEREL}>$<$<CONFIG:RELWITHDEBINFO>:${SM_NAME_RELWITHDEBINFO}>$<$<CONFIG:RELEASE>:${SM_NAME_RELEASE}>.vdi"
+      COMMENT "Generating file to allow for easier stack traces."
+    )
   endif()
 elseif(APPLE)
-  # TODO should we set CRASH_HANDLER and other things like LINUX does below? Why is that logic specfic to LINUX?
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE BACKTRACE_METHOD_X86_DARWIN)
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE BACKTRACE_LOOKUP_METHOD_TEXT="dladdr")
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE BACKTRACE_LOOKUP_METHOD_DLADDR)
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE MACOSX)
-  set_target_properties(
-    "${SM_EXE_NAME}"
-    PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY
-      "${SM_ROOT_DIR}"
-      RUNTIME_OUTPUT_DIRECTORY_RELEASE
-      "${SM_ROOT_DIR}"
-      RUNTIME_OUTPUT_DIRECTORY_DEBUG
-      "${SM_ROOT_DIR}"
-      RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL
-      "${SM_ROOT_DIR}"
-      RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
-      "${SM_ROOT_DIR}"
-      MACOSX_BUNDLE_INFO_PLIST
-      "${SM_XCODE_DIR}/Info.plist.in")
-
-  set(APPLE_BUNDLE_RESOURCES
-    "${SM_ROOT_DIR}/Announcers"
-    "${SM_ROOT_DIR}/BackgroundEffects"
-    "${SM_ROOT_DIR}/BackgroundTransitions"
-    "${SM_ROOT_DIR}/BGAnimations"
-    "${SM_ROOT_DIR}/Characters"
-    "${SM_ROOT_DIR}/Courses"
-    "${SM_ROOT_DIR}/Data"
-    "${SM_ROOT_DIR}/NoteSkins"
-    "${SM_ROOT_DIR}/Scripts"
-    "${SM_ROOT_DIR}/Songs"
-    "${SM_ROOT_DIR}/Themes"
+  set_target_properties("${SM_EXE_NAME}" PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${SM_ROOT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${SM_ROOT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${SM_ROOT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${SM_ROOT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${SM_ROOT_DIR}"
+    MACOSX_BUNDLE_INFO_PLIST "${SM_XCODE_DIR}/Info.StepMania.plist"
+    XCODE_ATTRIBUTE_INFOPLIST_FILE "${SM_XCODE_DIR}/Info.StepMania.plist"
+    XCODE_ATTRIBUTE_INFOPLIST_PREPROCESS "YES"
+    XCODE_ATTRIBUTE_INFOPLIST_PREPROCESSOR_DEFINITIONS[variant=Release] "RELEASE"
+    XCODE_ATTRIBUTE_INFOPLIST_PREPROCESSOR_DEFINITIONS[variant=Debug] "DEBUG"
+    XCODE_ATTRIBUTE_INFOPLIST_PREPROCESSOR_DEFINITIONS[variant=MinSizeRel] "MINSIZEREL"
+    XCODE_ATTRIBUTE_INFOPLIST_PREPROCESSOR_DEFINITIONS[variant=RelWithDebInfo] "RELWITHDEBINFO"
+    XCODE_ATTRIBUTE_INFOPLIST_PREFIX_HEADER "${SM_XCODE_DIR}/plistHelper.hpp"
+    XCODE_ATTRIBUTE_GCC_PREFIX_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/archutils/Darwin/StepMania.pch"
+    XCODE_ATTRIBUTE_LIBRARY_SEARCH_PATHS "${SM_XCODE_DIR}/Libraries"
   )
 
-  target_sources("${SM_EXE_NAME}" PUBLIC ${APPLE_BUNDLE_RESOURCES})
-  set_source_files_properties(${APPLE_BUNDLE_RESOURCES} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  sm_add_compile_definition("${SM_EXE_NAME}" _XOPEN_SOURCE)
 
-  target_compile_definitions("${SM_EXE_NAME}" PRIVATE _XOPEN_SOURCE)
+  if (${HAS_FFMPEG})
+    sm_add_compile_definition("${SM_EXE_NAME}" HAVE_FFMPEG)
+  endif()
 
-  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  if (CMAKE_BUILD_TYPE EQUAL "Debug")
     set(SM_APP_RELEASE_NAME "${SM_NAME_DEBUG}")
-  elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+  elseif(CMAKE_BUILD_TYPE EQUAL "MinSizeRel")
     set(SM_APP_RELEASE_NAME "${SM_NAME_MINSIZEREL}")
-  elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+  elseif(CMAKE_BUILD_TYPE EQUAL "RelWithDebInfo")
     set(SM_APP_RELEASE_NAME "${SM_NAME_RELWITHDEBINFO}")
   else()
     set(SM_APP_RELEASE_NAME "${SM_NAME_RELEASE}")
   endif()
+  if (WITH_FULL_RELEASE)
+    string(CONCAT SM_NAME_VERSION "${SM_EXE_NAME}" "-" "${SM_VERSION_TRADITIONAL}")
+    set(SM_DMG_VERSION "${SM_VERSION_TRADITIONAL}")
+  else()
+    string(CONCAT SM_NAME_VERSION "${SM_EXE_NAME}" "-" "${SM_VERSION_FULL}")
+    set(SM_DMG_VERSION "${SM_VERSION_FULL}")
+  endif()
+  set(SM_DMG_RELEASE_NAME "${SM_NAME_VERSION}-mac.dmg")
+
+  add_custom_target(dmg
+    COMMAND
+      pushd ${SM_ROOT_DIR}\;
+      mkdir dmgtmpdir\;
+      cd dmgtmpdir\;
+      mkdir ${SM_NAME_VERSION}\;
+      cd ${SM_NAME_VERSION}\;
+      mkdir ${SM_NAME_VERSION}\;
+      cd ${SM_NAME_VERSION}\;
+      cp -r "${SM_ROOT_DIR}/Announcers" .\;
+      cp -r "${SM_ROOT_DIR}/BackgroundEffects" .\;
+      cp -r "${SM_ROOT_DIR}/BackgroundTransitions" .\;
+      cp -r "${SM_ROOT_DIR}/BGAnimations" .\;
+      cp -r "${SM_ROOT_DIR}/Characters" .\;
+      cp -r "${SM_ROOT_DIR}/Courses" .\;
+      cp -r "${SM_ROOT_DIR}/Data" .\;
+      cp -r "${SM_ROOT_DIR}/Docs" .\;
+      cp -r "${SM_ROOT_DIR}/Manual" .\;
+      cp -r "${SM_ROOT_DIR}/NoteSkins" .\;
+      cp -r "${SM_ROOT_DIR}/Scripts" .\;
+      cp -r "${SM_ROOT_DIR}/Songs" .\;
+      cp -r "${SM_ROOT_DIR}/Themes" .\;
+      cp -r "${SM_ROOT_DIR}/${SM_APP_RELEASE_NAME}.app" .\;
+      cd ${SM_ROOT_DIR}\;
+      hdiutil create "${SM_DMG_RELEASE_NAME}"
+        -volname "StepMania ${SM_DMG_VERSION}"
+        -srcfolder "dmgtmpdir/${SM_NAME_VERSION}/"
+        -ov\;
+      rm -rf dmgtmpdir\;
+      popd\;
+  )
 
   # Add the ability to copy the resource file.
-  add_custom_command(TARGET "${SM_EXE_NAME}" POST_BUILD
-                     COMMAND ${CMAKE_COMMAND} -E make_directory
-                             "$<TARGET_FILE_DIR:StepMania>/../Resources"
-                     COMMAND ${CMAKE_COMMAND} -E copy
-                             "${SM_XCODE_DIR}/smicon.icns"
-                             "$<TARGET_FILE_DIR:StepMania>/../Resources/")
+  add_custom_command(TARGET "${SM_EXE_NAME}"
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:StepMania>/../Resources"
+    COMMAND ${CMAKE_COMMAND} -E copy "${SM_XCODE_DIR}/smicon.icns" "$<TARGET_FILE_DIR:StepMania>/../Resources/"
+    COMMAND ${CMAKE_COMMAND} -E copy "${SM_XCODE_DIR}/Hardware.plist" "$<TARGET_FILE_DIR:StepMania>/../Resources/"
+  )
 else() # Linux
-  set_target_properties("${SM_EXE_NAME}"
-                        PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-                                   "${SM_ROOT_DIR}"
-                                   RUNTIME_OUTPUT_DIRECTORY_RELEASE
-                                   "${SM_ROOT_DIR}"
-                                   RUNTIME_OUTPUT_DIRECTORY_DEBUG
-                                   "${SM_ROOT_DIR}"
-                                   RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL
-                                   "${SM_ROOT_DIR}"
-                                   RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
-                                   "${SM_ROOT_DIR}")
+  set_target_properties("${SM_EXE_NAME}" PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${SM_ROOT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${SM_ROOT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${SM_ROOT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${SM_ROOT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${SM_ROOT_DIR}"
+  )
 
   if(${WITH_CRASH_HANDLER})
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE CRASH_HANDLER)
+    sm_add_compile_definition("${SM_EXE_NAME}" CRASH_HANDLER)
     if(LINUX)
       # used only in the ArchHooks_Unix.cpp file
-      if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86" OR CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-        target_compile_definitions("${SM_EXE_NAME}" PRIVATE BACKTRACE_METHOD_X86_LINUX)
-        target_compile_definitions("${SM_EXE_NAME}" PRIVATE
-                                   BACKTRACE_METHOD_TEXT="x86 custom backtrace")
+      sm_add_compile_definition("${SM_EXE_NAME}" BACKTRACE_METHOD_X86_LINUX)
+      sm_add_compile_definition("${SM_EXE_NAME}" BACKTRACE_METHOD_TEXT="x86 custom backtrace")
+      sm_add_compile_definition("${SM_EXE_NAME}" BACKTRACE_LOOKUP_METHOD_TEXT="backtrace_symbols")
+      if (${DL_FOUND})
+        sm_add_compile_definition("${SM_EXE_NAME}" BACKTRACE_LOOKUP_METHOD_DLADDR)
       else()
-        target_compile_definitions("${SM_EXE_NAME}" PRIVATE
-                                   BACKTRACE_METHOD_TEXT="no backtrace")
+        sm_add_compile_definition("${SM_EXE_NAME}" BACKTRACE_LOOKUP_METHOD_BACKTRACE_SYMBOLS)
       endif()
-      target_compile_definitions("${SM_EXE_NAME}" PRIVATE
-                                 BACKTRACE_LOOKUP_METHOD_TEXT="dladdr")
-      target_compile_definitions("${SM_EXE_NAME}" PRIVATE
-                                 BACKTRACE_LOOKUP_METHOD_DLADDR)
     endif()
   endif()
-  if(${HAS_PTHREAD})
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE HAVE_LIBPTHREAD)
+  if (${HAS_PTHREAD})
+    sm_add_compile_definition("${SM_EXE_NAME}" HAVE_LIBPTHREAD)
 
     message("Host processor is ${CMAKE_SYSTEM_PROCESSOR}")
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-      message("Host processor is 64bit X86")
-      target_compile_definitions("${SM_EXE_NAME}" PRIVATE CPU_X86_64)
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86"
-           OR CMAKE_SYSTEM_PROCESSOR MATCHES "i686")
-      message("Host processor is 32bit X86")
-      target_compile_definitions("${SM_EXE_NAME}" PRIVATE CPU_X86)
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-      message("Host processor is 64bit ARM")
-      target_compile_definitions("${SM_EXE_NAME}" PRIVATE CPU_AARCH64)
+      message("Host processor is 64bit")
+      sm_add_compile_definition("${SM_EXE_NAME}" CPU_X86_64)
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86" OR CMAKE_SYSTEM_PROCESSOR MATCHES "i686")
+      message("Host processor is 32bit")
+      sm_add_compile_definition("${SM_EXE_NAME}" CPU_X86)
     elseif(VITA OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
       message("Target processor is 32bit ARM (PS Vita Cortex-A9)")
-      target_compile_definitions("${SM_EXE_NAME}" PRIVATE CPU_ARM)
+      sm_add_compile_definition("${SM_EXE_NAME}" CPU_ARM)
     else()
       message("Unrecognized host processor type")
     endif()
   endif()
   if(VITA)
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE VITA __vita__ HAVE_GLES2 WITH_GLES2)
+    sm_add_compile_definition("${SM_EXE_NAME}" VITA)
+    sm_add_compile_definition("${SM_EXE_NAME}" __vita__)
+    sm_add_compile_definition("${SM_EXE_NAME}" HAVE_GLES2)
+    sm_add_compile_definition("${SM_EXE_NAME}" WITH_GLES2)
+    # ARM defaults to unsigned char; StepMania's char-sized enums rely on
+    # x86 signed-char semantics.
+    add_compile_options(-fsigned-char -fno-strict-aliasing)
     # NOTE: do NOT define UNIX/LINUX for Vita. Vita newlib is POSIX-ish but
     # lacks dlopen/fork/signal; `#if defined(UNIX)` blocks pull dlfcn.h and
     # ArchHooks_Unix (both unavailable). Add `|| defined(VITA)` per-site instead.
   endif()
-  if(${HAS_XRANDR})
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE HAVE_XRANDR)
+  if (${HAS_FFMPEG})
+    sm_add_compile_definition("${SM_EXE_NAME}" HAVE_FFMPEG)
   endif()
-  if(${HAS_LIBXTST})
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE HAVE_LIBXTST)
-  endif()
-  if(${HAS_XINERAMA})
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE HAVE_XINERAMA)
+  if (BSD)
+    sm_add_compile_definition("${SM_EXE_NAME}" BSD)
   endif()
 
-  if(BSD)
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE BSD)
-  endif()
-
-  if(GTK3_FOUND)
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE HAVE_GTK)
+  if (GTK2_FOUND)
+    sm_add_compile_definition("${SM_EXE_NAME}" HAVE_GTK)
   endif()
 
   if(NOT VITA)
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE UNIX)
+    sm_add_compile_definition("${SM_EXE_NAME}" UNIX)
   endif()
   if("${CMAKE_SYSTEM}" MATCHES "Linux")
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE LINUX)
+    sm_add_compile_definition("${SM_EXE_NAME}" LINUX)
   endif()
 endif()
 
 set_property(TARGET "${SM_EXE_NAME}" PROPERTY FOLDER "Internal Libraries")
 
-list(APPEND SMDATA_LINK_LIB "lua-5.1" "miniz")
-
-if(WITH_MINIMAID)
-  include(../extern/CMakeProject-mmmagic.cmake)
-endif()
-
-list(APPEND SMDATA_LINK_LIB "mad"
-                            "pcre"
-                            "tomcrypt"
-                            "tommath"
-                            "jpeg"
-                            "zlib"
-                            "png"
-                            "jsoncpp"
-                            "vorbisfile"
-                            "vorbis"
-                            "ogg")
+list(APPEND SMDATA_LINK_LIB
+  "lua-5.1"
+  "tomcrypt"
+  "tommath"
+  "zlib"
+  "jsoncpp"
+  "png"
+  "jpeg"
+)
 if(NOT VITA)
-  list(APPEND SMDATA_LINK_LIB "glew" "ixwebsocket")
+  list(APPEND SMDATA_LINK_LIB "glew")
+endif()
+if(VITA)
+  # Vita: bundled codecs (no glew/ffmpeg/system libs). Order matters for
+  # static linking: vorbisfile before vorbis before ogg.
+  list(APPEND SMDATA_LINK_LIB "mad" "vorbisfile" "vorbis" "ogg")
+endif()
+include(../extern/CMakeProject-mmmagic.cmake)
+
+if (HAS_MP3)
+  list(FIND SMDATA_LINK_LIB "jsoncpp" JSON_INDEX)
+  if (WIN32 OR MACOSX OR VITA)
+    list(INSERT SMDATA_LINK_LIB ${JSON_INDEX} "mad")
+  else()
+    list(INSERT SMDATA_LINK_LIB ${JSON_INDEX} ${LIBMAD_LIBRARY})
+  endif()
 endif()
 
-if(WIN32)
-  list(APPEND SMDATA_LINK_LIB
-              # The misc libraries are here.
-              "${LIB_SWSCALE}"
-              "${LIB_AVCODEC}"
-              "${LIB_AVFORMAT}"
-              "${LIB_AVUTIL}")
+if (NOT SYSTEM_PCRE_FOUND)
+  list(APPEND SMDATA_LINK_LIB "pcre")
+endif()
 
+if (WIN32)
+  
   list(APPEND SMDATA_LINK_LIB
-              "dbghelp.lib"
-              "setupapi.lib"
-              "hid.lib")
-
-  sm_add_link_flag("${SM_EXE_NAME}" "/LIBPATH:\"${SM_EXTERN_DIR}/ffmpeg-w32/${SM_WIN32_ARCH}\"")
-  sm_add_link_flag("${SM_EXE_NAME}"
-                   "/LIBPATH:\"$(WindowsSdkDir)Lib\\um\\${SM_WIN32_ARCH}\"")
+    # The misc libraries are here.
+    "${LIB_SWSCALE}"
+    "${LIB_AVCODEC}"
+    "${LIB_AVFORMAT}"
+    "${LIB_AVUTIL}"
+  )
+  
+  if (WITH_OGG)
+    list(APPEND SMDATA_LINK_LIB
+      "ogg"
+      "vorbis"
+      "vorbisfile"
+    )
+  endif()
+  
+  list(APPEND SMDATA_LINK_LIB
+    "dbghelp.lib"
+    "setupapi.lib"
+    "hid.lib"
+  )
+  
+  get_filename_component(DIRECTX_LIBRARY_DIR "${DIRECTX_LIBRARIES}" DIRECTORY)
+  
+  sm_add_link_flag("${SM_EXE_NAME}" "/LIBPATH:\"${DIRECTX_LIBRARY_DIR}\"")
+  sm_add_link_flag("${SM_EXE_NAME}" "/LIBPATH:\"${SM_EXTERN_DIR}/ffmpeg/lib\"")
+  sm_add_link_flag("${SM_EXE_NAME}" "/LIBPATH:\"${SM_SRC_DIR}/archutils/Win32/ddk\"")
   sm_add_link_flag("${SM_EXE_NAME}" "/ERRORREPORT:SEND")
   sm_add_link_flag("${SM_EXE_NAME}" "/MAPINFO:EXPORTS")
   sm_add_link_flag("${SM_EXE_NAME}" "/SAFESEH:NO")
@@ -398,38 +411,50 @@ if(WIN32)
   sm_add_link_flag("${SM_EXE_NAME}" "/NODEFAULTLIB:wininet.lib")
   sm_add_link_flag("${SM_EXE_NAME}" "/NODEFAULTLIB:msimg32.lib")
   sm_add_link_flag("${SM_EXE_NAME}" "/NODEFAULTLIB:libci.lib")
-  set_target_properties("${SM_EXE_NAME}"
-                        PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt.lib")
-  set_target_properties("${SM_EXE_NAME}"
-                        PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
-  set_target_properties("${SM_EXE_NAME}"
-                        PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:WINDOWS")
-
+  set_target_properties("${SM_EXE_NAME}" PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt.lib")
+  set_target_properties("${SM_EXE_NAME}" PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
+  set_target_properties("${SM_EXE_NAME}" PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:WINDOWS")
+  
 elseif(APPLE)
-  list(INSERT SMDATA_LINK_LIB
-              0
-              ${MAC_FRAME_ACCELERATE}
-              ${MAC_FRAME_CARBON}
-              ${MAC_FRAME_COCOA}
-              ${MAC_FRAME_IOKIT}
-              ${MAC_FRAME_OPENGL}
-              ${MAC_FRAME_COREFOUNDATION}
-              ${MAC_FRAME_AUDIOTOOLBOX}
-              ${MAC_FRAME_AUDIOUNIT}
-              ${MAC_FRAME_COREAUDIO}
-              ${MAC_FRAME_CORESERVICES}
-              ${MAC_FRAME_SYSTEM}
-              "${ICONV_LIBRARIES}"
-              "${SM_FFMPEG_LIB}/libavformat.a"
-              "${SM_FFMPEG_LIB}/libavcodec.a"
-              "${SM_FFMPEG_LIB}/libswscale.a"
-              "${SM_FFMPEG_LIB}/libavutil.a"
-              "${MAC_FRAME_COREMEDIA}"
-              "${MAC_FRAME_COREVIDEO}"
-              "${MAC_FRAME_VIDEOTOOLBOX}")
+  # The following were removed from SMDATA_LINK_LIB to "match" StepMania's pbxproj.
+#    ${MAC_FRAME_APPKIT}
+#    ${MAC_FRAME_FOUNDATION}
+#    "ffmpeg"
+
+  list(INSERT SMDATA_LINK_LIB 0
+    ${MAC_FRAME_ACCELERATE}
+    ${MAC_FRAME_CARBON}
+    ${MAC_FRAME_COCOA}
+    ${MAC_FRAME_IOKIT}
+    ${MAC_FRAME_QUICKTIME}
+    ${MAC_FRAME_OPENGL}
+    ${MAC_FRAME_COREFOUNDATION}
+    ${MAC_FRAME_AUDIOTOOLBOX}
+    ${MAC_FRAME_AUDIOUNIT}
+    ${MAC_FRAME_COREAUDIO}
+    ${MAC_FRAME_CORESERVICES}
+    "ogg"
+    "theora"
+    "vorbis"
+  )
+  list(APPEND SMDATA_LINK_LIB
+    "${BZIP2_LIBRARY_RELEASE}"
+    "${ICONV_LIBRARIES}"
+    "pcre"
+  )
+
+  if(HAS_FFMPEG)
+    list(APPEND SMDATA_LINK_LIB
+      "${SM_FFMPEG_ROOT}/libavformat/libavformat.a"
+      "${SM_FFMPEG_ROOT}/libavcodec/libavcodec.a"
+      "${SM_FFMPEG_ROOT}/libswscale/libswscale.a"
+      "${SM_FFMPEG_ROOT}/libavutil/libavutil.a"
+    )
+  endif()
 elseif(VITA)
-  # PS Vita link: vitaGL (+vitashark for shader compilation) + Sce stubs + threads.
-  # No FFmpeg/OpenGL/X11/libusb.
+  # PS Vita link: bundled codecs + vitaGL (+vitashark for shaders,
+  # mathneon for NEON helpers) + Sce stubs + threads.
+  # No FFmpeg/OpenGL/X11/ALSA/Pulse/JACK/libusb/system jpeg/zlib/png.
   list(APPEND SMDATA_LINK_LIB
     "vitaGL"
     "vitashark"
@@ -450,92 +475,194 @@ elseif(VITA)
     ${CMAKE_THREAD_LIBS_INIT}
     "m")
   list(REMOVE_DUPLICATES SMDATA_LINK_LIB)
-else() # Unix / Linux TODO: Remember to find and locate the zip archive files.
-  list(APPEND SMDATA_LINK_LIB
-              "${SM_FFMPEG_LIB}/libavformat.a"
-              "${SM_FFMPEG_LIB}/libavcodec.a"
-              "${SM_FFMPEG_LIB}/libswscale.a"
-              "${SM_FFMPEG_LIB}/libavutil.a")
+else() # Unix / Linux
+  # TODO: Remember to find and locate the zip archive files.
+  list(FIND SMDATA_LINK_LIB "jpeg" JPEG_INDEX)
+  sm_list_replace(SMDATA_LINK_LIB ${JPEG_INDEX} "${JPEG_LIBRARY}")
+  if (HAS_FFMPEG)
+    if(WITH_SYSTEM_FFMPEG)
+      list(APPEND SMDATA_LINK_LIB
+        "${FFMPEG_avformat_LIBRARY}"
+        "${FFMPEG_avcodec_LIBRARY}"
+        "${FFMPEG_swscale_LIBRARY}"
+        "${FFMPEG_avutil_LIBRARY}"
+      )
+    else()
+      list(APPEND SMDATA_LINK_LIB
+        "${SM_FFMPEG_ROOT}/libavformat/libavformat.a"
+        "${SM_FFMPEG_ROOT}/libavcodec/libavcodec.a"
+        "${SM_FFMPEG_ROOT}/libswscale/libswscale.a"
+        "${SM_FFMPEG_ROOT}/libavutil/libavutil.a"
+      )
+    endif()
 
-  list(REMOVE_ITEM SMDATA_LINK_LIB "zlib")
-  list(APPEND SMDATA_LINK_LIB "zlib"
-                              ${CMAKE_DL_LIBS}
-                              "${OPENGL_LIBRARY}")
-
-  if(GTK3_FOUND)
-    list(APPEND SMDATA_LINK_LIB "${GTK3_LIBRARIES}")
+    if(VA_FOUND)
+      list(APPEND SMDATA_LINK_LIB ${VA_LIBRARY})
+    endif()
   endif()
 
-  list(APPEND SMDATA_LINK_LIB "${CMAKE_THREAD_LIBS_INIT}")
+  if (${DL_FOUND})
+    list(APPEND SMDATA_LINK_LIB ${DL_LIBRARIES})
+  endif()
 
-  if(HAS_ALSA)
+  if(HAS_OGG)
+    list(APPEND SMDATA_LINK_LIB
+      "${VORBISFILE_LIBRARY}"
+      "${VORBIS_LIBRARY}"
+      "${OGG_LIBRARY}"
+    )
+  endif()
+
+  list(APPEND SMDATA_LINK_LIB
+    "${OPENGL_LIBRARY}"
+  )
+
+  if(GTK2_FOUND)
+    list(APPEND SMDATA_LINK_LIB
+      "${GTK2_LIBRARIES}"
+    )
+  endif()
+
+  list(APPEND SMDATA_LINK_LIB
+    "${BZIP2_LIBRARIES}"
+    "${ZLIB_LIBRARIES}"
+    "${CMAKE_THREAD_LIBS_INIT}"
+  )
+
+  if (HAS_ALSA)
     list(APPEND SMDATA_LINK_LIB ${ALSA_LIBRARIES})
   endif()
 
-  if(HAS_JACK)
+  if (HAS_JACK)
     list(APPEND SMDATA_LINK_LIB ${JACK_LIBRARIES})
   endif()
 
-  if(HAS_OSS)
+  if (HAS_OSS)
     # No mention of OSS libraries.
-    target_compile_definitions("${SM_EXE_NAME}" PRIVATE "HAVE_OSS_VERSION=1")
+    sm_add_compile_definition("${SM_EXE_NAME}" "HAVE_OSS_VERSION=1")
   endif()
 
-  if(HAS_PULSE)
+  if (HAS_PULSE)
     list(APPEND SMDATA_LINK_LIB ${PULSEAUDIO_LIBRARY})
+    # PACKAGE_NAME and PACKAGE_VERSION are only used in this scenario. Why is not clear.
+    # TODO: Remove this silliness.
+    sm_add_compile_definition("${SM_EXE_NAME}" PACKAGE_NAME="StepMania")
+    set(PACKAGE_VERSION "${SM_VERSION_MAJOR}.${SM_VERSION_MINOR}")
+    sm_add_compile_definition("${SM_EXE_NAME}" PACKAGE_VERSION="${PACKAGE_VERSION}")
   endif()
 
   if(X11_FOUND)
     list(APPEND SMDATA_LINK_LIB ${X11_LIBRARIES})
   endif()
 
-  if(LIBXTST_FOUND)
-    list(APPEND SMDATA_LINK_LIB ${LIBXTST_LIBRARY})
+  if(PCRE_FOUND)
+    list(APPEND SMDATA_LINK_LIB ${PCRE_LIBRARY})
   endif()
 
-  list(APPEND SMDATA_LINK_LIB ${LIBUSB_LIBRARIES})
+  list(APPEND SMDATA_LINK_LIB
+    ${XRANDR_LIBRARIES}
+  )
 
-  list(APPEND SMDATA_LINK_LIB ${XRANDR_LIBRARIES} ${XINERAMA_LIBRARIES})
-
-  list(REMOVE_DUPLICATES SMDATA_LINK_LIB)
+  list(REMOVE_ITEM SMDATA_LINK_LIB "zlib")
 endif()
 
 target_link_libraries("${SM_EXE_NAME}" ${SMDATA_LINK_LIB})
 
-list(APPEND SM_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-            "${SM_GENERATED_SRC_DIR}")
-
+list(APPEND SM_INCLUDE_DIRS
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  "${SM_SRC_DIR}/generated"
+)
 if(VITA)
-  # Vita: bundled extern headers (lua, mad, pcre, tomcrypt, ...) live in
-  # extern/<name>; system headers (zlib/png/jpeg/vitaGL) come from VitaSDK.
+  # Vita: bundled extern headers; system headers (vitaGL) come from VitaSDK.
   list(APPEND SM_INCLUDE_DIRS
     "${SM_EXTERN_DIR}/lua-5.1/src"
-    "${SM_EXTERN_DIR}/libmad"
+    "${SM_EXTERN_DIR}/mad-0.15.1b"
     "${SM_EXTERN_DIR}/pcre"
-    "${SM_EXTERN_DIR}/libtomcrypt/src/headers"
-    "${SM_EXTERN_DIR}/libtommath"
+    "${SM_SRC_DIR}/libtomcrypt/src/headers"
+    "${SM_SRC_DIR}/libtommath"
     "${SM_EXTERN_DIR}/jsoncpp/include"
-    "${SM_EXTERN_DIR}/ogg/include"
-    "${SM_EXTERN_DIR}/vorbis/include"
-    "${SM_EXTERN_DIR}/miniz")
-elseif(APPLE)
-  list(APPEND SM_INCLUDE_DIRS "archutils/Unix")
-
-  add_dependencies("${SM_EXE_NAME}" "ffmpeg")
-  list(APPEND SM_INCLUDE_DIRS "${SM_FFMPEG_INCLUDE}")
-else()
+    "${SM_EXTERN_DIR}/newogg/include"
+    "${SM_EXTERN_DIR}/newvorbis/include"
+    "${SM_EXTERN_DIR}/newvorbis/lib"
+    "${SM_EXTERN_DIR}/libjpeg"
+    "${SM_EXTERN_DIR}/zlib")
+elseif(NOT APPLE)
+  list(APPEND SM_INCLUDE_DIRS
+    "${SM_EXTERN_DIR}/glew-1.5.8/include"
+    "${SM_EXTERN_DIR}/jsoncpp/include"
+    "${SM_EXTERN_DIR}/zlib"
+  )
   if(MSVC)
-    list(APPEND SM_INCLUDE_DIRS "${SM_EXTERN_DIR}/ffmpeg-w32/include")
+    if (WITH_OGG)
+      list(APPEND SM_INCLUDE_DIRS
+        "${SM_EXTERN_DIR}/newogg/include"
+        "${SM_EXTERN_DIR}/newvorbis/lib"
+        "${SM_EXTERN_DIR}/newvorbis/include"
+      )
+    endif()
+    list(APPEND SM_INCLUDE_DIRS
+      "${SM_EXTERN_DIR}/ffmpeg/include"
+    )
   else()
-    add_dependencies("${SM_EXE_NAME}" "ffmpeg")
-    list(APPEND SM_INCLUDE_DIRS "${SM_FFMPEG_INCLUDE}")
-
-    if(X11_FOUND)
+    if(WITH_OGG)
+      list(APPEND SM_INCLUDE_DIRS
+        "${SM_EXTERN_DIR}/vorbis"
+      )
+    endif()
+    list(APPEND SM_INCLUDE_DIRS
+      "${JPEG_INCLUDE_DIR}"
+    )
+    if (HAS_FFMPEG)
+      if (WITH_SYSTEM_FFMPEG)
+        list(APPEND SM_INCLUDE_DIRS "${FFMPEG_INCLUDE_DIR}")
+      else()
+        add_dependencies("${SM_EXE_NAME}" "ffmpeg")
+        list(APPEND SM_INCLUDE_DIRS
+          "${SM_FFMPEG_SRC_DIR}"
+          "${SM_FFMPEG_ROOT}"
+        )
+      endif()
+    endif()
+    if (HAS_GTK2)
+      list(APPEND SM_INCLUDE_DIRS "${GTK2_INCLUDE_DIRS}")
+    endif()
+    if (X11_FOUND)
       list(APPEND SM_INCLUDE_DIRS "${X11_INCLUDE_DIR}")
     endif()
-
-    list(APPEND SM_INCLUDE_DIRS "${LIBUSB_INCLUDE_DIRS}")
+    if (PCRE_FOUND)
+      list(APPEND SM_INCLUDE_DIRS "${PCRE_INCLUDE_DIR}")
+    endif()
+    if (DL_FOUND)
+      list(APPEND SM_INCLUDE_DIRS "${DL_INCLUDE_DIR}")
+    endif()
   endif()
+else()
+  if(WITH_OGG)
+    list(APPEND SM_INCLUDE_DIRS
+      "${SM_EXTERN_DIR}/newogg/include"
+      "${SM_EXTERN_DIR}/newvorbis/include"
+    )
+  endif()
+  list(APPEND SM_INCLUDE_DIRS
+    "archutils/Unix"
+  )
+  if(HAS_FFMPEG)
+    add_dependencies("${SM_EXE_NAME}" "ffmpeg")
+    list(APPEND SM_INCLUDE_DIRS
+      "${SM_FFMPEG_SRC_DIR}"
+      "${SM_FFMPEG_ROOT}"
+    )
+  endif()
+endif()
+
+if(WIN32)
+  list(APPEND SM_INCLUDE_DIRS
+    ${DIRECTX_INCLUDE_DIR}
+  )
+else()
+  list(APPEND SM_INCLUDE_DIRS
+    "${SM_EXTERN_DIR}/libpng/include"
+  )
 endif()
 
 target_include_directories("${SM_EXE_NAME}" PUBLIC ${SM_INCLUDE_DIRS})
@@ -547,80 +674,52 @@ endif()
 
 if(WIN32)
   set(SM_INSTALL_DESTINATION ".")
-elseif(APPLE)
-  set(SM_INSTALL_DESTINATION "StepMania")
 else()
-  set(SM_INSTALL_DESTINATION "stepmania")
+  set(SM_INSTALL_DESTINATION "stepmania-5.0")
 endif()
 
-if(WIN32)
-  set(SM_FULL_INSTALLATION_PATH_LIST "${SM_INSTALL_DESTINATION}" "Program")
-  list(JOIN SM_FULL_INSTALLATION_PATH_LIST "/" SM_FULL_INSTALLATION_PATH)
-  # Hardcoding the values for now since the foreach loop is not working as
-  # intended.
-  install(TARGETS "${SM_EXE_NAME}" DESTINATION "${SM_FULL_INSTALLATION_PATH}")
-  if(WITH_FULL_RELEASE OR WITH_TEXTURE_GENERATOR)
-    install(FILES "${SM_PROGRAM_DIR}/Texture Font Generator.exe"
-            DESTINATION "${SM_FULL_INSTALLATION_PATH}")
+if(NOT APPLE)
+  if(WIN32)
+    set(SM_FULL_INSTALLATION_PATH_LIST "${SM_INSTALL_DESTINATION}" "Program")
+    sm_join("${SM_FULL_INSTALLATION_PATH_LIST}" "/" SM_FULL_INSTALLATION_PATH)
+    # Hardcoding the values for now since the foreach loop is not working as intended.
+    install(TARGETS "${SM_EXE_NAME}" DESTINATION "${SM_FULL_INSTALLATION_PATH}")
+    if (WITH_FULL_RELEASE OR WITH_TEXTURE_GENERATOR)
+      install(FILES "${SM_PROGRAM_DIR}/Texture Font Generator.exe" DESTINATION "${SM_FULL_INSTALLATION_PATH}")
+    endif()
+    install(FILES "${SM_PROGRAM_DIR}/avcodec-55.dll" DESTINATION "${SM_FULL_INSTALLATION_PATH}")
+    install(FILES "${SM_PROGRAM_DIR}/avformat-55.dll" DESTINATION "${SM_FULL_INSTALLATION_PATH}")
+    install(FILES "${SM_PROGRAM_DIR}/avutil-52.dll" DESTINATION "${SM_FULL_INSTALLATION_PATH}")
+    install(FILES "${SM_PROGRAM_DIR}/parallel_lights_io.dll" DESTINATION "${SM_FULL_INSTALLATION_PATH}")
+    install(FILES "${SM_PROGRAM_DIR}/swscale-2.dll" DESTINATION "${SM_FULL_INSTALLATION_PATH}")
+    install(FILES "${SM_PROGRAM_DIR}/StepMania.vdi" DESTINATION "${SM_FULL_INSTALLATION_PATH}")
+
+    # foreach(SM_WINDOW_DLL "${SM_WINDOWS_PROGRAM_DLLS}")
+    #   install(FILES "${SM_WINDOW_DLL}" DESTINATION "${SM_INSTALL_DESTINATION}")
+    # endforeach()
+  else()
+    install(TARGETS "${SM_EXE_NAME}" DESTINATION "${SM_INSTALL_DESTINATION}")
   endif()
-  install(FILES "${SM_PROGRAM_DIR}/avcodec-59.dll"
-          DESTINATION "${SM_FULL_INSTALLATION_PATH}")
-  install(FILES "${SM_PROGRAM_DIR}/avformat-59.dll"
-          DESTINATION "${SM_FULL_INSTALLATION_PATH}")
-  install(FILES "${SM_PROGRAM_DIR}/avutil-57.dll"
-          DESTINATION "${SM_FULL_INSTALLATION_PATH}")
-  install(FILES "${SM_PROGRAM_DIR}/parallel_lights_io.dll"
-          DESTINATION "${SM_FULL_INSTALLATION_PATH}")
-  install(FILES "${SM_PROGRAM_DIR}/swscale-6.dll"
-          DESTINATION "${SM_FULL_INSTALLATION_PATH}")
-  install(FILES "${SM_PROGRAM_DIR}/StepMania.vdi"
-          DESTINATION "${SM_FULL_INSTALLATION_PATH}")
-else()
-  install(TARGETS "${SM_EXE_NAME}" DESTINATION "${SM_INSTALL_DESTINATION}")
-  if(LINUX)
-    install(FILES "${SM_ROOT_DIR}/stepmania.desktop"
-            DESTINATION "${SM_INSTALL_DESTINATION}")
-    install(PROGRAMS "${SM_ROOT_DIR}/Installer/setup.sh" DESTINATION ".")
+  if (UNIX OR LINUX)
+    install(FILES "${SM_ROOT_DIR}/GtkModule.so" LIBRARY DESTINATION "${SM_INSTALL_DESTINATION}" OPTIONAL)
+  endif()
+  install(DIRECTORY "${SM_ROOT_DIR}/Announcers" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/BGAnimations" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/Themes" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/Characters" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/Scripts" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/Courses" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/BackgroundEffects" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/Data" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/BackgroundTransitions" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/Docs" DESTINATION "${SM_INSTALL_DESTINATION}")
+  install(DIRECTORY "${SM_ROOT_DIR}/NoteSkins" DESTINATION "${SM_INSTALL_DESTINATION}")
+  if (NOT SM_INSTALL_DESTINATION)
+    install(DIRECTORY "${SM_ROOT_DIR}/Songs/StepMania 5" DESTINATION "Songs")
+    install(FILES "${SM_ROOT_DIR}/Songs/instructions.txt" DESTINATION "Songs")
+  else()
+    install(DIRECTORY "${SM_ROOT_DIR}/Songs/StepMania 5" DESTINATION "${SM_INSTALL_DESTINATION}/Songs")
+    install(FILES "${SM_ROOT_DIR}/Songs/instructions.txt" DESTINATION "${SM_INSTALL_DESTINATION}/Songs")
   endif()
 endif()
-install(DIRECTORY "${SM_ROOT_DIR}/Announcers"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/BGAnimations"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/Themes"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/Characters"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/Scripts"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/Courses"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/BackgroundEffects"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/Data"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/BackgroundTransitions"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/Docs"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(DIRECTORY "${SM_ROOT_DIR}/NoteSkins"
-        DESTINATION "${SM_INSTALL_DESTINATION}")
-install(FILES "${SM_ROOT_DIR}/Songs/instructions.txt"
-        DESTINATION "${SM_INSTALL_DESTINATION}/Songs")
 
-if(WITH_CLUB_FANTASTIC)
-  # Fetch ClubFantastic packs
-  include(FetchContent)
-  FetchContent_Declare(
-    ClubFantastic
-    URL https://download.clubfantastic.dance/club_fantastic_season2_songs_9ms.zip
-    URL_HASH SHA256=845b62da6bb2994fc2ba7871b35da02f6eb36ea1ae78c2b9a59a6ec046946787
-  )
-  FetchContent_MakeAvailable(ClubFantastic)
-  FetchContent_GetProperties(ClubFantastic SOURCE_DIR CLUB_FANTASTIC_DIR)
-
-  install(DIRECTORY "${CLUB_FANTASTIC_DIR}/Club Fantastic Season 1"
-          DESTINATION "${SM_INSTALL_DESTINATION}/Songs")
-  install(DIRECTORY "${CLUB_FANTASTIC_DIR}/Club Fantastic Season 2"
-          DESTINATION "${SM_INSTALL_DESTINATION}/Songs")
-endif()

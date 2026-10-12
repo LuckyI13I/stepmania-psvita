@@ -1,6 +1,6 @@
 #include "global.h"
 #include "LocalizedString.h"
-
+#include "Foreach.h"
 #include "RageUtil.h"
 #include "SubscriptionManager.h"
 
@@ -27,8 +27,9 @@ static LocalizedString::MakeLocalizer g_pMakeLocalizedStringImpl = LocalizedStri
 void LocalizedString::RegisterLocalizer( MakeLocalizer pFunc )
 {
 	g_pMakeLocalizedStringImpl = pFunc;
-	for (LocalizedString *pLoc : *m_Subscribers.m_pSubscribers)
+	FOREACHS( LocalizedString*, *m_Subscribers.m_pSubscribers, l )
 	{
+		LocalizedString *pLoc = *l;
 		pLoc->CreateImpl();
 	}
 }
@@ -39,7 +40,7 @@ LocalizedString::LocalizedString( const RString& sGroup, const RString& sName )
 
 	m_sGroup = sGroup;
 	m_sName = sName;
-	m_pImpl = nullptr;
+	m_pImpl = NULL;
 
 	CreateImpl();
 }
@@ -50,7 +51,7 @@ LocalizedString::LocalizedString(LocalizedString const& other)
 
 	m_sGroup = other.m_sGroup;
 	m_sName = other.m_sName;
-	m_pImpl = nullptr;
+	m_pImpl = NULL;
 
 	CreateImpl();
 }

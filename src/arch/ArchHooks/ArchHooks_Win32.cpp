@@ -12,20 +12,16 @@
 #include "archutils/win32/GotoURL.h"
 #include "archutils/Win32/RegistryAccess.h"
 
-#include "VersionHelpers.h"
-
-#include <cstdint>
-#include <vector>
-
-
 static HANDLE g_hInstanceMutex;
 static bool g_bIsMultipleInstance = false;
 
+#if _MSC_VER >= 1400 // VC8
 void InvalidParameterHandler( const wchar_t *szExpression, const wchar_t *szFunction, const wchar_t *szFile,
-					  unsigned int iLine, std::uintptr_t pReserved )
+					  unsigned int iLine, uintptr_t pReserved )
 {
 	FAIL_M( "Invalid parameter" ); //TODO: Make this more informative
 }
+#endif
 
 ArchHooks_Win32::ArchHooks_Win32()
 {
@@ -38,13 +34,15 @@ ArchHooks_Win32::ArchHooks_Win32()
 	CrashHandler::CrashHandlerHandleArgs( g_argc, g_argv );
 	SetUnhandledExceptionFilter( CrashHandler::ExceptionHandler );
 
+#if _MSC_VER >= 1400 // VC8
 	_set_invalid_parameter_handler( InvalidParameterHandler );
+#endif
 
 	/* Windows boosts priority on keyboard input, among other things.  Disable that for
 	 * the main thread. */
 	SetThreadPriorityBoost( GetCurrentThread(), TRUE );
 
-	g_hInstanceMutex = CreateMutex( nullptr, TRUE, PRODUCT_ID );
+	g_hInstanceMutex = CreateMutex( NULL, TRUE, PRODUCT_ID );
 
 	g_bIsMultipleInstance = false;
 	if( GetLastError() == ERROR_ALREADY_EXISTS )
@@ -92,26 +90,26 @@ bool ArchHooks_Win32::CheckForMultipleInstances(int argc, char* argv[])
 	/* Search for the existing window.  Prefer to use the class name, which is less likely to
 	 * have a false match, and will match the gameplay window.  If that fails, try the window
 	 * name, which should match the loading window. */
-	HWND hWnd = FindWindow( PRODUCT_ID, nullptr );
-	if( hWnd == nullptr )
-		hWnd = FindWindow( nullptr, PRODUCT_ID );
+	HWND hWnd = FindWindow( PRODUCT_ID, NULL );
+	if( hWnd == NULL )
+		hWnd = FindWindow( NULL, PRODUCT_ID );
 
-	if( hWnd != nullptr )
+	if( hWnd != NULL )
 	{
 		/* If the application has a model dialog box open, we want to be sure to give focus to it,
 		 * not the main window. */
 		CallbackData data;
 		data.hParent = hWnd;
-		data.hResult = nullptr;
+		data.hResult = NULL;
 		EnumWindows( GetEnabledPopup, (LPARAM) &data );
 
-		if( data.hResult != nullptr )
+		if( data.hResult != NULL )
 			SetForegroundWindow( data.hResult );
 		else
 			SetForegroundWindow( hWnd );
 
 		// Send the command line to the existing window.
-		std::vector<RString> vsArgs;
+		vector<RString> vsArgs;
 		for( int i=0; i<argc; i++ )
 			vsArgs.push_back( argv[i] );
 		RString sAllArgs = join("|", vsArgs);
@@ -119,10 +117,10 @@ bool ArchHooks_Win32::CheckForMultipleInstances(int argc, char* argv[])
 		cds.dwData = 0;
 		cds.cbData = sAllArgs.size();
 		cds.lpData = (void*)sAllArgs.data();
-		SendMessage(
+		SendMessage( 
 			(HWND)hWnd, // HWND hWnd = handle of destination window
 			WM_COPYDATA,
-			(WPARAM)nullptr, // HANDLE OF SENDING WINDOW
+			(WPARAM)NULL, // HANDLE OF SENDING WINDOW
 			(LPARAM)&cds ); // 2nd msg parameter = pointer to COPYDATASTRUCT
 	}
 
@@ -145,7 +143,7 @@ void ArchHooks_Win32::SetTime( tm newtime )
 	st.wMinute = (WORD)newtime.tm_min;
 	st.wSecond = (WORD)newtime.tm_sec;
 	st.wMilliseconds = 0;
-	SetLocalTime( &st );
+	SetLocalTime( &st ); 
 }
 
 void ArchHooks_Win32::BoostPriority()
@@ -154,12 +152,20 @@ void ArchHooks_Win32::BoostPriority()
 	 * in the background.  We don't really want to be high-priority--above normal should
 	 * be enough.  However, ABOVE_NORMAL_PRIORITY_CLASS is only supported in Win2000
 	 * and later. */
+	OSVERSIONINFO version;
+	version.dwOSVersionInfoSize=sizeof(version);
+	if( !GetVersionEx(&version) )
+	{
+		LOG->Warn( werr_ssprintf(GetLastError(), "GetVersionEx failed") );
+		return;
+	}
+
 #ifndef ABOVE_NORMAL_PRIORITY_CLASS
 #define ABOVE_NORMAL_PRIORITY_CLASS 0x00008000
 #endif
 
 	DWORD pri = HIGH_PRIORITY_CLASS;
-	if( IsWindowsVersionOrGreater(HIBYTE(_WIN32_WINNT_WIN2K), LOBYTE(_WIN32_WINNT_WIN2K), 0) )
+	if( version.dwMajorVersion >= 5 )
 		pri = ABOVE_NORMAL_PRIORITY_CLASS;
 
 	/* Be sure to boost the app, not the thread, to make sure the
@@ -187,7 +193,7 @@ float ArchHooks_Win32::GetDisplayAspectRatio()
 	DEVMODE dm;
 	ZERO( dm );
 	dm.dmSize = sizeof(dm);
-	BOOL bResult = EnumDisplaySettings( nullptr, ENUM_REGISTRY_SETTINGS, &dm );
+	BOOL bResult = EnumDisplaySettings( NULL, ENUM_REGISTRY_SETTINGS, &dm );
 	ASSERT( bResult != 0 );
 	return dm.dmPelsWidth / (float)dm.dmPelsHeight;
 }
@@ -201,18 +207,18 @@ RString ArchHooks_Win32::GetClipboard()
 	// First make sure that the clipboard actually contains a string
 	// (or something stringifiable)
 	if(unlikely( !IsClipboardFormatAvailable( CF_TEXT ) )) return "";
-
+	
 	// Yes. All this mess just to gain access to the string stored by the clipboard.
 	// I'm having flashbacks to Berkeley sockets.
-	if(unlikely( !OpenClipboard( nullptr ) ))
+	if(unlikely( !OpenClipboard( NULL ) ))
 		{ LOG->Warn(werr_ssprintf( GetLastError(), "InputHandler_DirectInput: OpenClipboard() failed" )); return ""; }
-
+	
 	hgl = GetClipboardData( CF_TEXT );
-	if(unlikely( hgl == nullptr ))
+	if(unlikely( hgl == NULL ))
 		{ LOG->Warn(werr_ssprintf( GetLastError(), "InputHandler_DirectInput: GetClipboardData() failed" )); CloseClipboard(); return ""; }
 
 	lpstr = (LPTSTR) GlobalLock( hgl );
-	if(unlikely( lpstr == nullptr ))
+	if(unlikely( lpstr == NULL ))
 		{ LOG->Warn(werr_ssprintf( GetLastError(), "InputHandler_DirectInput: GlobalLock() failed" )); CloseClipboard(); return ""; }
 
 	// And finally, we have a char (or wchar_t) array of the clipboard contents,
@@ -224,18 +230,18 @@ RString ArchHooks_Win32::GetClipboard()
 #else
 	ret = RString( lpstr );
 #endif
-
+	
 	// And now we clean up.
 	GlobalUnlock( hgl );
 	CloseClipboard();
-
+	
 	return ret;
 }
 
 /*
  * (c) 2003-2004 Glenn Maynard, Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -245,7 +251,7 @@ RString ArchHooks_Win32::GetClipboard()
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

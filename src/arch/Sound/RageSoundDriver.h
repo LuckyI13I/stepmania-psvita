@@ -7,8 +7,6 @@
 #include "RageTimer.h"
 #include "RageUtil_CircularBuffer.h"
 
-#include <cstdint>
-
 class RageSoundBase;
 class RageTimer;
 class RageSoundMixBuffer;
@@ -37,7 +35,7 @@ public:
 
 	/* A RageSound calls this to request it not be played.  When this function
 	 * returns, snd is no longer valid; ensure no running threads are still
-	 * accessing it before returning.  This must handle gracefully the case where
+	 * accessing it before returning.  This must handle gracefully the case where 
 	 * snd was not actually being played, though it may print a warning. */
 	void StopMixing( RageSoundBase *pSound );
 
@@ -50,15 +48,12 @@ public:
 
 	/* Get the current hardware frame position, in the same time base as passed to
 	 * RageSound::CommitPlayingPosition. */
-	std::int64_t GetHardwareFrame( RageTimer *pTimer ) const;
-	virtual std::int64_t GetPosition() const = 0;
-	void low_sample_count_workaround();
+	int64_t GetHardwareFrame( RageTimer *pTimer ) const;
+	virtual int64_t GetPosition() const = 0;
 
 	/* When a sound is finished playing (GetDataToPlay returns 0) and the sound has
 	 * been completely flushed (so GetPosition is no longer meaningful), call
 	 * RageSoundBase::SoundIsFinishedPlaying(). */
-
-
 
 	/* Optional, if needed:  */
 	virtual void Update();
@@ -79,7 +74,7 @@ protected:
 	 * at once.  This should generally be slightly larger than the sound writeahead,
 	 * to allow filling the buffer after an underrun.  The default is 4096 frames. */
 	void SetDecodeBufferSize( int frames );
-
+	
 	/* Override this to set the priority of the decoding thread, which should be above
 	 * normal priority but not realtime. */
 	virtual void SetupDecodingThread() { }
@@ -97,10 +92,10 @@ protected:
 	 * This function only mixes data; it will not lock any mutexes or do any file access, and
 	 * is safe to call from a realtime thread.
 	 */
-	void Mix( std::int16_t *pBuf, int iFrames, std::int64_t iFrameNumber, std::int64_t iCurrentFrame );
-	void Mix( float *pBuf, int iFrames, std::int64_t iFrameNumber, std::int64_t iCurrentFrame );
+	void Mix( int16_t *pBuf, int iFrames, int64_t iFrameNumber, int64_t iCurrentFrame );
+	void Mix( float *pBuf, int iFrames, int64_t iFrameNumber, int64_t iCurrentFrame );
 
-	void MixDeinterlaced( float **pBufs, int iChannels, int iFrames, std::int64_t iFrameNumber, std::int64_t iCurrentFrame );
+	void MixDeinterlaced( float **pBufs, int channels, int iFrames, int64_t iFrameNumber, int64_t iCurrentFrame );
 
 private:
 	/* This mutex is used for serializing with the decoder thread.  Locking this mutex
@@ -135,13 +130,13 @@ private:
 	 * HALTING: The main thread has called StopMixing or the data buffer is empty.  The mixing
 	 * thread will flush any remaining buffered data without playing it, and then move the
 	 * sound to STOPPED.
-	 *
+	 * 
 	 * The mixing thread operates without any locks.  This can lead to a little overlap.  For
 	 * example, if StopMixing() is called, moving the sound from PLAYING to HALTING, the mixing
 	 * thread might be in the middle of mixing data.  Although HALTING means "discard buffered
 	 * data", some data will still be mixed.  This is OK; the data is valid, and the flush will
 	 * happen on the next iteration.
-	 *
+	 * 
 	 * The only state change made by the decoding thread is on EOF: the state is changed
 	 * from PLAYING to STOPPING.  This is done while m_Mutex is held, to prevent
 	 * races with other threads.
@@ -157,9 +152,9 @@ private:
 		float m_Buffer[samples_per_block];
 		float *m_BufferNext; // beginning of the unread data
 		int m_FramesInBuffer; // total number of frames at m_BufferNext
-		std::int64_t m_iPosition; // stream frame of m_BufferNext
+		int64_t m_iPosition; // stream frame of m_BufferNext
 		sound_block(): m_BufferNext(m_Buffer),
-			m_FramesInBuffer(0), m_iPosition(0) {}
+			m_FramesInBuffer(0), m_iPosition(0) {} 
 	};
 
 	struct Sound
@@ -177,8 +172,8 @@ private:
 		struct QueuedPosMap
 		{
 			int iFrames;
-			std::int64_t iStreamFrame;
-			std::int64_t iHardwareFrame;
+			int64_t iStreamFrame;
+			int64_t iHardwareFrame;
 		};
 
 		CircBuf<QueuedPosMap> m_PosMapQueue;
@@ -202,16 +197,14 @@ private:
 	/* List of currently playing sounds: XXX no vector */
 	Sound m_Sounds[32];
 
-	std::int64_t ClampHardwareFrame( std::int64_t iHardwareFrame ) const;
-	mutable std::int64_t m_iMaxHardwareFrame;
-	mutable std::int64_t m_iVMaxHardwareFrame;
-	mutable std::int32_t soundDriverMaxSamples = 0;
+	int64_t ClampHardwareFrame( int64_t iHardwareFrame ) const;
+	mutable int64_t m_iMaxHardwareFrame;
 
 	bool m_bShutdownDecodeThread;
 
 	static int DecodeThread_start( void *p );
 	void DecodeThread();
-	RageSoundMixBuffer &MixIntoBuffer( int iFrames, std::int64_t iFrameNumber, std::int64_t iCurrentFrame );
+	RageSoundMixBuffer &MixIntoBuffer( int iFrames, int64_t iFrameNumber, int64_t iCurrentFrame );
 	RageThread m_DecodeThread;
 
 	int GetDataForSound( Sound &s );
@@ -226,7 +219,7 @@ private:
 /*
  * (c) 2002-2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -236,7 +229,7 @@ private:
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

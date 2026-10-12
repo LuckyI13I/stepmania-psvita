@@ -2,7 +2,7 @@
 #include "LowLevelWindow_Vita.h"
 #include "RageLog.h"
 #include "RageDisplay.h" // VideoModeParams
-#include "DisplaySpec.h"
+#include "DisplayResolutions.h"
 
 #ifdef VITA
 #include <psp2/display.h>
@@ -10,39 +10,37 @@
 #if __has_include(<vitaGL.h>)
 #include <vitaGL.h>
 #endif
+#include "VitaBootSplash.h"
 #endif
 
 LowLevelWindow_Vita::LowLevelWindow_Vita()
-	: m_bInited(false), m_iWidth(960), m_iHeight(544), m_bVsync(true)
+	: m_bInited(false)
 {
+	m_ActualParams.width = 960;
+	m_ActualParams.height = 544;
+	m_ActualParams.bpp = 32;
+	m_ActualParams.rate = 60;
+	m_ActualParams.vsync = true;
 }
 
 LowLevelWindow_Vita::~LowLevelWindow_Vita()
 {
-#ifdef VITA
-	// vglEnd() on shutdown; guarded so null-swap in tests won't crash.
-	// vglEnd();
-#endif
 }
 
 void *LowLevelWindow_Vita::GetProcAddress(RString s)
 {
-#ifdef VITA
-	// vitaGL exposes eglGetProcAddress; dlsym fallback for core symbols.
-	// void *p = eglGetProcAddress(s.c_str());
-	// if (p) return p;
-#endif
-	return nullptr;
+	(void)s;
+	return NULL;
 }
 
 RString LowLevelWindow_Vita::TryVideoMode(const VideoModeParams &p, bool &bNewDeviceOut)
 {
 #ifdef VITA
 	if (!m_bInited) {
-		// First call: bring up vitaGL (creates the GXM context, EGL state
-		// and the 960x544 framebuffer internally). 16MB VRAM pool; Vita has
-		// 128MB VRAM total, SM5's theme textures need room to breathe.
-		// Must run on the main thread; TryVideoMode always does.
+		/* Hand the display over from the boot splash (raw framebuffer) to
+		 * vitaGL/GXM before initializing the GL context. Must run on the
+		 * main thread. */
+		VitaBootSplash::Shutdown();
 		vglInit(0x1000000);
 		vglWaitVblankStart(GL_TRUE);
 		m_bInited = true;
@@ -51,9 +49,12 @@ RString LowLevelWindow_Vita::TryVideoMode(const VideoModeParams &p, bool &bNewDe
 	} else {
 		bNewDeviceOut = false;
 	}
-	m_iWidth = 960;
-	m_iHeight = 544;
-	m_bVsync = p.vsync;
+	m_ActualParams.width = 960;
+	m_ActualParams.height = 544;
+	m_ActualParams.bpp = 32;
+	m_ActualParams.rate = 60;
+	m_ActualParams.vsync = p.vsync;
+	m_ActualParams.windowed = p.windowed;
 	return RString();
 #else
 	bNewDeviceOut = true;
@@ -61,32 +62,18 @@ RString LowLevelWindow_Vita::TryVideoMode(const VideoModeParams &p, bool &bNewDe
 #endif
 }
 
-void LowLevelWindow_Vita::GetDisplaySpecs(DisplaySpecs &out) const
+void LowLevelWindow_Vita::GetDisplayResolutions(DisplayResolutions &out) const
 {
-	DisplayMode mode{ 960, 544, 60.0 };
-	out.insert(DisplaySpec("Vita LCD", "PS Vita LCD", mode));
+	DisplayResolution res;
+	res.iWidth = 960;
+	res.iHeight = 544;
+	res.bStretched = false;
+	out.insert(res);
 }
 
 void LowLevelWindow_Vita::SwapBuffers()
 {
 #ifdef VITA
-	vglSwapBuffers(m_bVsync ? GL_TRUE : GL_FALSE);
+	vglSwapBuffers(m_ActualParams.vsync ? GL_TRUE : GL_FALSE);
 #endif
-}
-
-void LowLevelWindow_Vita::Update()
-{
-	// Poll sceCommonDialog / IME updates here if needed.
-}
-
-const ActualVideoModeParams LowLevelWindow_Vita::GetActualVideoModeParams() const
-{
-	ActualVideoModeParams avmp;
-	avmp.width = m_iWidth;
-	avmp.height = m_iHeight;
-	avmp.bpp = 32;
-	avmp.rate = 60;
-	avmp.windowWidth = m_iWidth;
-	avmp.windowHeight = m_iHeight;
-	return avmp;
 }

@@ -1,10 +1,8 @@
 #include "global.h"
 
-#include <cstddef>
-#include <cstdint>
-#include <cstdio>
+#include <stdio.h>
 
-#if defined(_WIN32)
+#if defined(_WINDOWS)
 #include <tchar.h>
 #else
 #define _tcslen strlen
@@ -146,7 +144,7 @@ typedef char TCHAR;
 typedef unsigned char uch;      // unsigned 8-bit value
 typedef unsigned short ush;     // unsigned 16-bit value
 typedef unsigned long ulg;      // unsigned 32-bit value
-typedef std::size_t extent;          // file size
+typedef size_t extent;          // file size
 typedef unsigned Pos;   // must be at least 32 bits
 typedef unsigned IPos; // A Pos is an index in the character window. Pos is used only for parameter passing
 
@@ -340,7 +338,7 @@ typedef unsigned IPos; // A Pos is an index in the character window. Pos is used
 
 
 
-typedef std::int64_t lutime_t;       // define it ourselves since we don't include time.h
+typedef int64_t lutime_t;       // define it ourselves since we don't include time.h
 
 typedef struct iztimes {
 	lutime_t atime,mtime,ctime;
@@ -349,7 +347,7 @@ typedef struct iztimes {
 typedef struct zlist {
 	ush vem, ver, flg, how;       // See central header in zipfile.c for what vem..off are
 	ulg tim, crc, siz, len;
-	std::size_t nam, ext, cext, com;   // offset of ext must be >= LOCHEAD
+	size_t nam, ext, cext, com;   // offset of ext must be >= LOCHEAD
 	ush dsk, att, lflg;           // offset of lflg must be >= LOCHEAD
 	ulg atx, off;
 	char name[MAX_PATH];          // File name in zip file
@@ -402,12 +400,12 @@ int putlocal(struct zlist *z, WRITEFUNC wfunc,void *param)
 	PUTLG(z->len, f);
 	PUTSH(z->nam, f);
 	PUTSH(z->ext, f);
-	std::size_t res = (std::size_t)wfunc(param, z->iname, (unsigned int)z->nam);
+	size_t res = (size_t)wfunc(param, z->iname, (unsigned int)z->nam);
 	if (res!=z->nam)
 		return ZE_TEMP;
 	if (z->ext)
 	{
-		res = (std::size_t)wfunc(param, z->extra, (unsigned int)z->ext);
+		res = (size_t)wfunc(param, z->extra, (unsigned int)z->ext);
 		if (res!=z->ext)
 			return ZE_TEMP;
 	}
@@ -443,15 +441,15 @@ int putcentral(struct zlist *z, WRITEFUNC wfunc, void *param)
 	PUTSH(z->att, f);
 	PUTLG(z->atx, f);
 	PUTLG(z->off, f);
-	if ((std::size_t)wfunc(param, z->iname, (unsigned int)z->nam) != z->nam ||
-		(z->cext && (std::size_t)wfunc(param, z->cextra, (unsigned int)z->cext) != z->cext) ||
-		(z->com && (std::size_t)wfunc(param, z->comment, (unsigned int)z->com) != z->com))
+	if ((size_t)wfunc(param, z->iname, (unsigned int)z->nam) != z->nam ||
+		(z->cext && (size_t)wfunc(param, z->cextra, (unsigned int)z->cext) != z->cext) ||
+		(z->com && (size_t)wfunc(param, z->comment, (unsigned int)z->com) != z->com))
 		return ZE_TEMP;
 	return ZE_OK;
 }
 
 
-int putend(int n, ulg s, ulg c, std::size_t m, char *z, WRITEFUNC wfunc, void *param)
+int putend(int n, ulg s, ulg c, size_t m, char *z, WRITEFUNC wfunc, void *param)
 {
 	// write the end of the central-directory-data to file *f.
 	PUTLG(ENDSIG, f);
@@ -532,9 +530,9 @@ const ulg crc_table[256] = {
 #define DO4(buf)  DO2(buf); DO2(buf)
 #define DO8(buf)  DO4(buf); DO4(buf)
 
-ulg crc32(ulg crc, const uch *buf, std::size_t len)
+ulg crc32(ulg crc, const uch *buf, size_t len)
 {
-	if (buf== nullptr) return 0L;
+	if (buf==NULL) return 0L;
 	crc = crc ^ 0xffffffffL;
 	while (len >= 8) {DO8(buf); len -= 8;}
 	if (len) do {DO1(buf);} while (--len);
@@ -545,10 +543,12 @@ ulg crc32(ulg crc, const uch *buf, std::size_t len)
 class TZip
 {
 public:
-	TZip() : pfout(nullptr),ooffset(0),oerr(false),writ(0),hasputcen(false),zfis(0),hfin(0)
+	TZip() : pfout(NULL),ooffset(0),oerr(false),writ(0),hasputcen(false),zfis(0),hfin(0)
 	{
 	}
-	~TZip() = default;
+	~TZip()
+	{
+	}
 
 	// These variables say about the file we're writing into
 	// We can write to pipe, file-by-handle, file-by-name, memory-to-memmapfile
@@ -565,7 +565,7 @@ public:
 	ZRESULT Start(RageFile *f);
 	static unsigned sflush(void *param,const char *buf, unsigned *size);
 	static unsigned swrite(void *param,const char *buf, unsigned size);
-	unsigned int write(const char *srcbuf,unsigned int size);
+	unsigned int write(const char *buf,unsigned int size);
 	bool oseek(unsigned int pos);
 	ZRESULT Close();
 
@@ -586,7 +586,7 @@ public:
 	ZRESULT open_file(const TCHAR *fn);
 	ZRESULT open_dir();
 	ZRESULT set_times();
-	unsigned read(char *srcbuf, unsigned size);
+	unsigned read(char *buf, unsigned size);
 	ZRESULT iclose();
 
 	ZRESULT ideflate(TZipFileInfo *zfi);
@@ -628,11 +628,13 @@ unsigned TZip::swrite(void *param,const char *buf, unsigned size)
 	TZip *zip=(TZip*)param;
 	return zip->write(buf,size);
 }
-unsigned int TZip::write(const char *srcbuf,unsigned int size)
+unsigned int TZip::write(const char *buf,unsigned int size)
 {
-	if (pfout != nullptr)
+	const char *srcbuf=buf;
+	if (pfout != NULL)
 	{
-		return pfout->Write( srcbuf, size );
+		unsigned long writ = pfout->Write( srcbuf, size );
+		return writ;
 	}
 	oerr=ZR_NOTINITED;
 	return 0;
@@ -715,14 +717,14 @@ ZRESULT TZip::set_times()
 
 	unsigned short dosdate,dostime;
 	filetime2dosdatetime(*ptm,&dosdate,&dostime);
-	times.atime = time(nullptr);
+	times.atime = time(NULL);
 	times.mtime = times.atime;
 	times.ctime = times.atime;
 	timestamp = (unsigned short)dostime | (((unsigned long)dosdate)<<16);
 	return ZR_OK;
 }
 
-unsigned TZip::read(char *srcbuf, unsigned size)
+unsigned TZip::read(char *buf, unsigned size)
 {
 	if (bufin!=0)
 	{
@@ -730,19 +732,19 @@ unsigned TZip::read(char *srcbuf, unsigned size)
 		ulg red = lenin-posin;
 		if (red>size)
 			red=size;
-		memcpy(srcbuf, bufin+posin, red);
+		memcpy(buf, bufin+posin, red);
 		posin += red;
 		ired += red;
-		crc = crc32(crc, (uch*)srcbuf, red);
+		crc = crc32(crc, (uch*)buf, red);
 		return red;
 	}
 	else if (hfin!=0)
 	{
-		int red = hfin->Read(srcbuf,size);
+		int red = hfin->Read(buf,size);
 		if (red <= 0)
 			return 0;
 		ired += red;
-		crc = crc32(crc, (uch*)srcbuf, red);
+		crc = crc32(crc, (uch*)buf, red);
 		return red;
 	}
 	else
@@ -824,7 +826,7 @@ ZRESULT TZip::Add(const TCHAR *odstzn, const TCHAR *src,unsigned long flags)
 	// then the compressed data, and possibly an extended local header.
 
 	// Initialize the local header
-	TZipFileInfo zfi; zfi.nxt=nullptr;
+	TZipFileInfo zfi; zfi.nxt=NULL;
 	strcpy(zfi.name,"");
 #ifdef UNICODE
 	WideCharToMultiByte(CP_UTF8,0,dstzn,-1,zfi.iname,MAX_PATH,0,0);
@@ -838,9 +840,9 @@ ZRESULT TZip::Add(const TCHAR *odstzn, const TCHAR *src,unsigned long flags)
 		zfi.nam++;
 	}
 	strcpy(zfi.zname,"");
-	zfi.extra=nullptr; zfi.ext=0;   // extra header to go after this compressed data, and its length
-	zfi.cextra=nullptr; zfi.cext=0; // extra header to go in the central end-of-zip directory, and its length
-	zfi.comment=nullptr; zfi.com=0; // comment, and its length
+	zfi.extra=NULL; zfi.ext=0;   // extra header to go after this compressed data, and its length
+	zfi.cextra=NULL; zfi.cext=0; // extra header to go in the central end-of-zip directory, and its length
+	zfi.comment=NULL; zfi.com=0; // comment, and its length
 	zfi.mark = 1;
 	zfi.dosflag = 0;
 	zfi.att = (ush)BINARY;
@@ -933,12 +935,12 @@ ZRESULT TZip::Add(const TCHAR *odstzn, const TCHAR *src,unsigned long flags)
 	// Keep a copy of the zipfileinfo, for our end-of-zip directory
 	char *cextra = new char[zfi.cext]; memcpy(cextra,zfi.cextra,zfi.cext); zfi.cextra=cextra;
 	TZipFileInfo *pzfi = new TZipFileInfo; memcpy(pzfi,&zfi,sizeof(zfi));
-	if (zfis==nullptr)
+	if (zfis==NULL)
 		zfis=pzfi;
 	else
 	{
 		TZipFileInfo *z=zfis;
-		while (z->nxt!=nullptr)
+		while (z->nxt!=NULL)
 			z=z->nxt;
 		z->nxt=pzfi;
 	}
@@ -952,7 +954,7 @@ ZRESULT TZip::AddCentral()
 	ulg pos_at_start_of_central = writ;
 	//ulg tot_unc_size=0, tot_compressed_size=0;
 	bool okay=true;
-	for (TZipFileInfo *zfi=zfis; zfi!= nullptr; )
+	for (TZipFileInfo *zfi=zfis; zfi!=NULL; )
 	{
 		if (okay)
 		{
@@ -973,7 +975,7 @@ ZRESULT TZip::AddCentral()
 	ulg center_size = writ - pos_at_start_of_central;
 	if (okay)
 	{
-		int res = putend(numentries, center_size, pos_at_start_of_central+ooffset, 0, nullptr, swrite,this);
+		int res = putend(numentries, center_size, pos_at_start_of_central+ooffset, 0, NULL, swrite,this);
 		if (res!=ZE_OK)
 			okay=false;
 		writ += 4 + ENDHEAD + 0;
@@ -992,7 +994,7 @@ ZRESULT lasterrorZ=ZR_OK;
 
 CreateZip::CreateZip()
 {
-	hz=nullptr;
+	hz=NULL;
 }
 
 bool CreateZip::Start( RageFile *f)
@@ -1014,7 +1016,7 @@ bool CreateZip::AddFile(RString fn)
 }
 bool CreateZip::AddDir(RString fn)
 {
-	lasterrorZ = hz->Add(MakeDestZipFileName(fn),nullptr,ZIP_FOLDER);
+	lasterrorZ = hz->Add(MakeDestZipFileName(fn),NULL,ZIP_FOLDER);
 	return lasterrorZ == ZR_OK;
 }
 bool CreateZip::Finish()

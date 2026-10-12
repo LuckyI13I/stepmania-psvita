@@ -127,24 +127,8 @@ void MsdFile::ReadBuf( const char *buf, int len, bool bUnescape )
 
 		/* We've gone through all the control characters.  All that is left is either an escaped character, 
 		 * ie \#, \\, \:, etc., or a regular character. */
-		if(buf[i] == '\\' && i < len)
-		{
-			// If we're escaping the next character, skip the '\\'
-			if(bUnescape)
-			{
-				++i;
-			}
-			// Otherwise, add the '\\' to cProcessed here, so that
-			// whatever character is coming next stays escaped in
-			// the resulting value/parameter string 
-			// (and most importantly, it doesn't get parsed as a control character)
-			// on the next iteration
-			else 
-			{
-				cProcessed[iProcessedLen++] = buf[i++];	
-			}
-		}
-		
+		if( bUnescape && i < len && buf[i] == '\\' )
+			++i;
 		if( i < len )
 		{
 			cProcessed[iProcessedLen++] = buf[i++];

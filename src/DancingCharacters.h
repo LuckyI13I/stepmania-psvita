@@ -6,7 +6,6 @@
 #include "ThemeManager.h"
 #include "RageTimer.h"
 #include "AutoActor.h"
-#include <array>
 class Model;
 
 /** @brief The different animation states for the dancer. */
@@ -39,7 +38,7 @@ public:
 	void Change2DAnimState( PlayerNumber pn, int iState );
 protected:
 
-	std::array<Model *, NUM_PLAYERS> m_pCharacter;
+	Model	*m_pCharacter[NUM_PLAYERS];
 
 	/** @brief How far away is the camera from the dancer? */
 	float	m_CameraDistance;
@@ -51,20 +50,19 @@ protected:
 	float	m_fThisCameraStartBeat;
 	float	m_fThisCameraEndBeat;
 
-	std::array<bool, NUM_PLAYERS> m_bHas2DElements;
+	bool m_bHas2DElements[NUM_PLAYERS];
 	
-	
-	std::array<AutoActor, NUM_PLAYERS> m_bgIdle;
-	std::array<AutoActor, NUM_PLAYERS> m_bgMiss;
-	std::array<AutoActor, NUM_PLAYERS> m_bgGood;
-	std::array<AutoActor, NUM_PLAYERS> m_bgGreat;
-	std::array<AutoActor, NUM_PLAYERS> m_bgFever;
-	std::array<AutoActor, NUM_PLAYERS> m_bgFail;
-	std::array<AutoActor, NUM_PLAYERS> m_bgWin;
-	std::array<AutoActor, NUM_PLAYERS> m_bgWinFever;
-	std::array<RageTimer, NUM_PLAYERS> m_2DIdleTimer;
+	AutoActor m_bgIdle[NUM_PLAYERS];
+	AutoActor m_bgMiss[NUM_PLAYERS];
+	AutoActor m_bgGood[NUM_PLAYERS];
+	AutoActor m_bgGreat[NUM_PLAYERS];
+	AutoActor m_bgFever[NUM_PLAYERS];
+	AutoActor m_bgFail[NUM_PLAYERS];
+	AutoActor m_bgWin[NUM_PLAYERS];
+	AutoActor m_bgWinFever[NUM_PLAYERS];
+	RageTimer m_2DIdleTimer[NUM_PLAYERS];
 
-	std::array<int, NUM_PLAYERS> m_i2DAnimState;
+	int m_i2DAnimState[NUM_PLAYERS];
 };
 
 #endif

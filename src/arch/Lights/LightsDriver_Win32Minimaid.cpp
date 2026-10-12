@@ -6,12 +6,11 @@
 
 #include "global.h"
 #include "LightsDriver_Win32Minimaid.h"
-#define WIN32_LEAN_AND_MEAN
 #include "windows.h"
 
 REGISTER_LIGHTS_DRIVER_CLASS( Win32Minimaid );
 
-HINSTANCE hMMMAGICDLL = nullptr;
+HINSTANCE hMMMAGICDLL = NULL;
 
 int minimaid_filter(unsigned int, struct _EXCEPTION_POINTERS *)
 {
@@ -42,7 +41,7 @@ void setup_driver()
 	}
 	__except (minimaid_filter(GetExceptionCode(), GetExceptionInformation()))
 	{
-		MessageBox(nullptr, "Could not connect to the Mimimaid device. Freeing the library now.", "ERROR", MB_OK);
+		MessageBox(NULL, "Could not connect to the Mimimaid device. Freeing the library now.", "ERROR", MB_OK);
 		FreeLibrary(hMMMAGICDLL);
 	}
 
@@ -51,10 +50,10 @@ void setup_driver()
 LightsDriver_Win32Minimaid::LightsDriver_Win32Minimaid()
 {
 	_mmmagic_loaded=false;
-	hMMMAGICDLL = LoadLibraryW(L"mmmagic64.dll");
-	if(hMMMAGICDLL == nullptr)
+	hMMMAGICDLL = LoadLibraryW(L"mmmagic.dll");
+	if(hMMMAGICDLL == NULL)
 	{
-		MessageBox(nullptr, "Could not LoadLibrary( mmmagic64.dll ).", "ERROR", MB_OK );
+		MessageBox(NULL, "Could not LoadLibrary( mmmagic.dll ).", "ERROR", MB_OK );
 		return;
 	}
 	setup_driver();
@@ -64,7 +63,6 @@ LightsDriver_Win32Minimaid::~LightsDriver_Win32Minimaid()
 {
 	if (_mmmagic_loaded)
 	{
-		mm_setDDRAllOff();
 		FreeLibrary(hMMMAGICDLL);
 	}
 }

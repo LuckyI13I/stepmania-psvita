@@ -5,9 +5,6 @@
 #include "ThemeManager.h"
 #include "ActorUtil.h"
 
-#include <vector>
-
-
 REGISTER_ACTOR_CLASS( HelpDisplay );
 
 HelpDisplay::HelpDisplay()
@@ -24,8 +21,8 @@ void HelpDisplay::Load( const RString &sType )
 	m_fSecsBetweenSwitches = THEME->GetMetricF(sType,"TipSwitchTime");
 }
 
-void HelpDisplay::SetTips( const std::vector<RString> &arrayTips, const std::vector<RString> &arrayTipsAlt )
-{
+void HelpDisplay::SetTips( const vector<RString> &arrayTips, const vector<RString> &arrayTipsAlt )
+{ 
 	ASSERT( arrayTips.size() == arrayTipsAlt.size() );
 
 	if( arrayTips == m_arrayTips && arrayTipsAlt == m_arrayTipsAlt )
@@ -51,7 +48,7 @@ void HelpDisplay::Update( float fDeltaTime )
 	if( m_arrayTips.empty() )
 		return;
 
-	m_fSecsUntilSwitch -= std::max( fDeltaTime - fHibernate, 0.0f );
+	m_fSecsUntilSwitch -= max( fDeltaTime - fHibernate, 0 );
 	if( m_fSecsUntilSwitch > 0 )
 		return;
 
@@ -66,7 +63,7 @@ void HelpDisplay::Update( float fDeltaTime )
 #include "LuaBinding.h"
 #include "FontCharAliases.h"
 
-/** @brief Allow Lua to have access to the HelpDisplay. */
+/** @brief Allow Lua to have access to the HelpDisplay. */ 
 class LunaHelpDisplay: public Luna<HelpDisplay>
 {
 public:
@@ -74,14 +71,14 @@ public:
 	{
 		luaL_checktype( L, 1, LUA_TTABLE );
 		lua_pushvalue( L, 1 );
-		std::vector<RString> arrayTips;
+		vector<RString> arrayTips;
 		LuaHelpers::ReadArrayFromTable( arrayTips, L );
 		lua_pop( L, 1 );
 		for( unsigned i = 0; i < arrayTips.size(); ++i )
 			FontCharAliases::ReplaceMarkers( arrayTips[i] );
 		if( lua_gettop(L) > 1 && !lua_isnil( L, 2 ) )
 		{
-			std::vector<RString> arrayTipsAlt;
+			vector<RString> arrayTipsAlt;
 			luaL_checktype( L, 2, LUA_TTABLE );
 			lua_pushvalue( L, 2 );
 			LuaHelpers::ReadArrayFromTable( arrayTipsAlt, L );
@@ -98,7 +95,7 @@ public:
 	}
 	static int SetTipsColonSeparated( T* p, lua_State *L )
 	{
-		std::vector<RString> vs;
+		vector<RString> vs;
 		split( SArg(1), "::", vs );
 		p->SetTips( vs );
 		COMMON_RETURN_SELF;
@@ -106,7 +103,7 @@ public:
 
 	static int gettips( T* p, lua_State *L )
 	{
-		std::vector<RString> arrayTips, arrayTipsAlt;
+		vector<RString> arrayTips, arrayTipsAlt;
 		p->GetTips( arrayTips, arrayTipsAlt );
 
 		LuaHelpers::CreateTableFromArray( arrayTips, L );
@@ -130,7 +127,7 @@ LUA_REGISTER_DERIVED_CLASS( HelpDisplay, BitmapText )
 /*
  * (c) 2001-2003 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -140,7 +137,7 @@ LUA_REGISTER_DERIVED_CLASS( HelpDisplay, BitmapText )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

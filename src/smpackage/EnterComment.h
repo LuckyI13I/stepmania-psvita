@@ -2,9 +2,9 @@
 #if !defined(AFX_ENTERCOMMENT_H__DE628EA8_0FE7_4594_B2A2_47BDB283FA1E__INCLUDED_)
 #define AFX_ENTERCOMMENT_H__DE628EA8_0FE7_4594_B2A2_47BDB283FA1E__INCLUDED_
 
-#if defined(_MSC_VER)
+#if _MSC_VER > 1000
 #pragma once
-#endif
+#endif // _MSC_VER > 1000
 // EnterComment.h : header file
 
 /////////////////////////////////////////////////////////////////////////////

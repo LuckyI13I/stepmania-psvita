@@ -4,31 +4,27 @@
 #include "arch/ArchHooks/ArchHooks.h"
 #include "InputEventPlus.h"
 
-#include <vector>
-
-
 REGISTER_SCREEN_CLASS( ScreenSelectLanguage );
 
 void ScreenSelectLanguage::Init()
 {
 	// fill m_aGameCommands before calling Init()
-	std::vector<RString> vs;
+	vector<RString> vs;
 	THEME->GetLanguages( vs );
 	SortRStringArray( vs, true );
 
-	int index = 0;
-	for (RString const &s : vs)
+	FOREACH_CONST( RString, vs, s )
 	{
-		const LanguageInfo *pLI = GetLanguageInfo( s );
+		const LanguageInfo *pLI = GetLanguageInfo( *s );
 
 		GameCommand gc;
-		gc.m_iIndex = index++;
-		gc.m_sName = s;
+		gc.m_iIndex = s - vs.begin();
+		gc.m_sName = *s;
 		gc.m_bInvalid = false;
 		if( pLI )
 			gc.m_sText = THEME->GetString("NativeLanguageNames", pLI->szEnglishName);
 		else
-			gc.m_sText = s;
+			gc.m_sText = *s;
 
 		m_aGameCommands.push_back( gc );
 	}
@@ -67,7 +63,7 @@ bool ScreenSelectLanguage::MenuBack( const InputEventPlus &input )
 /*
  * (c) 2006 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -77,7 +73,7 @@ bool ScreenSelectLanguage::MenuBack( const InputEventPlus &input )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

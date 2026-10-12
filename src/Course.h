@@ -6,13 +6,11 @@
 #include "EnumHelper.h"
 #include "Trail.h"
 #include "RageTypes.h"
+#include "RageUtil_CachedObject.h"
 #include "SongUtil.h"
 #include "StepsUtil.h"
-
 #include <map>
 #include <set>
-#include <vector>
-
 
 struct lua_State;
 class Style;
@@ -20,16 +18,8 @@ struct Game;
 
 const int MAX_EDIT_COURSE_TITLE_LENGTH = 16;
 
-inline PlayMode CourseTypeToPlayMode( CourseType ct ) {
-	switch (ct) {
-		case COURSE_TYPE_NONSTOP:  return PLAY_MODE_NONSTOP;
-		case COURSE_TYPE_ONI:      return PLAY_MODE_ONI;
-		case COURSE_TYPE_ENDLESS:  return PLAY_MODE_ENDLESS;
-		case COURSE_TYPE_SURVIVAL: return PLAY_MODE_BATTLE;
-		default:                   break;
-	}
-	return PlayMode_Invalid;
-}
+inline PlayMode CourseTypeToPlayMode( CourseType ct ) { return (PlayMode)(PLAY_MODE_NONSTOP+ct); }
+inline CourseType PlayModeToCourseType( PlayMode pm ) { return (CourseType)(pm-PLAY_MODE_NONSTOP); }
 
 enum SongSort
 {
@@ -39,21 +29,16 @@ enum SongSort
 	SongSort_TopGrades,
 	SongSort_LowestGrades,
 	NUM_SongSort,
-	SongSort_Invalid,
 };
 /** @brief Loop through the various Song Sorts. */
 #define FOREACH_SongSort( i ) FOREACH_ENUM( SongSort, i )
 const RString& SongSortToString( SongSort ss );
 const RString& SongSortToLocalizedString( SongSort ss );
 
-SongSort StringToSongSort( const RString& ss );
-SongSort OldStyleStringToSongSort( const RString& ss );
-
 class CourseEntry
 {
 public:
 	bool bSecret;			// show "??????" instead of an exact song
-	bool bUseSongSelect; 	// if true, this entry was created from a #SONGSELECT entry, instead of a #SONG entry
 
 	// filter criteria, applied from top to bottom
 	SongID songID;			// don't filter if unset
@@ -62,14 +47,14 @@ public:
 	bool bNoDifficult;		// if true, CourseDifficulty doesn't affect this entry
 
 	SongSort songSort;		// sort by this after filtering
-	int iChooseIndex;		//
+	int iChooseIndex;		// 
 
 	RString sModifiers;		// set player and song options using these
 	AttackArray attacks;	// timed sModifiers
 	float fGainSeconds;	// time gained back at the beginning of the song.  LifeMeterTime only.
 	int iGainLives;			// lives gained back at the beginning of the next song
 
-	CourseEntry(): bSecret(false), bUseSongSelect(false), songID(), songCriteria(),
+	CourseEntry(): bSecret(false), songID(), songCriteria(),
 		stepsCriteria(), bNoDifficult(false),
 		songSort(SongSort_Randomize), iChooseIndex(0),
 		sModifiers(RString("")), attacks(), fGainSeconds(0),
@@ -111,8 +96,8 @@ public:
 	// Dereferences course_entries and returns only the playable Songs and Steps
 	Trail* GetTrail( StepsType st, CourseDifficulty cd=Difficulty_Medium ) const;
 	Trail* GetTrailForceRegenCache( StepsType st, CourseDifficulty cd=Difficulty_Medium ) const;
-	void GetTrails( std::vector<Trail*> &AddTo, StepsType st ) const;
-	void GetAllTrails( std::vector<Trail*> &AddTo ) const;
+	void GetTrails( vector<Trail*> &AddTo, StepsType st ) const;
+	void GetAllTrails( vector<Trail*> &AddTo ) const;
 	int GetMeter( StepsType st, CourseDifficulty cd=Difficulty_Medium ) const;
 	bool HasMods() const;
 	bool HasTimedMods() const;
@@ -149,7 +134,7 @@ public:
 	// Call when a Song or its Steps are deleted/changed.
 	void Invalidate( const Song *pStaleSong );
 
-	void GetAllCachedTrails( std::vector<Trail *> &out );
+	void GetAllCachedTrails( vector<Trail *> &out );
 	RString GetCacheFilePath() const;
 
 	const CourseEntry *FindFixedSong( const Song *pSong ) const;
@@ -165,7 +150,7 @@ public:
 	void CalculateRadarValues();
 
 	bool GetTrailUnsorted( StepsType st, CourseDifficulty cd, Trail &trail ) const;
-	void GetTrailUnsortedEndless( const std::vector<CourseEntry> &entries, Trail &trail, StepsType &st,
+	void GetTrailUnsortedEndless( const vector<CourseEntry> &entries, Trail &trail, StepsType &st,
 		CourseDifficulty &cd, RandomGen &rnd, bool &bCourseDifficultyIsSignificant ) const;
 	bool GetTrailSorted( StepsType st, CourseDifficulty cd, Trail &trail ) const;
 
@@ -194,7 +179,7 @@ public:
 
 	bool	m_bIncomplete;
 
-	std::vector<CourseEntry> m_vEntries;
+	vector<CourseEntry> m_vEntries;
 
 	// sorting values
 	int	m_SortOrder_TotalDifficulty;
@@ -202,7 +187,7 @@ public:
 
 	ProfileSlot		m_LoadedFromProfile;	// ProfileSlot_Invalid if wasn't loaded from a profile
 
-	typedef std::pair<StepsType,Difficulty> CacheEntry;
+	typedef pair<StepsType,Difficulty> CacheEntry;
 	struct CacheData
 	{
 		Trail trail;
@@ -210,15 +195,17 @@ public:
 
 		CacheData(): trail(), null(false) {}
 	};
-	typedef std::map<CacheEntry, CacheData> TrailCache_t;
+	typedef map<CacheEntry, CacheData> TrailCache_t;
 	mutable TrailCache_t m_TrailCache;
 	mutable int m_iTrailCacheSeed;
 
-	typedef std::map<CacheEntry, RadarValues> RadarCache_t;
+	typedef map<CacheEntry, RadarValues> RadarCache_t;
 	RadarCache_t m_RadarCache;
 
 	// Preferred styles:
-	std::set<RString> m_setStyles;
+	set<RString> m_setStyles;
+
+	CachedObject<Course> m_CachedObject;
 };
 
 #endif
@@ -226,7 +213,7 @@ public:
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -236,7 +223,7 @@ public:
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

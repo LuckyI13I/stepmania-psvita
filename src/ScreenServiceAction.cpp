@@ -17,9 +17,6 @@
 #include "StepMania.h"
 #include "NotesLoaderSSC.h"
 
-#include <vector>
-
-
 static LocalizedString BOOKKEEPING_DATA_CLEARED( "ScreenServiceAction", "Bookkeeping data cleared." );
 static RString ClearBookkeepingData()
 {
@@ -40,19 +37,26 @@ RString ClearMachineStats()
 static LocalizedString MACHINE_EDITS_CLEARED( "ScreenServiceAction", "%d edits cleared, %d errors." );
 static RString ClearMachineEdits()
 {
-	std::vector<RString> vsEditFiles;
+	int iNumAttempted = 0;
+	int iNumSuccessful = 0;
+	
+	vector<RString> vsEditFiles;
 	GetDirListing( PROFILEMAN->GetProfileDir(ProfileSlot_Machine)+EDIT_STEPS_SUBDIR+"*.edit", vsEditFiles, false, true );
 	GetDirListing( PROFILEMAN->GetProfileDir(ProfileSlot_Machine)+EDIT_COURSES_SUBDIR+"*.crs", vsEditFiles, false, true );
-
-	int editCount = vsEditFiles.size();
-	int removedCount = std::count_if(vsEditFiles.begin(), vsEditFiles.end(), [](RString const &i) { return FILEMAN->Remove(i); });
+	FOREACH_CONST( RString, vsEditFiles, i )
+	{
+		iNumAttempted++;
+		bool bSuccess = FILEMAN->Remove( *i );
+		if( bSuccess )
+			iNumSuccessful++;
+	}
 
 	// reload the machine profile
 	PROFILEMAN->SaveMachineProfile();
 	PROFILEMAN->LoadMachineProfile();
-
-	int errorCount = editCount - removedCount;
-	return ssprintf(MACHINE_EDITS_CLEARED.GetValue(), editCount, errorCount);
+	
+	int iNumErrors = iNumAttempted-iNumSuccessful;
+	return ssprintf(MACHINE_EDITS_CLEARED.GetValue(),iNumSuccessful,iNumErrors);
 }
 
 static PlayerNumber GetFirstReadyMemoryCard()
@@ -78,19 +82,27 @@ static RString ClearMemoryCardEdits()
 	if( pn == PLAYER_INVALID )
 		return MEMORY_CARD_EDITS_NOT_CLEARED.GetValue();
 
+	int iNumAttempted = 0;
+	int iNumSuccessful = 0;
+	
 	if( !MEMCARDMAN->IsMounted(pn) )
 		MEMCARDMAN->MountCard(pn);
 
 	RString sDir = MEM_CARD_MOUNT_POINT[pn] + (RString)PREFSMAN->m_sMemoryCardProfileSubdir + "/";
-	std::vector<RString> vsEditFiles;
+	vector<RString> vsEditFiles;
 	GetDirListing( sDir+EDIT_STEPS_SUBDIR+"*.edit", vsEditFiles, false, true );
 	GetDirListing( sDir+EDIT_COURSES_SUBDIR+"*.crs", vsEditFiles, false, true );
-	int editCount = vsEditFiles.size();
-	int removedCount = std::count_if(vsEditFiles.begin(), vsEditFiles.end(), [](RString const &i) { return FILEMAN->Remove(i); });
+	FOREACH_CONST( RString, vsEditFiles, i )
+	{
+		iNumAttempted++;
+		bool bSuccess = FILEMAN->Remove( *i );
+		if( bSuccess )
+			iNumSuccessful++;
+	}
 
 	MEMCARDMAN->UnmountCard(pn);
 
-	return ssprintf(EDITS_CLEARED.GetValue(), editCount, editCount - removedCount);
+	return ssprintf(EDITS_CLEARED.GetValue(),iNumSuccessful,iNumAttempted-iNumSuccessful);
 }
 
 
@@ -172,13 +184,13 @@ static void CopyEdits( const RString &sFromProfileDir, const RString &sToProfile
 		RString sFromDir = sFromProfileDir + EDIT_STEPS_SUBDIR;
 		RString sToDir = sToProfileDir + EDIT_STEPS_SUBDIR;
 
-		std::vector<RString> vsFiles;
+		vector<RString> vsFiles;
 		GetDirListing( sFromDir+"*.edit", vsFiles, false, false );
-		for (RString const &i : vsFiles)
+		FOREACH_CONST( RString, vsFiles, i )
 		{
-			if( DoesFileExist(sToDir + i) )
+			if( DoesFileExist(sToDir+*i) )
 				iNumOverwritten++;
-			bool bSuccess = FileCopy( sFromDir + i, sToDir + i );
+			bool bSuccess = FileCopy( sFromDir+*i, sToDir+*i );
 			if( bSuccess )
 				iNumSucceeded++;
 			else
@@ -186,7 +198,7 @@ static void CopyEdits( const RString &sFromProfileDir, const RString &sToProfile
 
 			// Test whether the song we need for this edit is present and ignore this edit if not present.
 			SSCLoader loaderSSC;
-			if( !loaderSSC.LoadEditFromFile( sFromDir + i, ProfileSlot_Machine, false ) )
+			if( !loaderSSC.LoadEditFromFile( sFromDir+*i, ProfileSlot_Machine, false ) )
 			{
 				iNumIgnored++;
 				continue;
@@ -200,13 +212,13 @@ static void CopyEdits( const RString &sFromProfileDir, const RString &sToProfile
 		RString sFromDir = sFromProfileDir + EDIT_COURSES_SUBDIR;
 		RString sToDir = sToProfileDir + EDIT_COURSES_SUBDIR;
 
-		std::vector<RString> vsFiles;
+		vector<RString> vsFiles;
 		GetDirListing( sFromDir+"*.crs", vsFiles, false, false );
-		for (RString const &i : vsFiles)
+		FOREACH_CONST( RString, vsFiles, i )
 		{
-			if( DoesFileExist(sToDir + i) )
+			if( DoesFileExist(sToDir+*i) )
 				iNumOverwritten++;
-			bool bSuccess = FileCopy( sFromDir + i, sToDir + i );
+			bool bSuccess = FileCopy( sFromDir+*i, sToDir+*i );
 			if( bSuccess )
 				iNumSucceeded++;
 			else
@@ -233,7 +245,7 @@ static RString CopyEdits( const RString &sFromProfileDir, const RString &sToProf
 
 	CopyEdits( sFromProfileDir, sToProfileDir, iNumSucceeded, iNumOverwritten, iNumIgnored, iNumErrored );
 
-	std::vector<RString> vs;
+	vector<RString> vs;
 	vs.push_back( sDisplayDir );
 	vs.push_back( ssprintf( COPIED.GetValue(), iNumSucceeded ) + ", " + ssprintf( OVERWRITTEN.GetValue(), iNumOverwritten ) );
 	if( iNumIgnored )
@@ -245,13 +257,13 @@ static RString CopyEdits( const RString &sFromProfileDir, const RString &sToProf
 
 static void SyncFiles( const RString &sFromDir, const RString &sToDir, const RString &sMask, int &iNumAdded, int &iNumDeleted, int &iNumOverwritten, int &iNumFailed )
 {
-	std::vector<RString> vsFilesSource;
+	vector<RString> vsFilesSource;
 	GetDirListing( sFromDir+sMask, vsFilesSource, false, false );
 
-	std::vector<RString> vsFilesDest;
+	vector<RString> vsFilesDest;
 	GetDirListing( sToDir+sMask, vsFilesDest, false, false );
 
-	std::vector<RString> vsToDelete;
+	vector<RString> vsToDelete;
 	GetAsNotInBs( vsFilesDest, vsFilesSource, vsToDelete );
 
 	for( unsigned i = 0; i < vsToDelete.size(); ++i )
@@ -308,11 +320,11 @@ static RString CopyEditsMachineToMemoryCard()
 	RString sFromDir = PROFILEMAN->GetProfileDir(ProfileSlot_Machine);
 	RString sToDir = MEM_CARD_MOUNT_POINT[pn] + (RString)PREFSMAN->m_sMemoryCardProfileSubdir + "/";
 
-	std::vector<RString> vs;
+	vector<RString> vs;
 	vs.push_back( ssprintf( COPIED_TO_CARD.GetValue(), pn+1 ) );
 	RString s = CopyEdits( sFromDir, sToDir, PREFSMAN->m_sMemoryCardProfileSubdir );
 	vs.push_back( s );
-
+	
 	MEMCARDMAN->UnmountCard(pn);
 
 	return join("\n\n",vs);
@@ -335,7 +347,7 @@ static RString SyncEditsMachineToMemoryCard()
 	RString sFromDir = PROFILEMAN->GetProfileDir(ProfileSlot_Machine);
 	RString sToDir = MEM_CARD_MOUNT_POINT[pn] + (RString)PREFSMAN->m_sMemoryCardProfileSubdir + "/";
 	SyncEdits( sFromDir, sToDir, iNumAdded, iNumDeleted, iNumOverwritten, iNumFailed );
-
+	
 	MEMCARDMAN->UnmountCard(pn);
 
 	RString sRet = ssprintf( COPIED_TO_CARD.GetValue(), pn+1 ) + " ";
@@ -357,21 +369,21 @@ static RString CopyEditsMemoryCardToMachine()
 	if( !MEMCARDMAN->IsMounted(pn) )
 		MEMCARDMAN->MountCard(pn);
 
-	std::vector<RString> vsSubDirs;
+	vector<RString> vsSubDirs;
 	ProfileManager::GetMemoryCardProfileDirectoriesToTry( vsSubDirs );
 
-	std::vector<RString> vs;
+	vector<RString> vs;
 	vs.push_back( ssprintf( COPIED_FROM_CARD.GetValue(), pn+1 ) );
 
-	for (RString const &sSubDir : vsSubDirs)
+	FOREACH_CONST( RString, vsSubDirs, sSubDir )
 	{
-		RString sFromDir = MEM_CARD_MOUNT_POINT[pn] + sSubDir + "/";
+		RString sFromDir = MEM_CARD_MOUNT_POINT[pn] + (RString)(*sSubDir) + "/";
 		RString sToDir = PROFILEMAN->GetProfileDir(ProfileSlot_Machine);
 
-		RString s = CopyEdits( sFromDir, sToDir, sSubDir );
+		RString s = CopyEdits( sFromDir, sToDir, *sSubDir );
 		vs.push_back( s );
 	}
-
+	
 	MEMCARDMAN->UnmountCard(pn);
 
 	// reload the machine profile
@@ -394,27 +406,27 @@ REGISTER_SCREEN_CLASS( ScreenServiceAction );
 void ScreenServiceAction::BeginScreen()
 {
 	RString sActions = THEME->GetMetric(m_sName,"Actions");
-	std::vector<RString> vsActions;
+	vector<RString> vsActions;
 	split( sActions, ",", vsActions );
 
-	std::vector<RString> vsResults;
-	for (RString const &s : vsActions)
+	vector<RString> vsResults;
+	FOREACH( RString, vsActions, s )
 	{
-		RString (*pfn)() = nullptr;
+		RString (*pfn)() = NULL;
 
-		if(	 s == "ClearBookkeepingData" )			pfn = ClearBookkeepingData;
-		else if( s == "ClearMachineStats" )			pfn = ClearMachineStats;
-		else if( s == "ClearMachineEdits" )			pfn = ClearMachineEdits;
-		else if( s == "ClearMemoryCardEdits" )			pfn = ClearMemoryCardEdits;
-		else if( s == "TransferStatsMachineToMemoryCard" )	pfn = TransferStatsMachineToMemoryCard;
-		else if( s == "TransferStatsMemoryCardToMachine" )	pfn = TransferStatsMemoryCardToMachine;
-		else if( s == "CopyEditsMachineToMemoryCard" )		pfn = CopyEditsMachineToMemoryCard;
-		else if( s == "CopyEditsMemoryCardToMachine" )		pfn = CopyEditsMemoryCardToMachine;
-		else if( s == "SyncEditsMachineToMemoryCard" )		pfn = SyncEditsMachineToMemoryCard;
-		else if( s == "ResetPreferences" )			pfn = ResetPreferences;
-
-		ASSERT_M( pfn != nullptr, s );
-
+		if(	 *s == "ClearBookkeepingData" )			pfn = ClearBookkeepingData;
+		else if( *s == "ClearMachineStats" )			pfn = ClearMachineStats;
+		else if( *s == "ClearMachineEdits" )			pfn = ClearMachineEdits;
+		else if( *s == "ClearMemoryCardEdits" )			pfn = ClearMemoryCardEdits;
+		else if( *s == "TransferStatsMachineToMemoryCard" )	pfn = TransferStatsMachineToMemoryCard;
+		else if( *s == "TransferStatsMemoryCardToMachine" )	pfn = TransferStatsMemoryCardToMachine;
+		else if( *s == "CopyEditsMachineToMemoryCard" )		pfn = CopyEditsMachineToMemoryCard;
+		else if( *s == "CopyEditsMemoryCardToMachine" )		pfn = CopyEditsMemoryCardToMachine;
+		else if( *s == "SyncEditsMachineToMemoryCard" )		pfn = SyncEditsMachineToMemoryCard;
+		else if( *s == "ResetPreferences" )			pfn = ResetPreferences;
+		
+		ASSERT_M( pfn != NULL, *s );
+		
 		RString sResult = pfn();
 		vsResults.push_back( sResult );
 	}
@@ -427,7 +439,7 @@ void ScreenServiceAction::BeginScreen()
 /*
  * (c) 2001-2005 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -437,7 +449,7 @@ void ScreenServiceAction::BeginScreen()
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

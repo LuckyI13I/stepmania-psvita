@@ -8,9 +8,6 @@
 #include "Grade.h"
 #include "Profile.h"
 
-#include <vector>
-
-
 class Song;
 class Steps;
 class Style;
@@ -18,7 +15,6 @@ class Course;
 class Trail;
 struct HighScore;
 struct lua_State;
-
 /** @brief Interface to machine and memory card profiles. */
 class ProfileManager
 {
@@ -33,10 +29,6 @@ public:
 	// local profiles
 	void UnloadAllLocalProfiles();
 	void RefreshLocalProfilesFromDisk();
-	void LoadLocalProfilesByPriority();
-	void LoadLocalProfilesByRecent();
-	void LoadLocalProfilesByName();
-
 	const Profile *GetLocalProfile( const RString &sProfileID ) const;
 	Profile *GetLocalProfile( const RString &sProfileID ) { return (Profile*) ((const ProfileManager *) this)->GetLocalProfile(sProfileID); }
 	Profile *GetLocalProfileFromIndex( int iIndex );
@@ -46,8 +38,8 @@ public:
 	void AddLocalProfileByID( Profile *pProfile, RString sProfileID ); // transfers ownership of pProfile
 	bool RenameLocalProfile( RString sProfileID, RString sNewName );
 	bool DeleteLocalProfile( RString sProfileID );
-	void GetLocalProfileIDs( std::vector<RString> &vsProfileIDsOut ) const;
-	void GetLocalProfileDisplayNames( std::vector<RString> &vsProfileDisplayNamesOut ) const;
+	void GetLocalProfileIDs( vector<RString> &vsProfileIDsOut ) const;
+	void GetLocalProfileDisplayNames( vector<RString> &vsProfileDisplayNamesOut ) const;
 	int GetLocalProfileIndexFromID( RString sProfileID ) const;
 	int GetNumLocalProfiles() const;
 
@@ -66,8 +58,6 @@ public:
 	void MergeLocalProfileIntoMachine(RString const& from_id, bool skip_totals);
 	void ChangeProfileType(int index, ProfileType new_type);
 	void MoveProfilePriority(int index, bool up);
-	void MoveProfileTopBottom(int index, bool top);
-	void MoveProfileSorted(int index, bool bAscending);
 
 	// General data
 	void IncrementToastiesCount( PlayerNumber pn );
@@ -112,7 +102,7 @@ public:
 	void AddCategoryScore( StepsType st, RankingCategory rc, PlayerNumber pn, const HighScore &hs, int &iPersonalIndexOut, int &iMachineIndexOut );
 	void IncrementCategoryPlayCount( StepsType st, RankingCategory rc, PlayerNumber pn );
 
-	static void GetMemoryCardProfileDirectoriesToTry( std::vector<RString> &asDirsToTry );
+	static void GetMemoryCardProfileDirectoriesToTry( vector<RString> &asDirsToTry );
 
 	// Lua
 	void PushSelf( lua_State *L );
@@ -150,7 +140,7 @@ extern ProfileManager*	PROFILEMAN;	// global and accessible from anywhere in our
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -160,7 +150,7 @@ extern ProfileManager*	PROFILEMAN;	// global and accessible from anywhere in our
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

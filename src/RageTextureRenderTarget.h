@@ -7,8 +7,6 @@
 #include "RageTextureID.h"
 #include "RageDisplay.h" // for RenderTargetParam
 
-#include <cstdint>
-
 class RageTextureRenderTarget: public RageTexture
 {
 public:
@@ -16,7 +14,7 @@ public:
 	virtual ~RageTextureRenderTarget();
 	virtual void Invalidate() { m_iTexHandle = 0; /* don't Destroy() */ }
 	virtual void Reload();
-	virtual std::uintptr_t GetTexHandle() const { return m_iTexHandle; }
+	virtual unsigned GetTexHandle() const { return m_iTexHandle; }
 
 	void BeginRenderingTo( bool bPreserveTexture = true );
 	void FinishRenderingTo();
@@ -28,8 +26,8 @@ private:
 
 	void Create();
 	void Destroy();
-	std::uintptr_t m_iTexHandle;
-	std::uintptr_t m_iPreviousRenderTarget;
+	unsigned m_iTexHandle;
+	unsigned m_iPreviousRenderTarget;
 };
 
 #endif

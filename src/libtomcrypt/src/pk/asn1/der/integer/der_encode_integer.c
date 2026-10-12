@@ -5,6 +5,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -25,7 +27,7 @@
   @return CRYPT_OK if successful
 */
 int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
-{
+{  
    unsigned long tmplen, y;
    int           err, leading_zero;
 
@@ -95,7 +97,7 @@ int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
       }
    } else if (mp_iszero(num) != LTC_MP_YES) {
       void *tmp;
-
+         
       /* negative */
       if (mp_init(&tmp) != CRYPT_OK) {
          return CRYPT_MEM;
@@ -117,12 +119,12 @@ int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
    }
 
    /* we good */
-   *outlen = tmplen;
+   *outlen = tmplen; 
    return CRYPT_OK;
 }
 
 #endif
 
-/* ref:         HEAD -> master, tag: v1.18.2 */
-/* git commit:  7e7eb695d581782f04b24dc444cbfde86af59853 */
-/* commit time: 2018-07-01 22:49:01 +0200 */
+/* $Source$ */
+/* $Revision: 24838 $ */
+/* $Date: 2007-01-23 23:16:57 -0600 (Tue, 23 Jan 2007) $ */

@@ -3,10 +3,7 @@
 #define JsonUtil_H
 
 class RageFileBasic;
-#include "json/json.h"
-
-#include <vector>
-
+#include "json/value.h"
 
 namespace JsonUtil
 {
@@ -17,10 +14,8 @@ namespace JsonUtil
 
 	bool WriteFile(const Json::Value &root, const RString &sFile, bool bMinified);
 
-	std::vector<RString> DeserializeArrayStrings(const Json::Value &array);
-
 	template<class T>
-	static void SerializeVectorObjects(const std::vector<T> &v, void fn(const T &, Json::Value &), Json::Value &root)
+	static void SerializeVectorObjects(const vector<T> &v, void fn(const T &, Json::Value &), Json::Value &root)
 	{
 		root = Json::Value(Json::arrayValue);
 		root.resize(v.size());
@@ -29,25 +24,25 @@ namespace JsonUtil
 	}
 
 	template<class T>
-	static void SerializeVectorPointers(const std::vector<const T*> &v, void fn(const T &, Json::Value &), Json::Value &root)
+	static void SerializeVectorPointers(const vector<const T*> &v, void fn(const T &, Json::Value &), Json::Value &root)
 	{
 		root = Json::Value(Json::arrayValue);
 		root.resize(v.size());
 		for(unsigned i=0; i<v.size(); i++)
 			fn(*v[i], root[i]);
 	}
-
+	
 	template<class T>
-	static void SerializeVectorPointers(const std::vector<T*> &v, void fn(const T &, Json::Value &), Json::Value &root)
+	static void SerializeVectorPointers(const vector<T*> &v, void fn(const T &, Json::Value &), Json::Value &root)
 	{
 		root = Json::Value(Json::arrayValue);
 		root.resize(v.size());
 		for(unsigned i=0; i<v.size(); i++)
 			fn(*v[i], root[i]);
 	}
-
+	
 	template<class T>
-	static void SerializeVectorPointers(const std::vector<const T*> &v, void fn(const T *, Json::Value &), Json::Value &root)
+	static void SerializeVectorPointers(const vector<const T*> &v, void fn(const T *, Json::Value &), Json::Value &root)
 	{
 		root = Json::Value(Json::arrayValue);
 		root.resize(v.size());
@@ -136,7 +131,7 @@ namespace JsonUtil
 	}
 
 	template<class T>
-	static void SerializeVectorValues(const std::vector<T> &v, Json::Value &root)
+	static void SerializeVectorValues(const vector<T> &v, Json::Value &root)
 	{
 		root = Json::Value(Json::arrayValue);
 		root.resize(v.size());
@@ -145,7 +140,7 @@ namespace JsonUtil
 	}
 
 	template<class T>
-	static void DeserializeVectorObjects(std::vector<T> &v, void fn(T &, const Json::Value &), const Json::Value &root)
+	static void DeserializeVectorObjects(vector<T> &v, void fn(T &, const Json::Value &), const Json::Value &root)
 	{
 		v.resize(root.size());
 		for(unsigned i=0; i<v.size(); i++)
@@ -161,7 +156,7 @@ namespace JsonUtil
 	}
 
 	template<class T>
-	static void DeserializeVectorPointers(std::vector<T*> &v, void fn(T &, const Json::Value &), const Json::Value &root)
+	static void DeserializeVectorPointers(vector<T*> &v, void fn(T &, const Json::Value &), const Json::Value &root)
 	{
 		for(unsigned i=0; i<v.size(); i++)
 			SAFE_DELETE(v[i]);
@@ -172,9 +167,9 @@ namespace JsonUtil
 			fn(*v[i], root[i]);
 		}
 	}
-
+	
 	template<class T>
-	static void DeserializeVectorPointers(std::vector<T*> &v, void fn(T *, const Json::Value &), const Json::Value &root)
+	static void DeserializeVectorPointers(vector<T*> &v, void fn(T *, const Json::Value &), const Json::Value &root)
 	{
 		for(unsigned i=0; i<v.size(); i++)
 			SAFE_DELETE(v[i]);
@@ -188,7 +183,7 @@ namespace JsonUtil
 
 	/* For classes with one-parameter constructors, such as Steps */
 	template<class T, class P>
-	static void DeserializeVectorPointersParam(std::vector<T*> &v, void fn(T &, const Json::Value &), const Json::Value &root, const P param)
+	static void DeserializeVectorPointersParam(vector<T*> &v, void fn(T &, const Json::Value &), const Json::Value &root, const P param)
 	{
 		for(unsigned i=0; i<v.size(); i++)
 			SAFE_DELETE(v[i]);
@@ -200,16 +195,67 @@ namespace JsonUtil
 		}
 	}
 
+	template<class T>
+	static void DeserializeArrayValues(vector<T> &v, const Json::Value &root)
+	{
+		v.clear();
+		for( unsigned i=0; i<root.size(); i++ )
+		{
+			T t;
+			if( root[i].TryGet( t ) )
+				v.push_back( t );
+		}
+	}
+
+	// don't pull in the set header here
+	template<typename S, typename T>
+	static void DeserializeArrayValuesIntoSet(S &s, const Json::Value &root)
+	{
+		s.clear();
+		for( unsigned i=0; i<root.size(); i++ )
+		{
+			T t;
+			if( root[i].TryGet( t ) )
+				s.insert( t );
+		}
+	}
+
+	template<typename T>
+	static void DeserializeArrayValuesIntoVector(vector<T> &v, const Json::Value &root)
+	{
+		v.clear();
+		for( unsigned i=0; i<root.size(); i++ )
+		{
+			T t;
+			if( root[i].TryGet( t ) )
+				v.push_back( t );
+		}
+	}
+
+	template <typename M>
+	static void DeserializeValueToValueMap(M &m, const Json::Value &root)
+	{
+		for( Json::Value::const_iterator iter = root.begin(); iter != root.end(); iter++ )
+			(*iter).TryGet( m[ iter.memberName() ] );
+	}
+
+	template <typename M, typename E, typename F>
+	static void DeserializeStringToValueMap(M &m, F fnToValue(E e), const Json::Value &root)
+	{
+		for( Json::Value::const_iterator iter = root.begin(); iter != root.end(); iter++ )
+			(*iter).TryGet( m[ fnToValue(iter.memberName()) ] );
+	}
+
 	template <typename M, typename E, typename F>
 	static void DeserializeStringToObjectMap(M &m, F fnToValue(E e), const Json::Value &root)
 	{
 		for( Json::Value::const_iterator iter = root.begin(); iter != root.end(); iter++ )
-			m[ fnToValue(iter.name()) ].Deserialize( *iter );
+			m[ fnToValue(iter.memberName()) ].Deserialize( *iter );
 	}
 
 	// Serialize a map that has a non-string key type
 	template <typename K, typename V>
-	static void DeserializeObjectToObjectMapAsArray(std::map<K,V> &m, const RString &sKeyName, const RString &sValueName, const Json::Value &root)
+	static void DeserializeObjectToObjectMapAsArray(map<K,V> &m, const RString &sKeyName, const RString &sValueName, const Json::Value &root)
 	{
 		m.clear();
 		ASSERT( root.type() == Json::arrayValue );
@@ -226,8 +272,24 @@ namespace JsonUtil
 		}
 	}
 
+	template <typename K, typename V>
+	static void DeserializeObjectToValueMapAsArray(map<K,V> &m, const RString &sKeyName, const RString &sValueName, const Json::Value &root)
+	{
+		for( unsigned i=0; i<root.size(); i++ )
+		{
+			const Json::Value &root2 = root[i];
+			K k;
+			if( !k.Deserialize( root2[sKeyName] ) )
+				continue;
+			V v;
+			if( !root2[sValueName].TryGet(v) )
+				continue;
+			m[k] = v;
+		}
+	}
+
 	template<class T>
-	static void DeserializeVectorValues(std::vector<T> &v, const Json::Value &root)
+	static void DeserializeVectorValues(vector<T> &v, const Json::Value &root)
 	{
 		v.resize(root.size());
 		for(unsigned i=0; i<v.size(); i++)
@@ -240,7 +302,7 @@ namespace JsonUtil
 /*
  * (c) 2010 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -250,7 +312,7 @@ namespace JsonUtil
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

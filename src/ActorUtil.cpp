@@ -10,17 +10,16 @@
 #include "XmlFileUtil.h"
 #include "IniFile.h"
 #include "LuaManager.h"
+#include "Foreach.h"
 #include "Song.h"
 #include "Course.h"
 #include "GameState.h"
 
 #include "arch/Dialog/Dialog.h"
 
-#include <vector>
-
 
 // Actor registration
-static std::map<RString,CreateActorFn>	*g_pmapRegistrees = nullptr;
+static map<RString,CreateActorFn>	*g_pmapRegistrees = NULL;
 
 static bool IsRegistered( const RString& sClassName )
 {
@@ -29,10 +28,10 @@ static bool IsRegistered( const RString& sClassName )
 
 void ActorUtil::Register( const RString& sClassName, CreateActorFn pfn )
 {
-	if( g_pmapRegistrees == nullptr )
-		g_pmapRegistrees = new std::map<RString,CreateActorFn>;
+	if( g_pmapRegistrees == NULL )
+		g_pmapRegistrees = new map<RString,CreateActorFn>;
 
-	std::map<RString,CreateActorFn>::iterator iter = g_pmapRegistrees->find( sClassName );
+	map<RString,CreateActorFn>::iterator iter = g_pmapRegistrees->find( sClassName );
 	ASSERT_M( iter == g_pmapRegistrees->end(), ssprintf("Actor class '%s' already registered.", sClassName.c_str()) );
 
 	(*g_pmapRegistrees)[sClassName] = pfn;
@@ -50,7 +49,7 @@ bool ActorUtil::ResolvePath( RString &sPath, const RString &sName, bool optional
 	RageFileManager::FileType ft = FILEMAN->GetFileType( sPath );
 	if( ft != RageFileManager::TYPE_FILE && ft != RageFileManager::TYPE_DIR )
 	{
-		std::vector<RString> asPaths;
+		vector<RString> asPaths;
 		GetDirListing( sPath + "*", asPaths, false, true );	// return path too
 
 		if( asPaths.empty() )
@@ -63,7 +62,7 @@ bool ActorUtil::ResolvePath( RString &sPath, const RString &sName, bool optional
 			switch(LuaHelpers::ReportScriptError(sError, "BROKEN_FILE_REFERENCE", true))
 			{
 			case Dialog::abort:
-				RageException::Throw( "%s", sError.c_str() );
+				RageException::Throw( "%s", sError.c_str() ); 
 				break;
 			case Dialog::retry:
 				FILEMAN->FlushDirCache();
@@ -84,7 +83,7 @@ bool ActorUtil::ResolvePath( RString &sPath, const RString &sName, bool optional
 			switch(LuaHelpers::ReportScriptError(sError, "BROKEN_FILE_REFERENCE", true))
 			{
 			case Dialog::abort:
-				RageException::Throw( "%s", sError.c_str() );
+				RageException::Throw( "%s", sError.c_str() ); 
 				break;
 			case Dialog::retry:
 				FILEMAN->FlushDirCache();
@@ -124,7 +123,7 @@ namespace
 		// The non-legacy LoadFromNode has already checked the Class and
 		// Type attributes.
 
-		if (pActor->GetAttr("Text") != nullptr)
+		if (pActor->GetAttr("Text") != NULL)
 			return "BitmapText";
 
 		RString sFile;
@@ -173,7 +172,7 @@ namespace
 
 Actor *ActorUtil::LoadFromNode( const XNode* _pNode, Actor *pParentActor )
 {
-	ASSERT( _pNode != nullptr );
+	ASSERT( _pNode != NULL );
 
 	XNode node = *_pNode;
 
@@ -183,7 +182,7 @@ Actor *ActorUtil::LoadFromNode( const XNode* _pNode, Actor *pParentActor )
 	{
 		bool bCond;
 		if( node.GetAttrValue("Condition", bCond) && !bCond )
-			return nullptr;
+			return NULL;
 	}
 
 	RString sClass;
@@ -191,11 +190,11 @@ Actor *ActorUtil::LoadFromNode( const XNode* _pNode, Actor *pParentActor )
 	if( !bHasClass )
 		bHasClass = node.GetAttrValue( "Type", sClass );
 
-	bool bLegacy = (node.GetAttr( "_LegacyXml" ) != nullptr);
+	bool bLegacy = (node.GetAttr( "_LegacyXml" ) != NULL);
 	if( !bHasClass && bLegacy )
 		sClass = GetLegacyActorClass( &node );
 
-	std::map<RString,CreateActorFn>::iterator iter = g_pmapRegistrees->find( sClass );
+	map<RString,CreateActorFn>::iterator iter = g_pmapRegistrees->find( sClass );
 	if( iter == g_pmapRegistrees->end() )
 	{
 		RString sFile;
@@ -210,8 +209,8 @@ Actor *ActorUtil::LoadFromNode( const XNode* _pNode, Actor *pParentActor )
 			if (ResolvePath(sPath, GetWhere(&node)))
 			{
 				Actor *pNewActor = MakeActor(sPath, pParentActor);
-				if (pNewActor == nullptr)
-					return nullptr;
+				if (pNewActor == NULL)
+					return NULL;
 				if (pParentActor)
 					pNewActor->SetParent(pParentActor);
 				pNewActor->LoadFromNode(&node);
@@ -242,7 +241,7 @@ namespace
 	{
 		RString sScript;
 		if( !GetFileContents(sFile, sScript) )
-			return nullptr;
+			return NULL;
 
 		Lua *L = LUA->Get();
 
@@ -252,10 +251,10 @@ namespace
 			LUA->Release( L );
 			sError = ssprintf( "Lua runtime error: %s", sError.c_str() );
 			LuaHelpers::ReportScriptError(sError);
-			return nullptr;
+			return NULL;
 		}
 
-		XNode *pRet = nullptr;
+		XNode *pRet = NULL;
 		if( ActorUtil::LoadTableFromStackShowErrors(L) )
 			pRet = XmlFileUtil::XNodeFromTable( L );
 
@@ -296,7 +295,7 @@ bool ActorUtil::LoadTableFromStackShowErrors( Lua *L )
 	return true;
 }
 
-// NOTE: This function can return nullptr if the actor should not be displayed.
+// NOTE: This function can return NULL if the actor should not be displayed.
 // Callers should be aware of this and handle it appropriately.
 Actor* ActorUtil::MakeActor( const RString &sPath_, Actor *pParentActor )
 {
@@ -307,8 +306,8 @@ Actor* ActorUtil::MakeActor( const RString &sPath_, Actor *pParentActor )
 	{
 	case FT_Lua:
 		{
-			std::unique_ptr<XNode> pNode( LoadXNodeFromLuaShowErrors(sPath) );
-			if( pNode.get() == nullptr )
+			auto_ptr<XNode> pNode( LoadXNodeFromLuaShowErrors(sPath) );
+			if( pNode.get() == NULL )
 			{
 				// XNode will warn about the error
 				return new Actor;
@@ -473,12 +472,13 @@ void ActorUtil::LoadAllCommands( Actor& actor, const RString &sMetricsGroup )
 
 void ActorUtil::LoadAllCommandsFromName( Actor& actor, const RString &sMetricsGroup, const RString &sName )
 {
-	std::set<RString> vsValueNames;
+	set<RString> vsValueNames;
 	THEME->GetMetricsThatBeginWith( sMetricsGroup, sName, vsValueNames );
 
-	for (RString const & sv : vsValueNames)
+	FOREACHS_CONST( RString, vsValueNames, v )
 	{
-		static const RString sEnding = "Command";
+		const RString &sv = *v;
+		static const RString sEnding = "Command"; 
 		if( EndsWith(sv,sEnding) )
 		{
 			RString sCommandName( sv.begin()+sName.size(), sv.end()-sEnding.size() );
@@ -492,7 +492,7 @@ static bool CompareActorsByZPosition(const Actor *p1, const Actor *p2)
 	return p1->GetZ() < p2->GetZ();
 }
 
-void ActorUtil::SortByZPosition( std::vector<Actor*> &vActors )
+void ActorUtil::SortByZPosition( vector<Actor*> &vActors )
 {
 	// Preserve ordering of Actors with equal Z positions.
 	stable_sort( vActors.begin(), vActors.end(), CompareActorsByZPosition );
@@ -513,8 +513,8 @@ XToString( FileType );
 LuaXType( FileType );
 
 // convenience so the for-loop lines can be shorter.
-typedef std::map<RString, FileType> etft_cont_t;
-typedef std::map<FileType, std::vector<RString> > fttel_cont_t;
+typedef map<RString, FileType> etft_cont_t;
+typedef map<FileType, vector<RString> > fttel_cont_t;
 etft_cont_t ExtensionToFileType;
 fttel_cont_t FileTypeToExtensionList;
 
@@ -571,18 +571,18 @@ void ActorUtil::InitFileTypeLists()
 	}
 }
 
-std::vector<RString> const& ActorUtil::GetTypeExtensionList(FileType ft)
+vector<RString> const& ActorUtil::GetTypeExtensionList(FileType ft)
 {
 	return FileTypeToExtensionList[ft];
 }
 
-void ActorUtil::AddTypeExtensionsToList(FileType ft, std::vector<RString>& add_to)
+void ActorUtil::AddTypeExtensionsToList(FileType ft, vector<RString>& add_to)
 {
 	fttel_cont_t::iterator ext_list= FileTypeToExtensionList.find(ft);
 	if(ext_list != FileTypeToExtensionList.end())
 	{
 		add_to.reserve(add_to.size() + ext_list->second.size());
-		for(std::vector<RString>::iterator curr= ext_list->second.begin();
+		for(vector<RString>::iterator curr= ext_list->second.begin();
 				curr != ext_list->second.end(); ++curr)
 		{
 			add_to.push_back(*curr);
@@ -678,9 +678,9 @@ namespace
 		LIST_METHOD( ResolvePath ),
 		LIST_METHOD( IsRegisteredClass ),
 		LIST_METHOD( LoadAllCommands ),
-		LIST_METHOD( LoadAllCommandsFromName ),
+		LIST_METHOD( LoadAllCommandsFromName ), 
 		LIST_METHOD( LoadAllCommandsAndSetXY ),
-		{ nullptr, nullptr }
+		{ NULL, NULL }
 	};
 }
 
@@ -689,7 +689,7 @@ LUA_REGISTER_NAMESPACE( ActorUtil )
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -699,7 +699,7 @@ LUA_REGISTER_NAMESPACE( ActorUtil )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

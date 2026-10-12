@@ -2,31 +2,30 @@
 #define LOW_LEVEL_WINDOW_VITA_H
 
 #include "arch/LowLevelWindow/LowLevelWindow.h"
+#include "RageDisplay.h" // VideoModeParams (full type for m_ActualParams)
 
-// LowLevelWindow_Vita: EGL/vitaGL window for PS Vita.
-// - TryVideoMode: vglInit() once, create EGL context via vitaGL EGL subset,
-//   fixed 960x544 framebuffer. Sets bNewDeviceOut=true on first init.
-// - SwapBuffers: vglSwapBuffers(GL_FALSE) + sceDisplayWaitVblankStart() if vsync.
-// - GetProcAddress: eglGetProcAddress() fallback.
+// LowLevelWindow_Vita: vitaGL window for PS Vita (StepMania 5.0).
+// - TryVideoMode: vglInit() once; fixed 960x544 framebuffer.
+// - SwapBuffers: vglSwapBuffers() with vsync flag.
+// - GetProcAddress: stub (vitaGL is statically linked).
 class LowLevelWindow_Vita : public LowLevelWindow
 {
 public:
 	LowLevelWindow_Vita();
-	~LowLevelWindow_Vita() override;
+	virtual ~LowLevelWindow_Vita();
 
-	void *GetProcAddress(RString s) override;
-	RString TryVideoMode(const VideoModeParams &p, bool &bNewDeviceOut) override;
-	void GetDisplaySpecs(DisplaySpecs &out) const override;
-	void SwapBuffers() override;
-	void Update() override;
-	const ActualVideoModeParams GetActualVideoModeParams() const override;
-	bool SupportsRenderToTexture() const override { return true; }
+	void *GetProcAddress(RString s);
+	RString TryVideoMode(const VideoModeParams &p, bool &bNewDeviceOut);
+	void GetDisplayResolutions(DisplayResolutions &out) const;
+	void SwapBuffers();
+	void Update() { }
+
+	const VideoModeParams &GetActualVideoModeParams() const { return m_ActualParams; }
+	bool SupportsRenderToTexture() const { return true; }
 
 private:
 	bool m_bInited;
-	int m_iWidth;
-	int m_iHeight;
-	bool m_bVsync;
+	VideoModeParams m_ActualParams;
 };
 
 #endif

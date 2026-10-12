@@ -11,10 +11,6 @@ LightsDriver_Export::LightsDriver_Export()
 	memset( &m_State, 0, sizeof(m_State) );
 }
 
-LightsDriver_Export::~LightsDriver_Export()
-{
-}
-
 void LightsDriver_Export::Set( const LightsState *ls )
 {
 	m_Lock.Lock();

@@ -1,13 +1,10 @@
 #include "global.h"
 #include "ArchHooks.h"
 #include "RageUtil.h"
-#include "RageLog.h"
 #include "archutils/Win32/SpecialDirs.h"
 #include "ProductInfo.h"
 #include "RageFileManager.h"
-
-#include <cstdint>
-#include <vector>
+#include "SpecialFiles.h"
 
 // for timeGetTime
 #include <windows.h>
@@ -28,18 +25,18 @@ static void InitTimer()
 	timeBeginPeriod( 1 );
 }
 
-std::int64_t ArchHooks::GetMicrosecondsSinceStart( bool bAccurate )
+int64_t ArchHooks::GetMicrosecondsSinceStart( bool bAccurate )
 {
 	if( !g_bTimerInitialized )
 		InitTimer();
 
-	std::int64_t ret = timeGetTime() * std::int64_t(1000);
+	int64_t ret = timeGetTime() * int64_t(1000);
 	if( bAccurate )
 	{
 		ret = FixupTimeIfLooped( ret );
 		ret = FixupTimeIfBackwards( ret );
 	}
-
+	
 	return ret;
 }
 
@@ -47,7 +44,7 @@ static RString GetMountDir( const RString &sDirOfExecutable )
 {
 	/* All Windows data goes in the directory one level above the executable. */
 	CHECKPOINT_M( ssprintf( "DOE \"%s\"", sDirOfExecutable.c_str()) );
-	std::vector<RString> asParts;
+	vector<RString> asParts;
 	split( sDirOfExecutable, "/", asParts );
 	CHECKPOINT_M( ssprintf( "... %i asParts", asParts.size()) );
 	ASSERT_M( asParts.size() > 1, ssprintf("Strange sDirOfExecutable: %s", sDirOfExecutable.c_str()) );
@@ -58,29 +55,8 @@ static RString GetMountDir( const RString &sDirOfExecutable )
 void ArchHooks::MountInitialFilesystems( const RString &sDirOfExecutable )
 {
 	RString sDir = GetMountDir( sDirOfExecutable );
-	FILEMAN->Mount("dirro", sDir, "/");
-
-	bool portable = DoesFileExist("/Portable.ini");
-	if (portable)
-	{
-		FILEMAN->Mount("dir", sDir + "/Announcers", "/Announcers");
-		FILEMAN->Mount("dir", sDir + "/BGAnimations", "/BGAnimations");
-		FILEMAN->Mount("dir", sDir + "/BackgroundEffects", "/BackgroundEffects");
-		FILEMAN->Mount("dir", sDir + "/BackgroundTransitions", "/BackgroundTransitions");
-		FILEMAN->Mount("dir", sDir + "/Cache", "/Cache");
-		FILEMAN->Mount("dir", sDir + "/CDTitles", "/CDTitles");
-		FILEMAN->Mount("dir", sDir + "/Characters", "/Characters");
-		FILEMAN->Mount("dir", sDir + "/Courses", "/Courses");
-		FILEMAN->Mount("dir", sDir + "/Downloads", "/Downloads");
-		FILEMAN->Mount("dir", sDir + "/Logs", "/Logs");
-		FILEMAN->Mount("dir", sDir + "/NoteSkins", "/NoteSkins");
-		FILEMAN->Mount("dir", sDir + "/Packages", "/Packages");
-		FILEMAN->Mount("dir", sDir + "/Save", "/Save");
-		FILEMAN->Mount("dir", sDir + "/Screenshots", "/Screenshots");
-		FILEMAN->Mount("dir", sDir + "/Songs", "/Songs");
-		FILEMAN->Mount("dir", sDir + "/RandomMovies", "/RandomMovies");
-		FILEMAN->Mount("dir", sDir + "/Themes", "/Themes");
-	}
+	
+	FILEMAN->Mount( "dir", sDir, "/" );
 }
 
 void ArchHooks::MountUserFilesystems( const RString &sDirOfExecutable )
@@ -105,10 +81,9 @@ void ArchHooks::MountUserFilesystems( const RString &sDirOfExecutable )
 	FILEMAN->Mount( "dir", sAppDataDir + "/CDTitles", "/CDTitles" );
 	FILEMAN->Mount( "dir", sAppDataDir + "/Characters", "/Characters" );
 	FILEMAN->Mount( "dir", sAppDataDir + "/Courses", "/Courses" );
-	FILEMAN->Mount( "dir", sAppDataDir + "/Downloads", "/Downloads" );
 	FILEMAN->Mount( "dir", sAppDataDir + "/Logs", "/Logs" );
 	FILEMAN->Mount( "dir", sAppDataDir + "/NoteSkins", "/NoteSkins" );
-	FILEMAN->Mount( "dir", sAppDataDir + "/Packages", "/Packages" );
+	FILEMAN->Mount( "dir", sAppDataDir + "/Packages", "/" + SpecialFiles::USER_PACKAGES_DIR );
 	FILEMAN->Mount( "dir", sAppDataDir + "/Save", "/Save" );
 	FILEMAN->Mount( "dir", sAppDataDir + "/Screenshots", "/Screenshots" );
 	FILEMAN->Mount( "dir", sAppDataDir + "/Songs", "/Songs" );
@@ -123,19 +98,7 @@ static RString LangIdToString( LANGID l )
 	case LANG_ARABIC: return "ar";
 	case LANG_BULGARIAN: return "bg";
 	case LANG_CATALAN: return "ca";
-	case LANG_CHINESE:
-	{
-		switch (SUBLANGID(l))
-		{
-		case SUBLANG_CHINESE_TRADITIONAL:
-		case SUBLANG_CHINESE_HONGKONG:
-		case SUBLANG_CHINESE_MACAU:
-			return "zh-Hant";
-		case SUBLANG_CHINESE_SIMPLIFIED:
-		case SUBLANG_CHINESE_SINGAPORE:
-			return "zh-Hans";
-		}
-	}
+	case LANG_CHINESE: return "zh";
 	case LANG_CZECH: return "cs";
 	case LANG_DANISH: return "da";
 	case LANG_GERMAN: return "de";
@@ -191,7 +154,7 @@ static RString LangIdToString( LANGID l )
 	// These aren't present in the VC6 headers. We'll never have translations to these languages anyway. -C
 	//case LANG_MONGOLIAN: return "mn";
 	//case LANG_GALICIAN: return "gl";
-	default: LOG->Warn("Unable to determine system language. Using English.");
+	default:
 	case LANG_ENGLISH: return "en";
 	}
 }
@@ -224,7 +187,7 @@ RString ArchHooks::GetPreferredLanguage()
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -234,7 +197,7 @@ RString ArchHooks::GetPreferredLanguage()
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

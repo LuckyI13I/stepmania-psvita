@@ -11,23 +11,22 @@
 #include "ProfileManager.h"
 #include "Profile.h"
 #include "ThemeManager.h"
+#include "Foreach.h"
 #include "Steps.h"
+#include <float.h>
 #include "CommonMetrics.h"
 #include "LuaManager.h"
 #include "GameManager.h"
 #include "Style.h"
 
-#include <cfloat>
-#include <vector>
-
-
-UnlockManager*	UNLOCKMAN = nullptr;	// global and accessible from anywhere in our program
+UnlockManager*	UNLOCKMAN = NULL;	// global and accessible from anywhere in our program
 
 #define UNLOCK_NAMES		THEME->GetMetric ("UnlockManager","UnlockNames")
 #define UNLOCK(x)		THEME->GetMetricR("UnlockManager", ssprintf("Unlock%sCommand",x.c_str()));
 
 static ThemeMetric<bool> AUTO_LOCK_CHALLENGE_STEPS( "UnlockManager", "AutoLockChallengeSteps" );
 static ThemeMetric<bool> AUTO_LOCK_EDIT_STEPS( "UnlockManager", "AutoLockEditSteps" );
+static ThemeMetric<bool> SONGS_NOT_ADDITIONAL( "UnlockManager", "SongsNotAdditional" );
 
 static const char *UnlockRequirementNames[] =
 {
@@ -92,20 +91,20 @@ void UnlockManager::UnlockSong( const Song *song )
 
 RString UnlockManager::FindEntryID( const RString &sName ) const
 {
-	const UnlockEntry *pEntry = nullptr;
-
+	const UnlockEntry *pEntry = NULL;
+	
 	const Song *pSong = SONGMAN->FindSong( sName );
-	if( pSong != nullptr )
+	if( pSong != NULL )
 		pEntry = FindSong( pSong );
 
 	const Course *pCourse = SONGMAN->FindCourse( sName );
-	if( pCourse != nullptr )
+	if( pCourse != NULL )
 		pEntry = FindCourse( pCourse );
-
-	if( pEntry == nullptr )
+	
+	if( pEntry == NULL )
 		pEntry = FindModifier( sName );
 
-	if( pEntry == nullptr )
+	if( pEntry == NULL )
 	{
 		LuaHelpers::ReportScriptErrorFmt( "Couldn't find locked entry \"%s\"", sName.c_str() );
 		return "";
@@ -121,17 +120,18 @@ int UnlockManager::CourseIsLocked( const Course *pCourse ) const
 	if( PREFSMAN->m_bUseUnlockSystem )
 	{
 		const UnlockEntry *p = FindCourse( pCourse );
-		if( p == nullptr )
+		if( p == NULL )
 			return false;
 		if( p->IsLocked() )
 			iRet |= LOCKED_LOCK;
 	}
 
 	/* If a course uses a song that is disabled, disable the course too. */
-	for (CourseEntry const &ce : pCourse->m_vEntries)
+	FOREACH_CONST( CourseEntry, pCourse->m_vEntries, e )
 	{
+		const CourseEntry &ce = *e;
 		const Song *pSong = ce.songID.ToSong();
-		if( pSong == nullptr )
+		if( pSong == NULL )
 			continue;
 		int iSongLock = SongIsLocked( pSong );
 		if( iSongLock & LOCKED_DISABLED )
@@ -147,7 +147,7 @@ int UnlockManager::SongIsLocked( const Song *pSong ) const
 	if( PREFSMAN->m_bUseUnlockSystem )
 	{
 		const UnlockEntry *p = FindSong( pSong );
-		if( p != nullptr && p->IsLocked() )
+		if( p != NULL && p->IsLocked() )
 		{
 			iRet |= LOCKED_LOCK;
 			if( !p->m_sEntryID.empty() && m_RouletteCodes.find( p->m_sEntryID ) != m_RouletteCodes.end() )
@@ -169,7 +169,7 @@ bool UnlockManager::StepsIsLocked( const Song *pSong, const Steps *pSteps ) cons
 		return false;
 
 	const UnlockEntry *p = FindSteps( pSong, pSteps );
-	if( p == nullptr )
+	if( p == NULL )
 		return false;
 
 	return p->IsLocked();
@@ -179,11 +179,11 @@ bool UnlockManager::StepsTypeIsLocked(const Song *pSong, const Steps *pSteps, co
 {
 	if( !PREFSMAN->m_bUseUnlockSystem )
 		return false;
-
+	
 	const UnlockEntry *p = FindStepsType( pSong, pSteps, pSType );
-	if( p == nullptr )
+	if( p == NULL )
 		return false;
-
+	
 	return p->IsLocked();
 }
 
@@ -193,7 +193,7 @@ bool UnlockManager::ModifierIsLocked( const RString &sOneMod ) const
 		return false;
 
 	const UnlockEntry *p = FindModifier( sOneMod );
-	if( p == nullptr )
+	if( p == NULL )
 		return false;
 
 	return p->IsLocked();
@@ -201,19 +201,19 @@ bool UnlockManager::ModifierIsLocked( const RString &sOneMod ) const
 
 const UnlockEntry *UnlockManager::FindSong( const Song *pSong ) const
 {
-	for (UnlockEntry const &e : m_UnlockEntries)
-		if( e.m_Song.ToSong() == pSong  &&  e.m_dc == Difficulty_Invalid )
-			return &e;
-	return nullptr;
+	FOREACH_CONST( UnlockEntry, m_UnlockEntries, e )
+		if( e->m_Song.ToSong() == pSong  &&  e->m_dc == Difficulty_Invalid )
+			return &(*e);
+	return NULL;
 }
 
 const UnlockEntry *UnlockManager::FindSteps( const Song *pSong, const Steps *pSteps ) const
 {
 	ASSERT( pSong && pSteps );
-	for (UnlockEntry const &e : m_UnlockEntries)
-		if( e.m_Song.ToSong() == pSong  &&  e.m_dc == pSteps->GetDifficulty() )
-			return &e;
-	return nullptr;
+	FOREACH_CONST( UnlockEntry, m_UnlockEntries, e )
+		if( e->m_Song.ToSong() == pSong  &&  e->m_dc == pSteps->GetDifficulty() )
+			return &(*e);
+	return NULL;
 }
 
 const UnlockEntry *UnlockManager::FindStepsType(const Song *pSong,
@@ -221,28 +221,28 @@ const UnlockEntry *UnlockManager::FindStepsType(const Song *pSong,
 						const StepsType *pSType ) const
 {
 	ASSERT( pSong && pSteps && pSType );
-	for (UnlockEntry const &e : m_UnlockEntries)
-	if(e.m_Song.ToSong() == pSong &&
-	   e.m_dc == pSteps->GetDifficulty() &&
-	   e.m_StepsType == pSteps->m_StepsType)
-		return &e;
-	return nullptr;
+	FOREACH_CONST( UnlockEntry, m_UnlockEntries, e )
+	if(e->m_Song.ToSong() == pSong && 
+	   e->m_dc == pSteps->GetDifficulty() &&
+	   e->m_StepsType == pSteps->m_StepsType)
+		return &(*e);
+	return NULL;
 }
 
 const UnlockEntry *UnlockManager::FindCourse( const Course *pCourse ) const
 {
-	for (UnlockEntry const &e : m_UnlockEntries)
-		if( e.m_Course.ToCourse() == pCourse )
-			return &e;
-	return nullptr;
+	FOREACH_CONST( UnlockEntry, m_UnlockEntries, e )
+		if( e->m_Course.ToCourse() == pCourse )
+			return &(*e);
+	return NULL;
 }
 
 const UnlockEntry *UnlockManager::FindModifier( const RString &sOneMod ) const
 {
-	for (UnlockEntry const &e : m_UnlockEntries)
-		if( e.GetModifier().CompareNoCase(sOneMod) == 0 )
-			return &e;
-	return nullptr;
+	FOREACH_CONST( UnlockEntry, m_UnlockEntries, e )
+		if( e->GetModifier().CompareNoCase(sOneMod) == 0 )
+			return &(*e);
+	return NULL;
 }
 
 static float GetArcadePoints( const Profile *pProfile )
@@ -347,7 +347,7 @@ bool UnlockEntry::IsValid() const
 	{
 		return m_Song.IsValid() && m_dc != Difficulty_Invalid && m_StepsType != StepsType_Invalid;
 	}
-
+			
 	case UnlockRewardType_Course:
 		return m_Course.IsValid();
 
@@ -362,8 +362,8 @@ bool UnlockEntry::IsValid() const
 
 UnlockEntryStatus UnlockEntry::GetUnlockEntryStatus() const
 {
-	std::set<RString> &ids = PROFILEMAN->GetMachineProfile()->m_UnlockedEntryIDs;
-	if(!m_sEntryID.empty() &&
+	set<RString> &ids = PROFILEMAN->GetMachineProfile()->m_UnlockedEntryIDs;
+	if(!m_sEntryID.empty() && 
 	   ids.find(m_sEntryID) != ids.end() )
 		return UnlockEntryStatus_Unlocked;
 
@@ -382,29 +382,29 @@ UnlockEntryStatus UnlockEntry::GetUnlockEntryStatus() const
 	if( m_bRequirePassHardSteps && m_Song.IsValid() )
 	{
 		Song *pSong = m_Song.ToSong();
-		std::vector<Steps*> vp;
+		vector<Steps*> vp;
 		SongUtil::GetSteps(
 			pSong,
-			vp,
-			StepsType_Invalid,
+			vp, 
+			StepsType_Invalid, 
 			Difficulty_Hard
 			);
-		for (Steps const *s : vp)
-			if( PROFILEMAN->GetMachineProfile()->HasPassedSteps(pSong, s) )
+		FOREACH_CONST( Steps*, vp, s )
+			if( PROFILEMAN->GetMachineProfile()->HasPassedSteps(pSong, *s) )
 				return UnlockEntryStatus_Unlocked;
 	}
-
+	
 	if (m_bRequirePassChallengeSteps && m_Song.IsValid())
 	{
 		Song *pSong = m_Song.ToSong();
-		std::vector<Steps*> vp;
+		vector<Steps*> vp;
 		SongUtil::GetSteps(pSong,
 				   vp,
 				   StepsType_Invalid,
 				   Difficulty_Challenge);
-		for (Steps const *s : vp)
+		FOREACH_CONST(Steps*, vp, s)
 		{
-			if (PROFILEMAN->GetMachineProfile()->HasPassedSteps(pSong, s))
+			if (PROFILEMAN->GetMachineProfile()->HasPassedSteps(pSong, *s))
 				return UnlockEntryStatus_Unlocked;
 		}
 	}
@@ -420,20 +420,20 @@ RString UnlockEntry::GetDescription() const
 	default:
 		FAIL_M(ssprintf("Invalid UnlockRewardType: %i", m_Type));
 	case UnlockRewardType_Song:
-		return pSong ? pSong->GetDisplayFullTitle() : RString("");
+		return pSong ? pSong->GetDisplayFullTitle() : "";
 	case UnlockRewardType_Steps:
 	{
 		StepsType st = GAMEMAN->GetHowToPlayStyleForGame( GAMESTATE->m_pCurGame )->m_StepsType;	// TODO: Is this the best thing we can do here?
-		return (pSong ? pSong->GetDisplayFullTitle() : RString("")) + ", " + CustomDifficultyToLocalizedString( GetCustomDifficulty(st, m_dc, CourseType_Invalid) );
+		return (pSong ? pSong->GetDisplayFullTitle() : "") + ", " + CustomDifficultyToLocalizedString( GetCustomDifficulty(st, m_dc, CourseType_Invalid) );
 	}
 	case UnlockRewardType_Steps_Type:
 	{
-		RString ret = (pSong ? pSong->GetDisplayFullTitle() : RString(""));
+		RString ret = (pSong ? pSong->GetDisplayFullTitle() : "");
 		ret += "," + CustomDifficultyToLocalizedString( GetCustomDifficulty(m_StepsType, m_dc, CourseType_Invalid) );
 		return ret + "," + StringConversion::ToString(m_StepsType); // yeah, bit strange.
 	}
 	case UnlockRewardType_Course:
-		return m_Course.IsValid() ? m_Course.ToCourse()->GetDisplayFullTitle() : RString("");
+		return m_Course.IsValid() ? m_Course.ToCourse()->GetDisplayFullTitle() : "";
 	case UnlockRewardType_Modifier:
 		return CommonMetrics::LocalizeOptionItem( GetModifier(), false );
 	}
@@ -449,12 +449,12 @@ RString	UnlockEntry::GetBannerFile() const
 	case UnlockRewardType_Song:
 	case UnlockRewardType_Steps:
 	case UnlockRewardType_Steps_Type:
-		return pSong ? pSong->GetBannerPath() : RString("");
+		return pSong ? pSong->GetBannerPath() : "";
 	case UnlockRewardType_Course:
-		return m_Course.ToCourse() ? m_Course.ToCourse()->GetBannerPath() : RString("");
+		return m_Course.ToCourse() ? m_Course.ToCourse()->GetBannerPath() : "";
 	case UnlockRewardType_Modifier:
 		return "";
-	}
+	}	
 }
 
 RString	UnlockEntry::GetBackgroundFile() const
@@ -467,12 +467,12 @@ RString	UnlockEntry::GetBackgroundFile() const
 	case UnlockRewardType_Song:
 	case UnlockRewardType_Steps:
 	case UnlockRewardType_Steps_Type:
-		return pSong ? pSong->GetBackgroundPath() : RString("");
+		return pSong ? pSong->GetBackgroundPath() : "";
 	case UnlockRewardType_Course:
 		return "";
 	case UnlockRewardType_Modifier:
 		return "";
-	}
+	}	
 }
 
 /////////////////////////////////////////////////////////
@@ -481,7 +481,7 @@ void UnlockManager::Load()
 {
 	LOG->Trace( "UnlockManager::Load()" );
 
-	std::vector<RString> asUnlockNames;
+	vector<RString> asUnlockNames;
 	split( UNLOCK_NAMES, ",", asUnlockNames );
 
 	Lua *L = LUA->Get();
@@ -500,7 +500,7 @@ void UnlockManager::Load()
 
 		// 1st parameter
 		current.PushSelf( L );
-
+		
 		// call function with 1 argument and 0 results
 		RString error= "Lua error in command: ";
 		LuaHelpers::RunScriptOnStack(L, error, 1, 0, true);
@@ -514,150 +514,146 @@ void UnlockManager::Load()
 
 	if( AUTO_LOCK_CHALLENGE_STEPS )
 	{
-		for (Song const *s : SONGMAN->GetAllSongs())
+		FOREACH_CONST( Song*, SONGMAN->GetAllSongs(), s )
 		{
 			// If no hard steps to play to unlock, skip
-			if( SongUtil::GetOneSteps(s, StepsType_Invalid, Difficulty_Hard) == nullptr )
+			if( SongUtil::GetOneSteps(*s, StepsType_Invalid, Difficulty_Hard) == NULL )
 				continue;
-
+			
 			// If no challenge steps to unlock, skip
-			if( SongUtil::GetOneSteps(s, StepsType_Invalid, Difficulty_Challenge) == nullptr )
+			if( SongUtil::GetOneSteps(*s, StepsType_Invalid, Difficulty_Challenge) == NULL )
 				continue;
 
-			UnlockEntry ue;
-			ue.m_sEntryID = "_challenge_" + s->GetSongDir();
+			if( SONGS_NOT_ADDITIONAL && SONGMAN->WasLoadedFromAdditionalSongs(*s) )
+				continue;
+				
+			UnlockEntry ue;			
+			ue.m_sEntryID = "_challenge_" + (*s)->GetSongDir();
 			ue.m_Type = UnlockRewardType_Steps;
-			ue.m_cmd.Load( s->m_sGroupName+"/"+ s->GetTranslitFullTitle()+",expert" );
+			ue.m_cmd.Load( (*s)->m_sGroupName+"/"+(*s)->GetTranslitFullTitle()+",expert" );
 			ue.m_bRequirePassHardSteps = true;
 
 			m_UnlockEntries.push_back( ue );
 		}
 	}
-
+	
 	if (AUTO_LOCK_EDIT_STEPS)
 	{
-		for (Song const *s : SONGMAN->GetAllSongs())
+		FOREACH_CONST( Song*, SONGMAN->GetAllSongs(), s )
 		{
 			// no challenge steps to play: skip.
-			if (SongUtil::GetOneSteps(s, StepsType_Invalid, Difficulty_Challenge) == nullptr)
+			if (SongUtil::GetOneSteps(*s, StepsType_Invalid, Difficulty_Challenge) == NULL)
 				continue;
-
+			
 			// no edit steps to unlock: skip.
-			if (SongUtil::GetOneSteps(s, StepsType_Invalid, Difficulty_Edit) == nullptr)
+			if (SongUtil::GetOneSteps(*s, StepsType_Invalid, Difficulty_Edit) == NULL)
 				continue;
-
+			
+			// don't add additional songs.
+			if (SONGS_NOT_ADDITIONAL && SONGMAN->WasLoadedFromAdditionalSongs(*s))
+				continue;
+			
 			UnlockEntry ue;
-			ue.m_sEntryID = "_edit_" + s->GetSongDir();
+			ue.m_sEntryID = "_edit_" + (*s)->GetSongDir();
 			ue.m_Type = UnlockRewardType_Steps;
-			ue.m_cmd.Load( s->m_sGroupName+"/"+ s->GetTranslitFullTitle()+",edit" );
+			ue.m_cmd.Load( (*s)->m_sGroupName+"/"+(*s)->GetTranslitFullTitle()+",edit" );
 			ue.m_bRequirePassChallengeSteps = true;
-
+			
 			m_UnlockEntries.push_back(ue);
-
+			
 		}
 	}
 
 	// Make sure that we don't have duplicate unlock IDs. This can cause problems
 	// with UnlockCelebrate and with codes.
-	unsigned size = m_UnlockEntries.size();
-	if (size > 1)
-	{
-		for (unsigned i = 0; i < size - 1; ++i)
-		{
-			UnlockEntry const &ue1 = m_UnlockEntries[i];
-			for (unsigned j = i + 1; j < size; ++j)
-			{
-				UnlockEntry const &ue2 = m_UnlockEntries[j];
-				// at this point, these two are definitely different. Assert.
-				ASSERT_M( ue1.m_sEntryID != ue2.m_sEntryID, ssprintf("duplicate unlock entry id %s", ue1.m_sEntryID.c_str()));
+	FOREACH_CONST( UnlockEntry, m_UnlockEntries, ue )
+		FOREACH_CONST( UnlockEntry, m_UnlockEntries, ue2 )
+			if( ue != ue2 )
+				ASSERT_M( ue->m_sEntryID != ue2->m_sEntryID, ssprintf("duplicate unlock entry id %s",ue->m_sEntryID.c_str()) );
 
-			}
-		}
-	}
-
-	for (UnlockEntry &e : m_UnlockEntries)
+	FOREACH( UnlockEntry, m_UnlockEntries, e )
 	{
-		switch( e.m_Type )
+		switch( e->m_Type )
 		{
 		case UnlockRewardType_Song:
-			e.m_Song.FromSong( SONGMAN->FindSong( e.m_cmd.GetArg(0).s ) );
-			if( !e.m_Song.IsValid() )
-				LuaHelpers::ReportScriptErrorFmt( "Unlock: Cannot find song matching \"%s\"", e.m_cmd.GetArg(0).s.c_str() );
+			e->m_Song.FromSong( SONGMAN->FindSong( e->m_cmd.GetArg(0).s ) );
+			if( !e->m_Song.IsValid() )
+				LuaHelpers::ReportScriptErrorFmt( "Unlock: Cannot find song matching \"%s\"", e->m_cmd.GetArg(0).s.c_str() );
 			break;
 		case UnlockRewardType_Steps:
-			e.m_Song.FromSong( SONGMAN->FindSong( e.m_cmd.GetArg(0).s ) );
-			if( !e.m_Song.IsValid() )
+			e->m_Song.FromSong( SONGMAN->FindSong( e->m_cmd.GetArg(0).s ) );
+			if( !e->m_Song.IsValid() )
 			{
-				LuaHelpers::ReportScriptErrorFmt( "Unlock: Cannot find song matching \"%s\"", e.m_cmd.GetArg(0).s.c_str() );
+				LuaHelpers::ReportScriptErrorFmt( "Unlock: Cannot find song matching \"%s\"", e->m_cmd.GetArg(0).s.c_str() );
 				break;
 			}
 
-			e.m_dc = StringToDifficulty( e.m_cmd.GetArg(1).s );
-			if( e.m_dc == Difficulty_Invalid )
+			e->m_dc = StringToDifficulty( e->m_cmd.GetArg(1).s );
+			if( e->m_dc == Difficulty_Invalid )
 			{
-				LuaHelpers::ReportScriptErrorFmt( "Unlock: Invalid difficulty \"%s\"", e.m_cmd.GetArg(1).s.c_str() );
+				LuaHelpers::ReportScriptErrorFmt( "Unlock: Invalid difficulty \"%s\"", e->m_cmd.GetArg(1).s.c_str() );
 				break;
 			}
 
 			break;
 		case UnlockRewardType_Steps_Type:
 		{
-			e.m_Song.FromSong( SONGMAN->FindSong( e.m_cmd.GetArg(0).s ) );
-			if( !e.m_Song.IsValid() )
+			e->m_Song.FromSong( SONGMAN->FindSong( e->m_cmd.GetArg(0).s ) );
+			if( !e->m_Song.IsValid() )
 			{
-				LuaHelpers::ReportScriptErrorFmt( "Unlock: Cannot find song matching \"%s\"", e.m_cmd.GetArg(0).s.c_str() );
+				LuaHelpers::ReportScriptErrorFmt( "Unlock: Cannot find song matching \"%s\"", e->m_cmd.GetArg(0).s.c_str() );
 				break;
 			}
-
-			e.m_dc = StringToDifficulty( e.m_cmd.GetArg(1).s );
-			if( e.m_dc == Difficulty_Invalid )
+			
+			e->m_dc = StringToDifficulty( e->m_cmd.GetArg(1).s );
+			if( e->m_dc == Difficulty_Invalid )
 			{
-				LuaHelpers::ReportScriptErrorFmt( "Unlock: Invalid difficulty \"%s\"", e.m_cmd.GetArg(1).s.c_str() );
+				LuaHelpers::ReportScriptErrorFmt( "Unlock: Invalid difficulty \"%s\"", e->m_cmd.GetArg(1).s.c_str() );
 				break;
 			}
-
-			e.m_StepsType = GAMEMAN->StringToStepsType(e.m_cmd.GetArg(2).s);
-			if (e.m_StepsType == StepsType_Invalid)
+			
+			e->m_StepsType = GAMEMAN->StringToStepsType(e->m_cmd.GetArg(2).s);
+			if (e->m_StepsType == StepsType_Invalid)
 			{
-				LuaHelpers::ReportScriptErrorFmt( "Unlock: Invalid steps type \"%s\"", e.m_cmd.GetArg(2).s.c_str() );
+				LuaHelpers::ReportScriptErrorFmt( "Unlock: Invalid steps type \"%s\"", e->m_cmd.GetArg(2).s.c_str() );
 				break;
 			}
 			break;
 		}
 		case UnlockRewardType_Course:
-			e.m_Course.FromCourse( SONGMAN->FindCourse(e.m_cmd.GetArg(0).s) );
-			if( !e.m_Course.IsValid() )
-				LuaHelpers::ReportScriptErrorFmt( "Unlock: Cannot find course matching \"%s\"", e.m_cmd.GetArg(0).s.c_str() );
+			e->m_Course.FromCourse( SONGMAN->FindCourse(e->m_cmd.GetArg(0).s) );
+			if( !e->m_Course.IsValid() )
+				LuaHelpers::ReportScriptErrorFmt( "Unlock: Cannot find course matching \"%s\"", e->m_cmd.GetArg(0).s.c_str() );
 			break;
 		case UnlockRewardType_Modifier:
 			// nothing to cache
 			break;
 		default:
-			FAIL_M(ssprintf("Invalid UnlockRewardType: %i", e.m_Type));
+			FAIL_M(ssprintf("Invalid UnlockRewardType: %i", e->m_Type));
 		}
 	}
 
 	// Log unlocks
-	for (UnlockEntry &e : m_UnlockEntries)
+	FOREACH_CONST( UnlockEntry, m_UnlockEntries, e )
 	{
-		RString str = ssprintf( "Unlock: %s; ", join("\n",e.m_cmd.m_vsArgs).c_str() );
+		RString str = ssprintf( "Unlock: %s; ", join("\n",e->m_cmd.m_vsArgs).c_str() );
 		FOREACH_ENUM( UnlockRequirement, j )
-			if( e.m_fRequirement[j] )
-				str += ssprintf( "%s = %f; ", UnlockRequirementToString(j).c_str(), e.m_fRequirement[j] );
-		if( e.m_bRequirePassHardSteps )
+			if( e->m_fRequirement[j] )
+				str += ssprintf( "%s = %f; ", UnlockRequirementToString(j).c_str(), e->m_fRequirement[j] );
+		if( e->m_bRequirePassHardSteps )
 			str += "RequirePassHardSteps; ";
-		if (e.m_bRequirePassChallengeSteps)
+		if (e->m_bRequirePassChallengeSteps)
 			str += "RequirePassChallengeSteps; ";
 
-		str += ssprintf( "entryID = %s ", e.m_sEntryID.c_str() );
-		str += e.IsLocked()? "locked":"unlocked";
-		if( e.m_Song.IsValid() )
+		str += ssprintf( "entryID = %s ", e->m_sEntryID.c_str() );
+		str += e->IsLocked()? "locked":"unlocked";
+		if( e->m_Song.IsValid() )
 			str += ( " (found song)" );
-		if( e.m_Course.IsValid() )
+		if( e->m_Course.IsValid() )
 			str += ( " (found course)" );
 		LOG->Trace( "%s", str.c_str() );
 	}
-
+	
 	return;
 }
 
@@ -680,7 +676,7 @@ float UnlockManager::PointsUntilNextUnlock( UnlockRequirement t ) const
 	float fSmallestPoints = FLT_MAX;   // or an arbitrarily large value
 	for( unsigned a=0; a<m_UnlockEntries.size(); a++ )
 		if( m_UnlockEntries[a].m_fRequirement[t] > fScores[t] )
-			fSmallestPoints = std::min( fSmallestPoints, m_UnlockEntries[a].m_fRequirement[t] );
+			fSmallestPoints = min( fSmallestPoints, m_UnlockEntries[a].m_fRequirement[t] );
 
 	if( fSmallestPoints == FLT_MAX )
 		return 0;  // no match found
@@ -719,7 +715,7 @@ void UnlockManager::PreferUnlockEntryID( RString sUnlockEntryID )
 		if( pEntry.m_sEntryID != sUnlockEntryID )
 			continue;
 
-		if( pEntry.m_Song.ToSong() != nullptr )
+		if( pEntry.m_Song.ToSong() != NULL )
 			GAMESTATE->m_pPreferredSong = pEntry.m_Song.ToSong();
 		if( pEntry.m_Course.ToCourse() )
 			GAMESTATE->m_pPreferredCourse = pEntry.m_Course.ToCourse();
@@ -733,19 +729,21 @@ int UnlockManager::GetNumUnlocks() const
 
 int UnlockManager::GetNumUnlocked() const
 {
-	return std::count_if(m_UnlockEntries.begin(), m_UnlockEntries.end(), [](UnlockEntry const &ue) {
-		return !ue.IsLocked();
-	});
+	int count = 0;
+	FOREACH_CONST( UnlockEntry, m_UnlockEntries, ue )
+	{
+		if( !ue->IsLocked() )
+			count++;
+	}
+	return count;
 }
 
 int UnlockManager::GetUnlockEntryIndexToCelebrate() const
 {
-	int i = 0;
-	for (UnlockEntry const &ue : m_UnlockEntries)
+	FOREACH_CONST( UnlockEntry, m_UnlockEntries, ue )
 	{
-		if( ue.GetUnlockEntryStatus() == UnlockEntryStatus_RequirementsMet )
-			return i;
-		++i;
+		if( ue->GetUnlockEntryStatus() == UnlockEntryStatus_RequirementsMet )
+			return ue - m_UnlockEntries.begin();
 	}
 	return -1;
 }
@@ -755,34 +753,34 @@ bool UnlockManager::AnyUnlocksToCelebrate() const
 	return GetUnlockEntryIndexToCelebrate() != -1;
 }
 
-void UnlockManager::GetUnlocksByType( UnlockRewardType t, std::vector<UnlockEntry *> &apEntries )
+void UnlockManager::GetUnlocksByType( UnlockRewardType t, vector<UnlockEntry *> &apEntries )
 {
-	for (UnlockEntry &entry : m_UnlockEntries)
-		if( entry.IsValid() && entry.m_Type == t )
-			apEntries.push_back( &entry );
+	for( unsigned i = 0; i < m_UnlockEntries.size(); ++i )
+		if( m_UnlockEntries[i].IsValid() && m_UnlockEntries[i].m_Type == t )
+			apEntries.push_back( &m_UnlockEntries[i] );
 }
 
-void UnlockManager::GetSongsUnlockedByEntryID( std::vector<Song *> &apSongsOut, RString sUnlockEntryID )
+void UnlockManager::GetSongsUnlockedByEntryID( vector<Song *> &apSongsOut, RString sUnlockEntryID )
 {
-	std::vector<UnlockEntry *> apEntries;
+	vector<UnlockEntry *> apEntries;
 	GetUnlocksByType( UnlockRewardType_Song, apEntries );
 
-	for (UnlockEntry const *ue : apEntries)
-		if( ue->m_sEntryID == sUnlockEntryID )
-			apSongsOut.push_back( ue->m_Song.ToSong() );
+	for( unsigned i = 0; i < apEntries.size(); ++i )
+		if( apEntries[i]->m_sEntryID == sUnlockEntryID )
+			apSongsOut.push_back( apEntries[i]->m_Song.ToSong() );
 }
 
-void UnlockManager::GetStepsUnlockedByEntryID( std::vector<Song *> &apSongsOut, std::vector<Difficulty> &apDifficultyOut, RString sUnlockEntryID )
+void UnlockManager::GetStepsUnlockedByEntryID( vector<Song *> &apSongsOut, vector<Difficulty> &apDifficultyOut, RString sUnlockEntryID )
 {
-	std::vector<UnlockEntry *> apEntries;
+	vector<UnlockEntry *> apEntries;
 	GetUnlocksByType( UnlockRewardType_Steps, apEntries );
 
-	for (UnlockEntry const *entry : apEntries)
+	for( unsigned i = 0; i < apEntries.size(); ++i )
 	{
-		if( entry->m_sEntryID == sUnlockEntryID )
+		if( apEntries[i]->m_sEntryID == sUnlockEntryID )
 		{
-			apSongsOut.push_back( entry->m_Song.ToSong() );
-			apDifficultyOut.push_back( entry->m_dc );
+			apSongsOut.push_back( apEntries[i]->m_Song.ToSong() );
+			apDifficultyOut.push_back( apEntries[i]->m_dc );
 		}
 	}
 }
@@ -791,7 +789,7 @@ void UnlockManager::GetStepsUnlockedByEntryID( std::vector<Song *> &apSongsOut, 
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the UnlockEntry. */
+/** @brief Allow Lua to have access to the UnlockEntry. */ 
 class LunaUnlockEntry: public Luna<UnlockEntry>
 {
 public:
@@ -801,7 +799,7 @@ public:
 	static int GetRequirement( T* p, lua_State *L )		{ UnlockRequirement i = Enum::Check<UnlockRequirement>( L, 1 ); lua_pushnumber(L, p->m_fRequirement[i] ); return 1; }
 	static int GetRequirePassHardSteps( T* p, lua_State *L ){ lua_pushboolean(L, p->m_bRequirePassHardSteps); return 1; }
 	static int GetRequirePassChallengeSteps( T* p, lua_State *L )
-	{
+	{ 
 		lua_pushboolean(L, p->m_bRequirePassChallengeSteps);
 		return 1;
 	}
@@ -817,13 +815,13 @@ public:
 		Song *pSong = p->m_Song.ToSong();
 		if (pSong)
 		{
-			const std::vector<Steps*>& allSteps = pSong->GetAllSteps();
-			std::vector<Steps*> toRet;
-			for (Steps *step : allSteps)
+			const vector<Steps*>& allSteps = pSong->GetAllSteps();
+			vector<Steps*> toRet;
+			FOREACH_CONST(Steps*, allSteps, step)
 			{
-				if (step->GetDifficulty() == p->m_dc)
+				if ((*step)->GetDifficulty() == p->m_dc)
 				{
-					toRet.push_back(step);
+					toRet.push_back(*step);
 				}
 			}
 			LuaHelpers::CreateTableFromArray<Steps*>( toRet, L );
@@ -831,25 +829,25 @@ public:
 		}
 		return 0;
 	}
-
+	
 	// TODO: Add a function to just get all steps.
 	static int GetStepByStepsType( T* p, lua_State *L )
 	{
 		Song *pSong = p->m_Song.ToSong();
 		if (pSong)
 		{
-			const std::vector<Steps*>& allStepsType = pSong->GetStepsByStepsType(p->m_StepsType);
-			for (Steps *step : allStepsType)
+			const vector<Steps*>& allStepsType = pSong->GetStepsByStepsType(p->m_StepsType);
+			FOREACH_CONST(Steps*, allStepsType, step)
 			{
-				if (step->GetDifficulty() == p->m_dc)
+				if ((*step)->GetDifficulty() == p->m_dc)
 				{
-					step->PushSelf(L); return 1;
+					(*step)->PushSelf(L); return 1;
 				}
 			}
 		}
 		return 0;
 	}
-
+	
 	static int GetCourse( T* p, lua_State *L )
 	{
 		Course *pCourse = p->m_Course.ToCourse();
@@ -917,7 +915,7 @@ public:
 
 LUA_REGISTER_CLASS( UnlockEntry )
 
-/** @brief Allow Lua to have access to the UnlockManager. */
+/** @brief Allow Lua to have access to the UnlockManager. */ 
 class LunaUnlockManager: public Luna<UnlockManager>
 {
 public:
@@ -950,7 +948,7 @@ public:
 	static int GetUnlockEntry( T* p, lua_State *L )			{ unsigned iIndex = IArg(1); if( iIndex >= p->m_UnlockEntries.size() ) return 0; p->m_UnlockEntries[iIndex].PushSelf(L); return 1; }
 	static int GetSongsUnlockedByEntryID( T* p, lua_State *L )
 	{
-		std::vector<Song *> apSongs;
+		vector<Song *> apSongs;
 		UNLOCKMAN->GetSongsUnlockedByEntryID( apSongs, SArg(1) );
 		LuaHelpers::CreateTableFromArray( apSongs, L );
 		return 1;
@@ -959,8 +957,8 @@ public:
 	static int GetStepsUnlockedByEntryID( T* p, lua_State *L )
 	{
 		// Return the Song each Steps are associated with, too.
-		std::vector<Song *> apSongs;
-		std::vector<Difficulty> apDifficulty;
+		vector<Song *> apSongs;
+		vector<Difficulty> apDifficulty;
 		UNLOCKMAN->GetStepsUnlockedByEntryID( apSongs, apDifficulty, SArg(1) );
 		LuaHelpers::CreateTableFromArray( apSongs, L );
 		LuaHelpers::CreateTableFromArray( apDifficulty, L );
@@ -980,7 +978,7 @@ public:
 		lua_pushnumber( L, fScores[Enum::Check<UnlockRequirement>(L, 2)] );
 		return 1;
 	}
-
+	
 	static int IsSongLocked( T* p, lua_State *L )
 	{
 		Song *pSong = Luna<Song>::check(L,1);
@@ -1018,7 +1016,7 @@ LUA_REGISTER_CLASS( UnlockManager )
 /*
  * (c) 2001-2004 Kevin Slaughter, Andrew Wong, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -1028,7 +1026,7 @@ LUA_REGISTER_CLASS( UnlockManager )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

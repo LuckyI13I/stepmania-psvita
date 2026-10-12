@@ -4,13 +4,11 @@
 #include "NoteTypes.h"
 #include "TimingSegments.h"
 #include "PrefsManager.h"
-
-#include <array>
-#include <cfloat>
-#include <vector>
-
-
+#include <float.h> // max float
 struct lua_State;
+
+/** @brief Compare a TimingData segment's properties with one another. */
+#define COMPARE(x) if(this->x!=other.x) return false;
 
 /* convenience functions to handle static casting */
 template<class T>
@@ -112,7 +110,7 @@ public:
 	};
 	// map can't be used for the lookup table because its find or *_bound
 	// functions would return the wrong entry.
-	// In a std::map<int, int> with three entries, [-1]= 3, [6]= 1, [8]= 2,
+	// In a map<int, int> with three entries, [-1]= 3, [6]= 1, [8]= 2,
 	// lower_bound(0) and upper_bound(0) both returned the entry at [6]= 1.
 	// So the lookup table is a vector of entries and FindEntryInLookup does a
 	// binary search.
@@ -123,7 +121,7 @@ public:
 		GetBeatStarts second;
 	lookup_item_t(float f, GetBeatStarts& s) :first(f), second(s) {}
 	};
-	typedef std::vector<lookup_item_t> beat_start_lookup_t;
+	typedef vector<lookup_item_t> beat_start_lookup_t;
 	beat_start_lookup_t m_beat_start_lookup;
 	beat_start_lookup_t m_time_start_lookup;
 
@@ -187,7 +185,7 @@ public:
 	}
 	TimingSegment* GetSegmentAtBeat( float fBeat, TimingSegmentType tst )
 	{
-		return GetSegmentAtRow( BeatToNoteRow(fBeat), tst );
+		return const_cast<TimingSegment*>( GetSegmentAtBeat(fBeat, tst) );
 	}
 
 	#define DefineSegmentWithName(Seg, SegName, SegType) \
@@ -392,17 +390,17 @@ public:
 	 * @param other the other TimingData.
 	 * @return the equality or lack thereof of the two TimingData.
 	 */
-	bool operator==( const TimingData &other ) const
+	bool operator==( const TimingData &other )
 	{
 		FOREACH_ENUM( TimingSegmentType, tst )
 		{
-			const std::vector<TimingSegment*> &us = m_avpTimingSegments[tst];
-			const std::vector<TimingSegment*> &them = other.m_avpTimingSegments[tst];
+			const vector<TimingSegment*> &us = m_avpTimingSegments[tst];
+			const vector<TimingSegment*> &them = other.m_avpTimingSegments[tst];
 
 			// optimization: check vector sizes before contents
 			if( us.size() != them.size() )
 				return false;
-
+			
 			for( unsigned i = 0; i < us.size(); ++i )
 			{
 				/* UGLY: since TimingSegment's comparison compares base data,
@@ -415,7 +413,8 @@ public:
 			}
 		}
 
-		return this->m_fBeat0OffsetInSeconds == other.m_fBeat0OffsetInSeconds;
+		COMPARE( m_fBeat0OffsetInSeconds );
+		return true;
 	}
 
 	/**
@@ -423,7 +422,7 @@ public:
 	 * @param other the other TimingData.
 	 * @return the inequality or lack thereof of the two TimingData.
 	 */
-	bool operator!=( const TimingData &other ) const { return !operator==(other); }
+	bool operator!=( const TimingData &other ) { return !operator==(other); }
 
 	void ScaleRegion( float fScale = 1, int iStartRow = 0, int iEndRow = MAX_NOTE_ROW, bool bAdjustBPM = false );
 	void InsertRows( int iStartRow, int iRowsToAdd );
@@ -431,11 +430,11 @@ public:
 
 	void SortSegments( TimingSegmentType tst );
 
-	const std::vector<TimingSegment*> &GetTimingSegments( TimingSegmentType tst ) const
+	const vector<TimingSegment*> &GetTimingSegments( TimingSegmentType tst ) const
 	{
 		return const_cast<TimingData *>(this)->GetTimingSegments(tst);
 	}
-	std::vector<TimingSegment *> &GetTimingSegments( TimingSegmentType tst )
+	vector<TimingSegment *> &GetTimingSegments( TimingSegmentType tst )
 	{
 		return m_avpTimingSegments[tst];
 	}
@@ -455,20 +454,22 @@ public:
 	 *
 	 * This is for informational purposes only.
 	 */
-	std::string					m_sFile;
+	RString					m_sFile;
 
 	/** @brief The initial offset of a song. */
 	float	m_fBeat0OffsetInSeconds;
 
 	// XXX: this breaks encapsulation. get rid of it ASAP
-	std::vector<RString> ToVectorString(TimingSegmentType tst, int dec = 6) const;
+	vector<RString> ToVectorString(TimingSegmentType tst, int dec = 6) const;
 protected:
 	// don't call this directly; use the derived-type overloads.
 	void AddSegment( const TimingSegment *seg );
 
 	// All of the following vectors must be sorted before gameplay.
-	std::array<std::vector<TimingSegment *>, NUM_TimingSegmentType> m_avpTimingSegments;
+	vector<TimingSegment *> m_avpTimingSegments[NUM_TimingSegmentType];
 };
+
+#undef COMPARE
 
 #endif
 
@@ -477,7 +478,7 @@ protected:
  * @author Chris Danford, Glenn Maynard (c) 2001-2004
  * @section LICENSE
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -487,7 +488,7 @@ protected:
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

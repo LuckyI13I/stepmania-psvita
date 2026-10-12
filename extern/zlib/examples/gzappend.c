@@ -1,7 +1,7 @@
 /* gzappend -- command to append to a gzip file
 
-  Copyright (C) 2003, 2012 Mark Adler, all rights reserved
-  version 1.2, 11 Oct 2012
+  Copyright (C) 2003 Mark Adler, all rights reserved
+  version 1.1, 4 Nov 2003
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the author be held liable for any damages
@@ -33,14 +33,12 @@
  *                      - Add L to constants in lseek() calls
  *                      - Remove some debugging information in error messages
  *                      - Use new data_type definition for zlib 1.2.1
- *                      - Simplify and unify file operations
+ *                      - Simplfy and unify file operations
  *                      - Finish off gzip file in gztack()
  *                      - Use deflatePrime() instead of adding empty blocks
  *                      - Keep gzip file clean on appended file read errors
  *                      - Use in-place rotate instead of auxiliary buffer
  *                        (Why you ask?  Because it was fun to write!)
- * 1.2  11 Oct 2012     - Fix for proper z_const usage
- *                      - Check for input buffer malloc failure
  */
 
 /*
@@ -54,7 +52,7 @@
    block boundary to facilitate locating and modifying the last block bit at
    the start of the final deflate block.  Also whether using Z_BLOCK or not,
    another required feature of zlib 1.2.x is that inflate() now provides the
-   number of unused bits in the last input byte used.  gzappend will not work
+   number of unusued bits in the last input byte used.  gzappend will not work
    with versions of zlib earlier than 1.2.1.
 
    gzappend first decompresses the gzip file internally, discarding all but
@@ -137,7 +135,7 @@ local void rotate(unsigned char *list, unsigned len, unsigned rot)
     /* do simple left shift by one */
     if (rot == 1) {
         tmp = *list;
-        memmove(list, list + 1, len - 1);
+        memcpy(list, list + 1, len - 1);
         *last = tmp;
         return;
     }
@@ -172,7 +170,7 @@ typedef struct {
     int size;                   /* 1 << size is bytes in buf */
     unsigned left;              /* bytes available at next */
     unsigned char *buf;         /* buffer */
-    z_const unsigned char *next;    /* next byte in buffer */
+    unsigned char *next;        /* next byte in buffer */
     char *name;                 /* file name for error messages */
 } file;
 
@@ -401,14 +399,14 @@ local void gztack(char *name, int gd, z_stream *strm, int last)
     }
 
     /* allocate buffers */
-    in = malloc(CHUNK);
+    in = fd == -1 ? NULL : malloc(CHUNK);
     out = malloc(CHUNK);
-    if (in == NULL || out == NULL) bye("out of memory", "");
+    if (out == NULL) bye("out of memory", "");
 
     /* compress input file and append to gzip file */
     do {
         /* get more input */
-        len = read(fd, in, CHUNK);
+        len = fd == -1 ? 0 : read(fd, in, CHUNK);
         if (len == -1) {
             fprintf(stderr,
                     "gzappend warning: error reading %s, skipping rest ...\n",
@@ -455,7 +453,7 @@ local void gztack(char *name, int gd, z_stream *strm, int last)
 
     /* clean up and return */
     free(out);
-    free(in);
+    if (in != NULL) free(in);
     if (fd > 0) close(fd);
 }
 
@@ -469,13 +467,11 @@ int main(int argc, char **argv)
     z_stream strm;
 
     /* ignore command name */
-    argc--; argv++;
+    argv++;
 
     /* provide usage if no arguments */
     if (*argv == NULL) {
-        printf(
-            "gzappend 1.2 (11 Oct 2012) Copyright (C) 2003, 2012 Mark Adler\n"
-               );
+        printf("gzappend 1.1 (4 Nov 2003) Copyright (C) 2003 Mark Adler\n");
         printf(
             "usage: gzappend [-level] file.gz [ addthis [ andthis ... ]]\n");
         return 0;

@@ -3,25 +3,22 @@
 #include "RageUtil.h"
 #include "RageLog.h"
 
-#include <vector>
-
-#if defined(_WIN32)
+#if defined(_WINDOWS)
 
 #include "archutils/Win32/ErrorStrings.h"
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 /* Convert from the given codepage to UTF-8.  Return true if successful. */
 static bool CodePageConvert( RString &sText, int iCodePage )
 {
-	int iSize = MultiByteToWideChar( iCodePage, MB_ERR_INVALID_CHARS, sText.data(), sText.size(), nullptr, 0 );
+	int iSize = MultiByteToWideChar( iCodePage, MB_ERR_INVALID_CHARS, sText.data(), sText.size(), NULL, 0 );
 	if( iSize == 0 )
 	{
 		LOG->Trace( "%s\n", werr_ssprintf(GetLastError(), "err: ").c_str() );
 		return false; /* error */
 	}
 
-	std::wstring sOut;
+	wstring sOut;
 	sOut.append( iSize, ' ' );
 	/* Nonportable: */
 	iSize = MultiByteToWideChar( iCodePage, MB_ERR_INVALID_CHARS, sText.data(), sText.size(), (wchar_t *) sOut.data(), iSize );
@@ -36,7 +33,6 @@ static bool AttemptKoreanConversion( RString &sText ) { return CodePageConvert( 
 static bool AttemptJapaneseConversion( RString &sText ) { return CodePageConvert( sText, 932 ); }
 
 #elif defined(HAVE_ICONV)
-#include <cstddef>
 #include <errno.h>
 #include <iconv.h>
 
@@ -51,19 +47,19 @@ static bool ConvertFromCharset( RString &sText, const char *szCharset )
 
 	/* Copy the string into a char* for iconv */
 	ICONV_CONST char *szTextIn = const_cast<ICONV_CONST char*>( sText.data() );
-	std::size_t iInLeft = sText.size();
+	size_t iInLeft = sText.size();
 
 	/* Create a new string with enough room for the new conversion */
 	RString sBuf;
 	sBuf.resize( sText.size() * 5 );
 
 	char *sTextOut = const_cast<char*>( sBuf.data() );
-	std::size_t iOutLeft = sBuf.size();
-	std::size_t size = iconv( converter, &szTextIn, &iInLeft, &sTextOut, &iOutLeft );
+	size_t iOutLeft = sBuf.size();
+	size_t size = iconv( converter, &szTextIn, &iInLeft, &sTextOut, &iOutLeft );
 
 	iconv_close( converter );
 
-	if( size == (std::size_t)(-1) )
+	if( size == (size_t)(-1) )
 	{
 		LOG->Trace( "%s\n", strerror( errno ) );
 		return false; /* Returned an error */
@@ -89,22 +85,21 @@ static bool AttemptKoreanConversion( RString &sText ) { return ConvertFromCharse
 static bool AttemptJapaneseConversion( RString &sText ) { return ConvertFromCharset( sText, "CP932" ); }
 
 #elif defined(MACOSX)
-#include <cstddef>
 #include <CoreFoundation/CoreFoundation.h>
 
 static bool ConvertFromCP( RString &sText, int iCodePage )
 {
 	CFStringEncoding encoding = CFStringConvertWindowsCodepageToEncoding( iCodePage );
-
+	
 	if( encoding == kCFStringEncodingInvalidId )
 		return false;
-
+	
 	CFStringRef old = CFStringCreateWithCString( kCFAllocatorDefault, sText, encoding );
-
-	if( old == nullptr )
+	
+	if( old == NULL )
 		return false;
-	const std::size_t size = CFStringGetMaximumSizeForEncoding( CFStringGetLength(old), kCFStringEncodingUTF8 );
-
+	const size_t size = CFStringGetMaximumSizeForEncoding( CFStringGetLength(old), kCFStringEncodingUTF8 );
+	
 	char *buf = new char[size+1];
 	buf[0] = '\0';
 	bool result = CFStringGetCString( old, buf, size, kCFStringEncodingUTF8 );
@@ -132,7 +127,7 @@ bool ConvertString( RString &str, const RString &encodings )
 	if( str.empty() )
 		return true;
 
-	std::vector<RString> lst;
+	vector<RString> lst;
 	split( encodings, ",", lst );
 
 	for(unsigned i = 0; i < lst.size(); ++i)

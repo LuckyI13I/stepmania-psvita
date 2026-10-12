@@ -1,4 +1,4 @@
-/*
+/* 
 http://en.wikipedia.org/wiki/INI_file
  - names and values are trimmed on both sides
  - semicolons start a comment line
@@ -9,9 +9,7 @@ http://en.wikipedia.org/wiki/INI_file
 #include "RageUtil.h"
 #include "RageLog.h"
 #include "RageFile.h"
-
-#include <cstddef>
-
+#include "Foreach.h"
 
 IniFile::IniFile(): XNode("IniFile")
 {
@@ -37,7 +35,7 @@ bool IniFile::ReadFile( RageFileBasic &f )
 {
 	RString keyname;
 	// keychild is used to cache the node that values are being added to. -Kyz
-	XNode* keychild= nullptr;
+	XNode* keychild= NULL;
 	for(;;)
 	{
 		RString line;
@@ -49,7 +47,6 @@ bool IniFile::ReadFile( RageFileBasic &f )
 			{
 			case -1:
 				m_sError = f.GetError();
-				LOG->Warn("Error reading line in file '%s': %s", m_sPath.c_str(), m_sError.c_str());
 				return false;
 			case 0:
 				return true; // eof
@@ -85,20 +82,19 @@ bool IniFile::ReadFile( RageFileBasic &f )
 					// New section.
 					keyname = line.substr(1, line.size()-2);
 					keychild= GetChild(keyname);
-					if(keychild == nullptr)
+					if(keychild == NULL)
 					{
 						keychild= AppendChild(keyname);
 					}
 					break;
 				}
-				[[fallthrough]];
 			default:
 			keyvalue:
-				if(keychild == nullptr)
+				if(keychild == NULL)
 				{ break; }
 				// New value.
-				std::size_t iEqualIndex = line.find("=");
-				if( iEqualIndex != std::string::npos )
+				size_t iEqualIndex = line.find("=");
+				if( iEqualIndex != string::npos )
 				{
 					RString valuename = line.Left((int) iEqualIndex);
 					RString value = line.Right(line.size()-valuename.size()-1);
@@ -108,11 +104,6 @@ bool IniFile::ReadFile( RageFileBasic &f )
 						SetKeyValue(keychild, valuename, value);
 					}
 				}
-				else
-				{
-					LOG->Warn("No '=' found in line of file '%s': %s", m_sPath.c_str(), line.c_str());
-				}
-
 				break;
 		}
 	}
@@ -136,12 +127,11 @@ bool IniFile::WriteFile( const RString &sPath ) const
 
 bool IniFile::WriteFile( RageFileBasic &f ) const
 {
-	FOREACH_CONST_Child( this, pKey )
+	FOREACH_CONST_Child( this, pKey ) 
 	{
 		if( f.PutLine( ssprintf("[%s]", pKey->GetName().c_str()) ) == -1 )
 		{
 			m_sError = f.GetError();
-			LOG->Warn( "Error when writing key to file '%s': %s", m_sPath.c_str(), m_sError.c_str() );
 			return false;
 		}
 
@@ -158,7 +148,6 @@ bool IniFile::WriteFile( RageFileBasic &f ) const
 			if( f.PutLine( ssprintf("%s=%s", sName.c_str(), sValue.c_str()) ) == -1 )
 			{
 				m_sError = f.GetError();
-				LOG->Warn( "Error when writing attribute: %s", m_sError.c_str() );
 				return false;
 			}
 		}
@@ -166,7 +155,6 @@ bool IniFile::WriteFile( RageFileBasic &f ) const
 		if( f.PutLine( "" ) == -1 )
 		{
 			m_sError = f.GetError();
-			LOG->Warn( "Error when writing newline: %s", m_sError.c_str() );
 			return false;
 		}
 	}
@@ -176,47 +164,29 @@ bool IniFile::WriteFile( RageFileBasic &f ) const
 bool IniFile::DeleteValue(const RString &keyname, const RString &valuename)
 {
 	XNode* pNode = GetChild( keyname );
-	if ( pNode == nullptr )
-	{
-		LOG->Warn("Key '%s' not found when attempting to delete a value.", keyname.c_str());
+	if( pNode == NULL )
 		return false;
-	}
-	bool result = pNode->RemoveAttr(valuename);
-	if (!result)
-	{
-		LOG->Warn("Value '%s' not found in key '%s'.", valuename.c_str(), keyname.c_str());
-	}
-	return result;
+	return pNode->RemoveAttr( valuename );
 }
+
 
 bool IniFile::DeleteKey(const RString &keyname)
 {
 	XNode* pNode = GetChild( keyname );
-	if( pNode == nullptr )
-	{
-		LOG->Warn("Key '%s' not found when attempting to delete a key.", keyname.c_str());
+	if( pNode == NULL )
 		return false;
-	}
-	bool result = RemoveChild(pNode);
-	if (!result)
-	{
-		LOG->Warn("Error removing key '%s'.", keyname.c_str());
-	}
-	return result;
+	return RemoveChild( pNode );
 }
 
 bool IniFile::RenameKey(const RString &from, const RString &to)
 {
 	// If to already exists, do nothing.
-	if( GetChild(to) != nullptr )
+	if( GetChild(to) != NULL )
 		return false;
 
 	XNode* pNode = GetChild( from );
-	if( pNode == nullptr )
-	{
-		LOG->Warn("Key '%s' not found.", from.c_str());
+	if( pNode == NULL )
 		return false;
-	}
 
 	pNode->SetName( to );
 	RenameChildInByName(pNode);
@@ -224,10 +194,11 @@ bool IniFile::RenameKey(const RString &from, const RString &to)
 	return true;
 }
 
+
 /*
  * (c) 2001-2004 Adam Clauss, Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -237,7 +208,7 @@ bool IniFile::RenameKey(const RString &from, const RString &to)
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

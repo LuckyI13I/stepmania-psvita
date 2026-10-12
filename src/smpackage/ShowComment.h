@@ -1,9 +1,9 @@
 #if !defined(AFX_SHOWCOMMENT_H__1FA603E3_5CCD_4D9E_9EC9_88AD55A06270__INCLUDED_)
 #define AFX_SHOWCOMMENT_H__1FA603E3_5CCD_4D9E_9EC9_88AD55A06270__INCLUDED_
 
-#if defined(_MSC_VER)
+#if _MSC_VER > 1000
 #pragma once
-#endif
+#endif // _MSC_VER > 1000
 // ShowComment.h : header file
 
 /////////////////////////////////////////////////////////////////////////////

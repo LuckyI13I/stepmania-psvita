@@ -4,7 +4,6 @@
 #define LOADING_WINDOW_WIN32_H
 
 #include "LoadingWindow.h"
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "archutils/Win32/AppInstance.h"
 
@@ -28,7 +27,7 @@ private:
 	RString text[3];
 	HICON m_hIcon;
 
-	static INT_PTR CALLBACK WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
+	static BOOL CALLBACK WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 };
 #define USE_LOADING_WINDOW_WIN32
 

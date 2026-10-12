@@ -16,7 +16,7 @@ struct DriverList
 {
 	void Add( const istring &sName, CreateRageDriverFn pfn );
 	RageDriver *Create( const RString &sDriverName );
-	std::map<istring, CreateRageDriverFn> *m_pRegistrees;
+	map<istring, CreateRageDriverFn> *m_pRegistrees;
 };
 
 struct RegisterRageDriver

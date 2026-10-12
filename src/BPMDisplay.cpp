@@ -11,10 +11,7 @@
 #include "Song.h"
 #include "Steps.h"
 
-#include <cmath>
-#include <climits>
-#include <vector>
-
+#include <limits.h>
 
 REGISTER_ACTOR_CLASS( BPMDisplay );
 
@@ -59,9 +56,9 @@ float BPMDisplay::GetActiveBPM() const
 	return m_fBPMTo + (m_fBPMFrom-m_fBPMTo)*m_fPercentInState;
 }
 
-void BPMDisplay::Update( float fDeltaTime )
-{
-	BitmapText::Update( fDeltaTime );
+void BPMDisplay::Update( float fDeltaTime ) 
+{ 
+	BitmapText::Update( fDeltaTime ); 
 
 	if( !(bool)CYCLE )
 		return;
@@ -105,7 +102,7 @@ void BPMDisplay::SetBPMRange( const DisplayBpms &bpms )
 
 	m_BPMS.clear();
 
-	const std::vector<float> &BPMS = bpms.vfBpms;
+	const vector<float> &BPMS = bpms.vfBpms;
 
 	bool AllIdentical = true;
 	for( unsigned i = 0; i < BPMS.size(); ++i )
@@ -120,8 +117,8 @@ void BPMDisplay::SetBPMRange( const DisplayBpms &bpms )
 		int MaxBPM = INT_MIN;
 		for( unsigned i = 0; i < BPMS.size(); ++i )
 		{
-			MinBPM = std::min(MinBPM, static_cast<int>(BPMS[i] + 0.5));
-			MaxBPM = std::max(MaxBPM, static_cast<int>(BPMS[i] + 0.5));
+			MinBPM = min( MinBPM, (int)lrintf(BPMS[i]) );
+			MaxBPM = max( MaxBPM, (int)lrintf(BPMS[i]) );
 		}
 		if( MinBPM == MaxBPM )
 		{
@@ -144,7 +141,7 @@ void BPMDisplay::SetBPMRange( const DisplayBpms &bpms )
 				m_BPMS.push_back(BPMS[i]); // hold
 		}
 
-		m_iCurrentBPM = std::min(1, static_cast<int>(m_BPMS.size())); // start on the first hold
+		m_iCurrentBPM = min(1u, m_BPMS.size()); // start on the first hold
 		m_fBPMFrom = BPMS[0];
 		m_fBPMTo = BPMS[0];
 		m_fPercentInState = 1;
@@ -176,13 +173,13 @@ void BPMDisplay::CycleRandomly()
 void BPMDisplay::NoBPM()
 {
 	m_BPMS.clear();
-	SetText( NO_BPM_TEXT );
+	SetText( NO_BPM_TEXT ); 
 	RunCommands( SET_NO_BPM_COMMAND );
 }
 
 void BPMDisplay::SetBpmFromSong( const Song* pSong )
 {
-	ASSERT( pSong != nullptr );
+	ASSERT( pSong != NULL );
 	switch( pSong->m_DisplayBPMType )
 	{
 	case DISPLAY_BPM_ACTUAL:
@@ -204,7 +201,7 @@ void BPMDisplay::SetBpmFromSong( const Song* pSong )
 
 void BPMDisplay::SetBpmFromSteps( const Steps* pSteps )
 {
-	ASSERT( pSteps != nullptr );
+	ASSERT( pSteps != NULL );
 	DisplayBpms bpms;
 	float fMinBPM, fMaxBPM;
 	pSteps->GetTimingData()->GetActualBPM( fMinBPM, fMaxBPM );
@@ -215,13 +212,13 @@ void BPMDisplay::SetBpmFromSteps( const Steps* pSteps )
 
 void BPMDisplay::SetBpmFromCourse( const Course* pCourse )
 {
-	ASSERT( pCourse != nullptr );
-	ASSERT( GAMESTATE->GetCurrentStyle(PLAYER_INVALID) != nullptr );
+	ASSERT( pCourse != NULL );
+	ASSERT( GAMESTATE->GetCurrentStyle(PLAYER_INVALID) != NULL );
 
 	StepsType st = GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType;
 	Trail *pTrail = pCourse->GetTrail( st );
 	// GetTranslitFullTitle because "Crashinfo.txt is garbled because of the ANSI output as usual." -f
-	ASSERT_M( pTrail != nullptr, ssprintf("Course '%s' has no trail for StepsType '%s'", pCourse->GetTranslitFullTitle().c_str(), StringConversion::ToString(st).c_str() ) );
+	ASSERT_M( pTrail != NULL, ssprintf("Course '%s' has no trail for StepsType '%s'", pCourse->GetTranslitFullTitle().c_str(), StringConversion::ToString(st).c_str() ) );
 
 	m_fCycleTime = (float)COURSE_CYCLE_SPEED;
 
@@ -262,7 +259,7 @@ void BPMDisplay::SetFromGameState()
 	}
 	if( GAMESTATE->m_pCurCourse.Get() )
 	{
-		if( GAMESTATE->GetCurrentStyle(PLAYER_INVALID) == nullptr )
+		if( GAMESTATE->GetCurrentStyle(PLAYER_INVALID) == NULL )
 			; // This is true when backing out from ScreenSelectCourse to ScreenTitleMenu.  So, don't call SetBpmFromCourse where an assert will fire.
 		else
 			SetBpmFromCourse( GAMESTATE->m_pCurCourse );
@@ -279,7 +276,7 @@ class SongBPMDisplay: public BPMDisplay
 public:
 	SongBPMDisplay();
 	virtual SongBPMDisplay *Copy() const;
-	virtual void Update( float fDeltaTime );
+	virtual void Update( float fDeltaTime ); 
 
 private:
 	float m_fLastGameStateBPM;
@@ -291,7 +288,7 @@ SongBPMDisplay::SongBPMDisplay()
 	m_fLastGameStateBPM = 0;
 }
 
-void SongBPMDisplay::Update( float fDeltaTime )
+void SongBPMDisplay::Update( float fDeltaTime ) 
 {
 	float fGameStateBPM = GAMESTATE->m_Position.m_fCurBPS * 60.0f;
 	if( m_fLastGameStateBPM != fGameStateBPM )
@@ -358,7 +355,7 @@ LUA_REGISTER_DERIVED_CLASS( BPMDisplay, BitmapText )
 /*
  * (c) 2001-2002 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -368,7 +365,7 @@ LUA_REGISTER_DERIVED_CLASS( BPMDisplay, BitmapText )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

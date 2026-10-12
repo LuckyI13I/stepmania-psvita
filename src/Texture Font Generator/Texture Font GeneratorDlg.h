@@ -1,6 +1,4 @@
 #pragma once
-
-#include <vector>
 #include <afxwin.h>
 #include <afxcmn.h>
 
@@ -44,7 +42,7 @@ protected:
 	void UpdateCloseUp();
 
 public:
-	std::vector<FontPageDescription> m_PagesToGenerate;
+	vector<FontPageDescription> m_PagesToGenerate;
 
 	afx_msg void OnCbnSelchangeShownPage();
 	afx_msg void OnCbnSelchangeFamilyList();

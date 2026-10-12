@@ -1,6 +1,13 @@
 #define __USE_GNU
 #include "global.h"
 
+#include <cstdio>
+#include <cstring>
+#include <cerrno>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/select.h>
+
 #include "Backtrace.h"
 #include "BacktraceNames.h"
 
@@ -17,17 +24,9 @@
 
 #include "ver.h"
 
-#include <cstdio>
-#include <cstring>
-#include <cerrno>
-#include <vector>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/select.h>
-
 bool child_read( int fd, void *p, int size );
 
-const char *g_pCrashHandlerArgv0 = nullptr;
+const char *g_pCrashHandlerArgv0 = NULL;
 
 
 static void output_stack_trace( FILE *out, const void **BacktracePointers )
@@ -135,7 +134,7 @@ static void child_process()
 	if( !child_read(3, temp, size) )
 		return;
 
-	std::vector<RString> Checkpoints;
+	vector<RString> Checkpoints;
 	split(temp, "$$", Checkpoints);
 	delete [] temp;
 
@@ -154,7 +153,7 @@ static void child_process()
 
 	FD_ZERO( &rs );
 	FD_SET( 3, &rs );
-	int ret = select( 4, &rs, nullptr, nullptr, &timeout );
+	int ret = select( 4, &rs, NULL, NULL, &timeout );
 
 	if( ret == 0 )
 	{
@@ -195,7 +194,7 @@ static void child_process()
 	sCrashInfoPath += "/crashinfo.txt";
 
 	FILE *CrashDump = fopen( sCrashInfoPath, "w+" );
-	if(CrashDump == nullptr)
+	if(CrashDump == NULL)
 	{
 		fprintf( stderr, "Couldn't open " + sCrashInfoPath + ": %s\n", strerror(errno) );
 		exit(1);
@@ -231,7 +230,6 @@ static void child_process()
 			}
 			break;
 		}
-		[[fallthrough]];
 	}
 	case CrashData::FORCE_CRASH:
 		crash.reason[sizeof(crash.reason)-1] = 0;
@@ -273,7 +271,7 @@ static void child_process()
 	/* stdout may have been inadvertently closed by the crash in the parent;
 	 * write to /dev/tty instead. */
 	FILE *tty = fopen( "/dev/tty", "w" );
-	if( tty == nullptr )
+	if( tty == NULL )
 		tty = stderr;
 
 	fputs( 	"\n"

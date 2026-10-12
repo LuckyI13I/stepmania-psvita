@@ -7,9 +7,6 @@
 #include "Style.h"
 #include "PlayerState.h"
 
-#include <vector>
-
-
 ReceptorArrow::ReceptorArrow()
 {
 	m_bIsPressed = false;
@@ -23,7 +20,7 @@ void ReceptorArrow::Load( const PlayerState* pPlayerState, int iColNo )
 	m_iColNo = iColNo;
 
 	const PlayerNumber pn = m_pPlayerState->m_PlayerNumber;
-	std::vector<GameInput> GameI;
+	vector<GameInput> GameI;
 	GAMESTATE->GetCurrentStyle(pn)->StyleInputToGameInput(iColNo, pn, GameI);
 	NOTESKIN->SetPlayerNumber( pn );
 	// FIXME?  Does this cause a problem when game inputs on different
@@ -82,7 +79,7 @@ void ReceptorArrow::SetNoteUpcoming( bool b )
 /*
  * (c) 2001-2004 Ben Nordstrom, Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -92,7 +89,7 @@ void ReceptorArrow::SetNoteUpcoming( bool b )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

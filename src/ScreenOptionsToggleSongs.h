@@ -4,9 +4,6 @@
 #include "ScreenOptions.h"
 #include "Song.h"
 
-#include <vector>
-
-
 // Can this be done any better? -aj
 namespace ToggleSongs
 {
@@ -19,11 +16,11 @@ public:
 	virtual void BeginScreen();
 
 private:
-	virtual void ImportOptions( int row, const std::vector<PlayerNumber> &vpns );
-	virtual void ExportOptions( int row, const std::vector<PlayerNumber> &vpns );
+	virtual void ImportOptions( int row, const vector<PlayerNumber> &vpns );
+	virtual void ExportOptions( int row, const vector<PlayerNumber> &vpns );
 	virtual void ProcessMenuStart( const InputEventPlus &input );
 
-	std::vector<RString> m_asGroups;
+	vector<RString> m_asGroups;
 };
 
 class ScreenOptionsToggleSongsSubPage: public ScreenOptions
@@ -32,10 +29,10 @@ public:
 	virtual void BeginScreen();
 
 private:
-	virtual void ImportOptions( int row, const std::vector<PlayerNumber> &vpns );
-	virtual void ExportOptions( int row, const std::vector<PlayerNumber> &vpns );
+	virtual void ImportOptions( int row, const vector<PlayerNumber> &vpns );
+	virtual void ExportOptions( int row, const vector<PlayerNumber> &vpns );
 
-	std::vector<Song*> m_apSongs;
+	vector<Song *> m_apSongs;
 };
 
 #endif
@@ -43,7 +40,7 @@ private:
 /*
  * (c) 2007 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -53,7 +50,7 @@ private:
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

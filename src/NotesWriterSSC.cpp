@@ -3,6 +3,7 @@
 #include <cstring>
 #include "NotesWriterSSC.h"
 #include "BackgroundUtil.h"
+#include "Foreach.h"
 #include "GameManager.h"
 #include "LocalizedString.h"
 #include "NoteTypes.h"
@@ -15,14 +16,11 @@
 #include "Song.h"
 #include "Steps.h"
 
-#include <vector>
-
-
 /**
  * @brief Turn a vector of lines into a single line joined by newline characters.
  * @param lines the list of lines to join.
  * @return the joined lines. */
-static RString JoinLineList( std::vector<RString> &lines )
+static RString JoinLineList( vector<RString> &lines )
 {
 	for( unsigned i = 0; i < lines.size(); ++i )
 		TrimRight( lines[i] );
@@ -39,10 +37,10 @@ static RString JoinLineList( std::vector<RString> &lines )
 // A utility class to write timing tags more easily!
 struct TimingTagWriter {
 
-	std::vector<RString> *m_pvsLines;
+	vector<RString> *m_pvsLines;
 	RString m_sNext;
 
-	TimingTagWriter( std::vector<RString>* pvsLines ): m_pvsLines (pvsLines) { }
+	TimingTagWriter( vector<RString> *pvsLines ): m_pvsLines (pvsLines) { }
 
 	void Write( const int row, const char *value )
 	{
@@ -58,11 +56,11 @@ struct TimingTagWriter {
 		{ Write( row, ssprintf( "%.6f=%.6f=%hd", a, b, c) ); }
 
 	void Init( const RString sTag ) { m_sNext = "#" + sTag + ":"; }
-	void Finish( ) { m_pvsLines->push_back( ( m_sNext != "," ? m_sNext : RString("") ) + ";" ); }
+	void Finish( ) { m_pvsLines->push_back( ( m_sNext != "," ? m_sNext : "" ) + ";" ); }
 
 };
 
-static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing, bool bIsSong = false )
+static void GetTimingTags( vector<RString> &lines, const TimingData &timing, bool bIsSong = false )
 {
 	TimingTagWriter w ( &lines );
 
@@ -70,7 +68,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	unsigned i = 0;
 
 	w.Init( "BPMS" );
-	const std::vector<TimingSegment*> &bpms = timing.GetTimingSegments(SEGMENT_BPM);
+	const vector<TimingSegment *> &bpms = timing.GetTimingSegments(SEGMENT_BPM);
 	for (; i < bpms.size(); i++)
 	{
 		const BPMSegment *bs = ToBPM( bpms[i] );
@@ -79,7 +77,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	w.Finish();
 
 	w.Init( "STOPS" );
-	const std::vector<TimingSegment*> &stops = timing.GetTimingSegments(SEGMENT_STOP);
+	const vector<TimingSegment *> &stops = timing.GetTimingSegments(SEGMENT_STOP);
 	for (i = 0; i < stops.size(); i++)
 	{
 		const StopSegment *ss = ToStop( stops[i] );
@@ -88,7 +86,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	w.Finish();
 
 	w.Init( "DELAYS" );
-	const std::vector<TimingSegment*> &delays = timing.GetTimingSegments(SEGMENT_DELAY);
+	const vector<TimingSegment *> &delays = timing.GetTimingSegments(SEGMENT_DELAY);
 	for (i = 0; i < delays.size(); i++)
 	{
 		const DelaySegment *ss = ToDelay( delays[i] );
@@ -97,7 +95,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	w.Finish();
 
 	w.Init( "WARPS" );
-	const std::vector<TimingSegment*> &warps = timing.GetTimingSegments(SEGMENT_WARP);
+	const vector<TimingSegment *> &warps = timing.GetTimingSegments(SEGMENT_WARP);
 	for (i = 0; i < warps.size(); i++)
 	{
 		const WarpSegment *ws = ToWarp( warps[i] );
@@ -105,7 +103,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	}
 	w.Finish();
 
-	const std::vector<TimingSegment*> &tSigs = timing.GetTimingSegments(SEGMENT_TIME_SIG);
+	const vector<TimingSegment *> &tSigs = timing.GetTimingSegments(SEGMENT_TIME_SIG);
 	ASSERT( !tSigs.empty() );
 	w.Init( "TIMESIGNATURES" );
 	for (i = 0; i < tSigs.size(); i++)
@@ -115,7 +113,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	}
 	w.Finish();
 
-	const std::vector<TimingSegment*> &ticks = timing.GetTimingSegments(SEGMENT_TICKCOUNT);
+	const vector<TimingSegment *> &ticks = timing.GetTimingSegments(SEGMENT_TICKCOUNT);
 	ASSERT( !ticks.empty() );
 	w.Init( "TICKCOUNTS" );
 	for (i = 0; i < ticks.size(); i++)
@@ -125,7 +123,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	}
 	w.Finish();
 
-	const std::vector<TimingSegment*> &combos = timing.GetTimingSegments(SEGMENT_COMBO);
+	const vector<TimingSegment *> &combos = timing.GetTimingSegments(SEGMENT_COMBO);
 	ASSERT( !combos.empty() );
 	w.Init( "COMBOS" );
 	for (i = 0; i < combos.size(); i++)
@@ -139,7 +137,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	w.Finish();
 
 	// Song Timing should only have the initial value.
-	const std::vector<TimingSegment*> &speeds = timing.GetTimingSegments(SEGMENT_SPEED);
+	const vector<TimingSegment *> &speeds = timing.GetTimingSegments(SEGMENT_SPEED);
 	w.Init( "SPEEDS" );
 	for (i = 0; i < speeds.size(); i++)
 	{
@@ -149,7 +147,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	w.Finish();
 
 	w.Init( "SCROLLS" );
-	const std::vector<TimingSegment*> &scrolls = timing.GetTimingSegments(SEGMENT_SCROLL);
+	const vector<TimingSegment *> &scrolls = timing.GetTimingSegments(SEGMENT_SCROLL);
 	for (i = 0; i < scrolls.size(); i++)
 	{
 		ScrollSegment *ss = ToScroll( scrolls[i] );
@@ -159,7 +157,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 
 	if( !bIsSong )
 	{
-		const std::vector<TimingSegment*> &fakes = timing.GetTimingSegments(SEGMENT_FAKE);
+		const vector<TimingSegment *> &fakes = timing.GetTimingSegments(SEGMENT_FAKE);
 		w.Init( "FAKES" );
 		for (i = 0; i < fakes.size(); i++)
 		{
@@ -170,7 +168,7 @@ static void GetTimingTags( std::vector<RString> &lines, const TimingData &timing
 	}
 
 	w.Init( "LABELS" );
-	const std::vector<TimingSegment*> &labels = timing.GetTimingSegments(SEGMENT_LABEL);
+	const vector<TimingSegment *> &labels = timing.GetTimingSegments(SEGMENT_LABEL);
 	for (i = 0; i < labels.size(); i++)
 	{
 		LabelSegment *ls = static_cast<LabelSegment *>(labels[i]);
@@ -238,7 +236,7 @@ static void WriteGlobalTags( RageFile &f, const Song &out )
 	}
 
 	{
-		std::vector<RString> vs = out.GetInstrumentTracksToVectorString();
+		vector<RString> vs = out.GetInstrumentTracksToVectorString();
 		if( !vs.empty() )
 		{
 			RString s = join( ",", vs );
@@ -252,20 +250,10 @@ static void WriteGlobalTags( RageFile &f, const Song &out )
 	f.Write( "#SELECTABLE:" );
 	switch(out.m_SelectionDisplay)
 	{
-		default:
-			ASSERT_M(0, "An invalid selectable value was found for this song!");
-			[[fallthrough]];
-		case Song::SHOW_ALWAYS:
-			f.Write( "YES" );
-			break;
-#if 0
-		case Song::SHOW_NONSTOP:
-			f.Write( "NONSTOP" );
-			break;
-#endif
-		case Song::SHOW_NEVER:
-			f.Write( "NO" );
-			break;
+		default: ASSERT_M(0, "An invalid selectable value was found for this song!"); // fall through
+		case Song::SHOW_ALWAYS:	f.Write( "YES" );		break;
+		//case Song::SHOW_NONSTOP:	f.Write( "NONSTOP" );	break;
+		case Song::SHOW_NEVER:		f.Write( "NO" );		break;
 	}
 	f.PutLine( ";" );
 
@@ -301,8 +289,8 @@ static void WriteGlobalTags( RageFile &f, const Song &out )
 		else
 			f.Write( ssprintf("#BGCHANGES%d:", b+1) );
 
-		for (BackgroundChange const &bgc : out.GetBackgroundChanges(b))
-			f.PutLine( bgc.ToString() +"," );
+		FOREACH_CONST( BackgroundChange, out.GetBackgroundChanges(b), bgc )
+			f.PutLine( (*bgc).ToString() +"," );
 
 		/* If there's an animation plan at all, add a dummy "-nosongbg-" tag to
 		 * indicate that this file doesn't want a song BG entry added at the end.
@@ -316,9 +304,9 @@ static void WriteGlobalTags( RageFile &f, const Song &out )
 	if( out.GetForegroundChanges().size() )
 	{
 		f.Write( "#FGCHANGES:" );
-		for (BackgroundChange const &bgc : out.GetForegroundChanges())
+		FOREACH_CONST( BackgroundChange, out.GetForegroundChanges(), bgc )
 		{
-			f.PutLine( bgc.ToString() +"," );
+			f.PutLine( (*bgc).ToString() +"," );
 		}
 		f.PutLine( ";" );
 	}
@@ -362,7 +350,7 @@ static void WriteGlobalTags( RageFile &f, const Song &out )
  * @return the NoteData in RString form. */
 static RString GetSSCNoteData( const Song &song, const Steps &in, bool bSavingCache )
 {
-	std::vector<RString> lines;
+	vector<RString> lines;
 
 	lines.push_back( "" );
 	// Escape to prevent some clown from making a comment of "\r\n;"
@@ -382,7 +370,7 @@ static RString GetSSCNoteData( const Song &song, const Steps &in, bool bSavingCa
 		lines.push_back(ssprintf("#MUSIC:%s;", music.c_str()));
 	}
 
-	std::vector<RString> asRadarValues;
+	vector<RString> asRadarValues;
 	FOREACH_PlayerNumber( pn )
 	{
 		const RadarValues &rv = in.GetRadarValues( pn );
@@ -444,7 +432,7 @@ static RString GetSSCNoteData( const Song &song, const Steps &in, bool bSavingCa
 	return JoinLineList( lines );
 }
 
-bool NotesWriterSSC::Write( RString sPath, const Song &out, const std::vector<Steps*>& vpStepsToSave, bool bSavingCache )
+bool NotesWriterSSC::Write( RString sPath, const Song &out, const vector<Steps*>& vpStepsToSave, bool bSavingCache )
 {
 	int flags = RageFile::WRITE;
 
@@ -462,7 +450,7 @@ bool NotesWriterSSC::Write( RString sPath, const Song &out, const std::vector<St
 	}
 
 	WriteGlobalTags( f, out );
-
+	
 	if( bSavingCache )
 	{
 		f.PutLine( ssprintf( "// cache tags:" ) );
@@ -476,8 +464,9 @@ bool NotesWriterSSC::Write( RString sPath, const Song &out, const std::vector<St
 	}
 
 	// Save specified Steps to this file
-	for (Steps const *pSteps : vpStepsToSave)
+	FOREACH_CONST( Steps*, vpStepsToSave, s ) 
 	{
+		const Steps* pSteps = *s;
 		RString sTag = GetSSCNoteData( out, *pSteps, bSavingCache );
 		f.PutLine( sTag );
 	}
@@ -493,7 +482,7 @@ void NotesWriterSSC::GetEditFileContents( const Song *pSong, const Steps *pSteps
 	RString sDir = pSong->GetSongDir();
 
 	// "Songs/foo/bar"; strip off "Songs/".
-	std::vector<RString> asParts;
+	vector<RString> asParts;
 	split( sDir, "/", asParts );
 	if( asParts.size() )
 		sDir = join( "/", asParts.begin()+1, asParts.end() );
@@ -527,8 +516,8 @@ bool NotesWriterSSC::WriteEditFileToMachine( const Song *pSong, Steps *pSteps, R
 	RString sPath = sDir + GetEditFileName(pSong,pSteps);
 
 	// Check to make sure that we're not clobering an existing file before opening.
-	bool bFileNameChanging =
-		pSteps->GetSavedToDisk()  &&
+	bool bFileNameChanging = 
+		pSteps->GetSavedToDisk()  && 
 		pSteps->GetFilename() != sPath;
 	if( bFileNameChanging  &&  DoesFileExist(sPath) )
 	{
@@ -564,7 +553,7 @@ bool NotesWriterSSC::WriteEditFileToMachine( const Song *pSong, Steps *pSteps, R
 /*
  * (c) 2011 Jason Felds
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -574,7 +563,7 @@ bool NotesWriterSSC::WriteEditFileToMachine( const Song *pSong, Steps *pSteps, R
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

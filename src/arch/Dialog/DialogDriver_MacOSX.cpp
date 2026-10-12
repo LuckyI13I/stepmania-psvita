@@ -4,35 +4,31 @@
 #include "RageThreads.h"
 #include "ProductInfo.h"
 #include "InputFilter.h"
-
-#include <vector>
-
 #include <CoreFoundation/CoreFoundation.h>
-
 
 REGISTER_DIALOG_DRIVER_CLASS( MacOSX );
 
 static CFOptionFlags ShowAlert( CFOptionFlags flags, const RString& sMessage, CFStringRef OK,
-				CFStringRef alt = nullptr, CFStringRef other = nullptr)
+				CFStringRef alt = NULL, CFStringRef other = NULL)
 {
 	CFOptionFlags result;
-	CFStringRef text = CFStringCreateWithCString( nullptr, sMessage, kCFStringEncodingUTF8 );
+	CFStringRef text = CFStringCreateWithCString( NULL, sMessage, kCFStringEncodingUTF8 );
 
-	if( text == nullptr )
+	if( text == NULL )
 	{
 		RString error = ssprintf( "CFString for dialog string \"%s\" could not be created.", sMessage.c_str() );
 		WARN( error );
 		DEBUG_ASSERT_M( false, error );
 		return kCFUserNotificationDefaultResponse; // Is this better than displaying an "unknown error" message?
 	}
-	CFUserNotificationDisplayAlert( 0.0, flags, nullptr, nullptr, nullptr, CFSTR(PRODUCT_FAMILY),
+	CFUserNotificationDisplayAlert( 0.0, flags, NULL, NULL, NULL, CFSTR(PRODUCT_FAMILY),
 					text, OK, alt, other, &result );
 	CFRelease( text );
 
 	// Flush all input that's accumulated while the dialog box was up.
 	if( INPUTFILTER )
 	{
-		std::vector<InputEvent> dummy;
+		vector<InputEvent> dummy;
 		INPUTFILTER->Reset();
 		INPUTFILTER->GetInputEvents( dummy );
 	}
@@ -40,7 +36,7 @@ static CFOptionFlags ShowAlert( CFOptionFlags flags, const RString& sMessage, CF
 	return result;
 }
 
-#define LSTRING(b,x) CFBundleCopyLocalizedString( (b), CFSTR(x), nullptr, CFSTR("Localizable") )
+#define LSTRING(b,x) CFBundleCopyLocalizedString( (b), CFSTR(x), NULL, CFSTR("Localizable") )
 
 void DialogDriver_MacOSX::OK( RString sMessage, RString sID )
 {
@@ -150,7 +146,7 @@ Dialog::Result DialogDriver_MacOSX::YesNo( RString sMessage, RString sID )
 /*
  * (c) 2003-2006 Steve Checkoway
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -160,7 +156,7 @@ Dialog::Result DialogDriver_MacOSX::YesNo( RString sMessage, RString sID )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

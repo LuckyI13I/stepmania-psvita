@@ -6,11 +6,8 @@
 #include "InputFilter.h"
 #include "archutils/Unix/X11Helper.h"
 
-#include <vector>
-
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
-
 
 using namespace X11Helper;
 
@@ -56,7 +53,7 @@ static DeviceButton XSymToDeviceButton( int key )
 	/* XK_KP_0 ... XK_KP_9 to KEY_KP_C0 ... KEY_KP_C9 */
 	if( key >= XK_KP_0 && key <= XK_KP_9 )
 		return enum_add2(KEY_KP_C0, key - XK_KP_0);
-
+	
 	switch( key )
 	{
 	/* These are needed because of the way X registers the keypad. */
@@ -138,7 +135,7 @@ static DeviceButton XSymToDeviceButton( int key )
 
 InputHandler_X11::InputHandler_X11()
 {
-	if( Dpy == nullptr || Win == None )
+	if( Dpy == NULL  || Win == None )
 		return;
 	XWindowAttributes winAttrib;
 
@@ -154,7 +151,7 @@ InputHandler_X11::InputHandler_X11()
 
 InputHandler_X11::~InputHandler_X11()
 {
-	if( Dpy == nullptr || Win == None || FatalError )
+	if( Dpy == NULL || Win == None )
 		return;
 	// TODO: Determine if we even need to set this back (or is the window
 	// destroyed just after this?)
@@ -169,7 +166,7 @@ InputHandler_X11::~InputHandler_X11()
 
 void InputHandler_X11::Update()
 {
-	if( Dpy == nullptr || Win == None )
+	if( Dpy == NULL || Win == None )
 	{
 		InputHandler::UpdateTimer();
 		return;
@@ -190,8 +187,7 @@ void InputHandler_X11::Update()
 			&event) )
 	{
 		const bool bKeyPress = event.type == KeyPress;
-		const bool bMousePress = event.type == ButtonPress;
-		const bool isMouse = bMousePress || event.type == ButtonRelease;
+		//const bool bMousePress = event.type == ButtonPress;
 
 		if( event.type == MotionNotify )
 		{
@@ -207,10 +203,9 @@ void InputHandler_X11::Update()
 				lastEvent.type = 0;
 				continue;
 			}
-
 			// This is a new event so the last release was not a repeat.
+			ButtonPressed( DeviceInput(DEVICE_KEYBOARD, lastDB, 0) );
 			lastEvent.type = 0;
-			RegisterKeyEvent( event.xkey.time, false, lastDB );
 		}
 
 		if( event.type == FocusOut )
@@ -220,17 +215,17 @@ void InputHandler_X11::Update()
 		}
 
 		// Get the first defined keysym for this event's key
-		lastDB = XSymToDeviceButton( isMouse ? XK_Pointer_Button_Dflt + event.xbutton.button : XLookupKeysym(&event.xkey, 0) );
+		lastDB = XSymToDeviceButton( XLookupKeysym(&event.xkey, 0) );
 
 		if( lastDB == DeviceButton_Invalid )
 			continue;
 
 		if( bKeyPress )
-		{
-			RegisterKeyEvent( event.xkey.time, true, lastDB );
-		}
+			ButtonPressed( DeviceInput(DEVICE_KEYBOARD, lastDB, 1) );
+		/*
 		else if( bMousePress )
 			ButtonPressed( DeviceInput(DEVICE_MOUSE, lastDB, 1) );
+		*/
 		else
 			lastEvent = event;
 	}
@@ -239,43 +234,24 @@ void InputHandler_X11::Update()
 	if( lastEvent.type != 0 )
 	{
 		if( lastEvent.type == (KeyPress|KeyRelease) )
-		{
-			RegisterKeyEvent( event.xkey.time, false, lastDB );
-		}
+			ButtonPressed( DeviceInput(DEVICE_KEYBOARD, lastDB, 0) );
+		/*
 		if( lastEvent.type == (ButtonPress|ButtonRelease) )
 			ButtonPressed( DeviceInput(DEVICE_MOUSE, lastDB, 0) );
+		*/
 	}
 
 	InputHandler::UpdateTimer();
 }
 
 
-void InputHandler_X11::GetDevicesAndDescriptions( std::vector<InputDeviceInfo>& vDevicesOut )
+void InputHandler_X11::GetDevicesAndDescriptions( vector<InputDeviceInfo>& vDevicesOut )
 {
 	if( Dpy && Win )
 	{
 		vDevicesOut.push_back( InputDeviceInfo(DEVICE_KEYBOARD,"Keyboard") );
 		vDevicesOut.push_back( InputDeviceInfo(DEVICE_MOUSE,"Mouse") );
 	}
-}
-
-void InputHandler_X11::RegisterKeyEvent( unsigned long timestamp, bool keyDown, DeviceButton button )
-{
-	// https://linux.die.net/man/3/xkeyevent
-	// Event timestamp is in milliseconds
-
-	// seconds, microseconds
-	RageTimer timer(
-	  timestamp / 1000,
-	  (timestamp % 1000) * 1000 );
-
-	DeviceInput di(
-		DEVICE_KEYBOARD,
-		button,
-		keyDown ? 1.0f:0.0f,
-		timer);
-
-	ButtonPressed( di );
 }
 
 /*

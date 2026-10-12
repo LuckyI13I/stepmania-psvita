@@ -4,8 +4,6 @@
 #include "Actor.h"
 #include "RageTexture.h"
 
-#include <vector>
-
 class XNode;
 
 typedef Actor* (*CreateActorFn)();
@@ -27,7 +25,7 @@ Actor *CreateActor() { return new T; }
 /**
  * @brief Register the requested Actor so that it's more accessible.
  *
- * Each Actor class should have a REGISTER_ACTOR_CLASS in its CPP file. */
+ * Each Actor class should have a REGISTER_ACTOR_CLASS in its CPP file. */ 
 #define REGISTER_ACTOR_CLASS( className ) REGISTER_ACTOR_CLASS_WITH_NAME( className, className )
 
 enum FileType
@@ -50,8 +48,8 @@ const RString& FileTypeToString( FileType ft );
 namespace ActorUtil
 {
 	void InitFileTypeLists();
-	std::vector<RString> const& GetTypeExtensionList(FileType ft);
-	void AddTypeExtensionsToList(FileType ft, std::vector<RString>& add_to);
+	vector<RString> const& GetTypeExtensionList(FileType ft);
+	void AddTypeExtensionsToList(FileType ft, vector<RString>& add_to);
 
 	// Every screen should register its class at program initialization.
 	void Register( const RString& sClassName, CreateActorFn pfn );
@@ -66,7 +64,7 @@ namespace ActorUtil
 	}
 	inline void OffCommand( Actor& actor )
 	{
-		// HACK:  It's very often that we command things to TweenOffScreen
+		// HACK:  It's very often that we command things to TweenOffScreen 
 		// that we aren't drawing.  We know that an Actor is not being
 		// used if its name is blank.  So, do nothing on Actors with a blank name.
 		// (Do "playcommand" anyway; BGAs often have no name.)
@@ -117,8 +115,8 @@ namespace ActorUtil
 	inline void LoadAllCommandsAndSetXYAndOnCommand( Actor* pActor, const RString &sMetricsGroup ) { if(pActor) LoadAllCommandsAndSetXYAndOnCommand( *pActor, sMetricsGroup ); }
 
 	// Return a Sprite, BitmapText, or Model depending on the file type
-	Actor* LoadFromNode( const XNode* pNode, Actor *pParentActor = nullptr );
-	Actor* MakeActor( const RString &sPath, Actor *pParentActor = nullptr );
+	Actor* LoadFromNode( const XNode* pNode, Actor *pParentActor = NULL );
+	Actor* MakeActor( const RString &sPath, Actor *pParentActor = NULL );
 	RString GetSourcePath( const XNode *pNode );
 	RString GetWhere( const XNode *pNode );
 	bool GetAttrPath( const XNode *pNode, const RString &sName, RString &sOut, bool optional= false );
@@ -126,7 +124,7 @@ namespace ActorUtil
 
 	bool ResolvePath( RString &sPath, const RString &sName, bool optional= false );
 
-	void SortByZPosition( std::vector<Actor*> &vActors );
+	void SortByZPosition( vector<Actor*> &vActors );
 
 	FileType GetFileType( const RString &sPath );
 };
@@ -147,7 +145,7 @@ namespace ActorUtil
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -157,7 +155,7 @@ namespace ActorUtil
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -6,9 +6,6 @@
 #include "ScreenOptions.h"
 #include "GameConstantsAndTypes.h"
 
-#include <vector>
-
-
 typedef bool (*MenuRowUpdateEnabled)();
 
 struct MenuRowDef
@@ -16,31 +13,31 @@ struct MenuRowDef
 	int			iRowCode;
 	RString		sName;
 	bool		bEnabled;
-	MenuRowUpdateEnabled	pfnEnabled;	// if ! nullptr, used instead of bEnabled
+	MenuRowUpdateEnabled	pfnEnabled;	// if ! NULL, used instead of bEnabled
 	EditMode	emShowIn;
 	int			iDefaultChoice;
-	std::vector<RString>		choices;
+	vector<RString>		choices;
 	bool		bThemeTitle;
 	bool		bThemeItems;
 
 	MenuRowDef(): iRowCode(0), sName(""), bEnabled(false),
 		pfnEnabled(), emShowIn(), iDefaultChoice(0),
 		choices(), bThemeTitle(false), bThemeItems(false) {}
-	MenuRowDef( int r, RString n, MenuRowUpdateEnabled pe, EditMode s,
-		   bool bTT, bool bTI, int d, const char *c0=nullptr,
-		   const char *c1=nullptr, const char *c2=nullptr,
-		   const char *c3=nullptr, const char *c4=nullptr,
-		   const char *c5=nullptr, const char *c6=nullptr,
-		   const char *c7=nullptr, const char *c8=nullptr,
-		   const char *c9=nullptr, const char *c10=nullptr,
-		   const char *c11=nullptr, const char *c12=nullptr,
-		   const char *c13=nullptr, const char *c14=nullptr,
-		   const char *c15=nullptr, const char *c16=nullptr,
-		   const char *c17=nullptr, const char *c18=nullptr,
-		   const char *c19=nullptr, const char *c20=nullptr,
-		   const char *c21=nullptr, const char *c22=nullptr,
-		   const char *c23=nullptr, const char *c24=nullptr,
-		   const char *c25=nullptr ): iRowCode(r), sName(n),
+	MenuRowDef( int r, RString n, MenuRowUpdateEnabled pe, EditMode s, 
+		   bool bTT, bool bTI, int d, const char *c0=NULL, 
+		   const char *c1=NULL, const char *c2=NULL, 
+		   const char *c3=NULL, const char *c4=NULL, 
+		   const char *c5=NULL, const char *c6=NULL, 
+		   const char *c7=NULL, const char *c8=NULL, 
+		   const char *c9=NULL, const char *c10=NULL, 
+		   const char *c11=NULL, const char *c12=NULL, 
+		   const char *c13=NULL, const char *c14=NULL, 
+		   const char *c15=NULL, const char *c16=NULL, 
+		   const char *c17=NULL, const char *c18=NULL, 
+		   const char *c19=NULL, const char *c20=NULL, 
+		   const char *c21=NULL, const char *c22=NULL, 
+		   const char *c23=NULL, const char *c24=NULL, 
+		   const char *c25=NULL ): iRowCode(r), sName(n),
 			bEnabled(true), pfnEnabled(pe), emShowIn(s),
 			iDefaultChoice(d), choices(),
 			bThemeTitle(bTT), bThemeItems(bTI)
@@ -53,34 +50,34 @@ struct MenuRowDef
 		PUSH(c23);PUSH(c23);PUSH(c24);PUSH(c25);
 #undef PUSH
 	}
-
+	
 	MenuRowDef(int r, RString n, bool e, EditMode s,
-			   bool bTT, bool bTI, int d, std::vector<RString> options):
-			iRowCode(r), sName(n), bEnabled(e), pfnEnabled(nullptr),
+			   bool bTT, bool bTI, int d, vector<RString> options):
+			iRowCode(r), sName(n), bEnabled(e), pfnEnabled(NULL),
 			emShowIn(s), iDefaultChoice(d), choices(),
 			bThemeTitle(bTT), bThemeItems(bTI)
 	{
-		for (RString &str : options)
+		FOREACH(RString, options, str)
 		{
-			if (str != "") choices.push_back(str);
+			if (*str != "") choices.push_back(*str);
 		}
 	}
-
-	MenuRowDef( int r, RString n, bool e, EditMode s, bool bTT, bool bTI,
-		   int d, const char *c0=nullptr, const char *c1=nullptr,
-		   const char *c2=nullptr, const char *c3=nullptr,
-		   const char *c4=nullptr, const char *c5=nullptr,
-		   const char *c6=nullptr, const char *c7=nullptr,
-		   const char *c8=nullptr, const char *c9=nullptr,
-		   const char *c10=nullptr, const char *c11=nullptr,
-		   const char *c12=nullptr, const char *c13=nullptr,
-		   const char *c14=nullptr, const char *c15=nullptr,
-		   const char *c16=nullptr, const char *c17=nullptr,
-		   const char *c18=nullptr, const char *c19=nullptr,
-		   const char *c20=nullptr, const char *c21=nullptr,
-		   const char *c22=nullptr, const char *c23=nullptr,
-		   const char *c24=nullptr, const char *c25=nullptr ):
-		iRowCode(r), sName(n), bEnabled(e), pfnEnabled(nullptr),
+	
+	MenuRowDef( int r, RString n, bool e, EditMode s, bool bTT, bool bTI, 
+		   int d, const char *c0=NULL, const char *c1=NULL, 
+		   const char *c2=NULL, const char *c3=NULL, 
+		   const char *c4=NULL, const char *c5=NULL, 
+		   const char *c6=NULL, const char *c7=NULL, 
+		   const char *c8=NULL, const char *c9=NULL, 
+		   const char *c10=NULL, const char *c11=NULL, 
+		   const char *c12=NULL, const char *c13=NULL, 
+		   const char *c14=NULL, const char *c15=NULL, 
+		   const char *c16=NULL, const char *c17=NULL, 
+		   const char *c18=NULL, const char *c19=NULL, 
+		   const char *c20=NULL, const char *c21=NULL, 
+		   const char *c22=NULL, const char *c23=NULL, 
+		   const char *c24=NULL, const char *c25=NULL ):
+		iRowCode(r), sName(n), bEnabled(e), pfnEnabled(NULL),
 		emShowIn(s), iDefaultChoice(d), choices(),
 		bThemeTitle(bTT), bThemeItems(bTI)
 	{
@@ -92,16 +89,16 @@ struct MenuRowDef
 		PUSH(c23);PUSH(c23);PUSH(c24);PUSH(c25);
 #undef PUSH
 	}
-
+	
 	MenuRowDef( int r, RString n, bool e, EditMode s, bool bTT, bool bTI,
 		   int d, int low, int high ):
-		iRowCode(r), sName(n), bEnabled(e), pfnEnabled(nullptr),
+		iRowCode(r), sName(n), bEnabled(e), pfnEnabled(NULL),
 		emShowIn(s), iDefaultChoice(d), choices(),
 		bThemeTitle(bTT), bThemeItems(bTI)
 	{
 		for ( int i = low; i <= high; i++ )
 		{
-			choices.push_back(std::to_string(i));
+			choices.push_back(IntToString(i).c_str());
 		}
 	}
 
@@ -114,11 +111,11 @@ struct MenuRowDef
 	bool SetDefaultChoiceIfPresent( RString sChoice )
 	{
 		iDefaultChoice = 0;
-		for (unsigned i = 0; i < choices.size(); ++i)
+		FOREACH_CONST( RString, choices, s )
 		{
-			if (choices[i] == sChoice)
+			if( sChoice == *s )
 			{
-				iDefaultChoice = i;
+				iDefaultChoice = s - choices.begin();
 				return true;
 			}
 		}
@@ -129,22 +126,22 @@ struct MenuRowDef
 struct MenuDef
 {
 	RString sClassName;
-	std::vector<MenuRowDef> rows;
+	vector<MenuRowDef> rows;
 
-	MenuDef( RString c, MenuRowDef r0=MenuRowDef(),
-		MenuRowDef r1=MenuRowDef(), MenuRowDef r2=MenuRowDef(),
-		MenuRowDef r3=MenuRowDef(), MenuRowDef r4=MenuRowDef(),
-		MenuRowDef r5=MenuRowDef(), MenuRowDef r6=MenuRowDef(),
-		MenuRowDef r7=MenuRowDef(), MenuRowDef r8=MenuRowDef(),
-		MenuRowDef r9=MenuRowDef(), MenuRowDef r10=MenuRowDef(),
-		MenuRowDef r11=MenuRowDef(), MenuRowDef r12=MenuRowDef(),
-		MenuRowDef r13=MenuRowDef(), MenuRowDef r14=MenuRowDef(),
-		MenuRowDef r15=MenuRowDef(), MenuRowDef r16=MenuRowDef(),
-		MenuRowDef r17=MenuRowDef(), MenuRowDef r18=MenuRowDef(),
-		MenuRowDef r19=MenuRowDef(), MenuRowDef r20=MenuRowDef(),
-		MenuRowDef r21=MenuRowDef(), MenuRowDef r22=MenuRowDef(),
-		MenuRowDef r23=MenuRowDef(), MenuRowDef r24=MenuRowDef(),
-		MenuRowDef r25=MenuRowDef(), MenuRowDef r26=MenuRowDef(),
+	MenuDef( RString c, MenuRowDef r0=MenuRowDef(), 
+		MenuRowDef r1=MenuRowDef(), MenuRowDef r2=MenuRowDef(), 
+		MenuRowDef r3=MenuRowDef(), MenuRowDef r4=MenuRowDef(), 
+		MenuRowDef r5=MenuRowDef(), MenuRowDef r6=MenuRowDef(), 
+		MenuRowDef r7=MenuRowDef(), MenuRowDef r8=MenuRowDef(), 
+		MenuRowDef r9=MenuRowDef(), MenuRowDef r10=MenuRowDef(), 
+		MenuRowDef r11=MenuRowDef(), MenuRowDef r12=MenuRowDef(), 
+		MenuRowDef r13=MenuRowDef(), MenuRowDef r14=MenuRowDef(), 
+		MenuRowDef r15=MenuRowDef(), MenuRowDef r16=MenuRowDef(), 
+		MenuRowDef r17=MenuRowDef(), MenuRowDef r18=MenuRowDef(), 
+		MenuRowDef r19=MenuRowDef(), MenuRowDef r20=MenuRowDef(), 
+		MenuRowDef r21=MenuRowDef(), MenuRowDef r22=MenuRowDef(), 
+		MenuRowDef r23=MenuRowDef(), MenuRowDef r24=MenuRowDef(), 
+		MenuRowDef r25=MenuRowDef(), MenuRowDef r26=MenuRowDef(), 
 		MenuRowDef r27=MenuRowDef(), MenuRowDef r28=MenuRowDef(),
 		MenuRowDef r29=MenuRowDef() ): sClassName(c), rows()
 	{
@@ -162,8 +159,8 @@ struct MenuDef
 class ScreenMiniMenu : public ScreenOptions
 {
 public:
-	static void MiniMenu( const MenuDef* pDef, ScreenMessage smSendOnOK,
-			     ScreenMessage smSendOnCancel = SM_None,
+	static void MiniMenu( const MenuDef* pDef, ScreenMessage smSendOnOK, 
+			     ScreenMessage smSendOnCancel = SM_None, 
 			     float fX = 0, float fY = 0 );
 
 	void Init();
@@ -172,8 +169,8 @@ public:
 
 protected:
 	virtual void AfterChangeValueOrRow( PlayerNumber pn );
-	virtual void ImportOptions( int iRow, const std::vector<PlayerNumber> &vpns );
-	virtual void ExportOptions( int iRow, const std::vector<PlayerNumber> &vpns );
+	virtual void ImportOptions( int iRow, const vector<PlayerNumber> &vpns );
+	virtual void ExportOptions( int iRow, const vector<PlayerNumber> &vpns );
 
 	virtual bool FocusedItemEndsScreen( PlayerNumber pn ) const;
 
@@ -182,14 +179,14 @@ protected:
 	ScreenMessage		m_SMSendOnOK;
 	ScreenMessage		m_SMSendOnCancel;
 
-	std::vector<MenuRowDef>	m_vMenuRows;
+	vector<MenuRowDef>	m_vMenuRows;
 
 public:
 	ScreenMiniMenu(): m_SMSendOnOK(), m_SMSendOnCancel(), m_vMenuRows() {}
-
+	
 	static bool s_bCancelled;
 	static int s_iLastRowCode;
-	static std::vector<int>	s_viLastAnswers;
+	static vector<int>	s_viLastAnswers;
 };
 
 #endif
@@ -197,7 +194,7 @@ public:
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -207,7 +204,7 @@ public:
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -8,14 +8,11 @@
 #include "archutils/Common/PthreadHelpers.h"
 #endif
 
-#include <cerrno>
-#include <memory>
-#include <vector>
-
 #if defined(HAVE_UNISTD_H)
 #include <unistd.h>
 #endif
 #include <sys/mman.h>
+#include <cerrno>
 
 #if defined(MACOSX)
 extern "C" int sigaltstack(const stack_t * __restrict, stack_t * __restrict);
@@ -33,8 +30,8 @@ extern "C" int sigaltstack(const stack_t * __restrict, stack_t * __restrict);
 static int find_stack_direction2( char *p ) NOINLINE;
 static int find_stack_direction() NOINLINE;
 
-static std::vector<SignalHandler::handler> handlers;
-std::unique_ptr<SaveSignals> saved_sigs;
+static vector<SignalHandler::handler> handlers;
+SaveSignals *saved_sigs;
 
 static int signals[] =
 {
@@ -62,7 +59,7 @@ SaveSignals::SaveSignals()
 	for( int i = 0; signals[i] != -1; ++i )
 	{
 		struct sigaction sa;
-		sigaction( signals[i], nullptr, &sa );
+		sigaction( signals[i], NULL, &sa );
 		old_handlers.push_back( sa );
 	}
 }
@@ -71,7 +68,7 @@ SaveSignals::~SaveSignals()
 {
 	/* Restore the old signal handlers. */
 	for( unsigned i = 0; i < old_handlers.size(); ++i )
-		sigaction( signals[i], &old_handlers[i], nullptr );
+		sigaction( signals[i], &old_handlers[i], NULL );
 }
 
 static void SigHandler( int signal, siginfo_t *si, void *ucp )
@@ -91,7 +88,7 @@ static void SigHandler( int signal, siginfo_t *si, void *ucp )
 		struct sigaction old;
 		sigaction( signal, &sa, &old );
 		raise( signal );
-		sigaction( signal, &old, nullptr );
+		sigaction( signal, &old, NULL );
 	}
 }
 
@@ -120,13 +117,13 @@ static void *CreateStack( int size )
 	 *
 	 * mmap entries always show up individually in /proc/#/maps.  We could use posix_memalign as
 	 * a fallback, but we'd have to put a barrier page on both sides to guarantee that. */
-	char *p = nullptr;
-	p = (char *) mmap( nullptr, size+PageSize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0 );
+	char *p = NULL;
+	p = (char *) mmap( NULL, size+PageSize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0 );
 
 	if( p == (void *) -1 )
-		return nullptr;
+		return NULL;
 	// if( posix_memalign( (void**) &p, PageSize, RealSize ) != 0 )
-	//	return nullptr;
+	//	return NULL;
 
 	if( find_stack_direction() < 0 )
 	{
@@ -146,10 +143,10 @@ static void *CreateStack( int size )
 /* Hook up events to fatal signals, so we can clean up if we're killed. */
 void SignalHandler::OnClose( handler h )
 {
-	//if the unique_ptr has not been set, then enter.
-	if( !saved_sigs )
+	if( saved_sigs == NULL )
 	{
-		saved_sigs.reset(new SaveSignals());
+		saved_sigs = new SaveSignals;
+
 		bool bUseAltSigStack = true;
 
 #if defined(LINUX)
@@ -161,27 +158,27 @@ void SignalHandler::OnClose( handler h )
 		/* Allocate a separate signal stack.  This makes the crash handler work
 		 * if we run out of stack space. */
 		const int AltStackSize = 1024*64;
-		void *p = nullptr;
+		void *p = NULL;
 		if( bUseAltSigStack )
 			p = CreateStack( AltStackSize );
 
-		if( p != nullptr )
+		if( p != NULL )
 		{
 			stack_t ss;
 			ss.ss_sp = (char*)p; /* cast for Darwin */
 			ss.ss_size = AltStackSize;
 			ss.ss_flags = 0;
-			if( sigaltstack( &ss, nullptr ) == -1 )
+			if( sigaltstack( &ss, NULL ) == -1 )
 			{
 				LOG->Info( "sigaltstack failed: %s", strerror(errno) );
-				p = nullptr; /* no SA_ONSTACK */
+				p = NULL; /* no SA_ONSTACK */
 			}
 		}
-
+		
 		struct sigaction sa;
 
 		sa.sa_flags = 0;
-		if( p != nullptr )
+		if( p != NULL )
 			sa.sa_flags |= SA_ONSTACK;
 		sa.sa_flags |= SA_NODEFER;
 		sa.sa_flags |= SA_SIGINFO;
@@ -190,11 +187,11 @@ void SignalHandler::OnClose( handler h )
 		/* Set up our signal handlers. */
 		sa.sa_sigaction = SigHandler;
 		for( int i = 0; signals[i] != -1; ++i )
-			sigaction( signals[i], &sa, nullptr );
+			sigaction( signals[i], &sa, NULL );
 
 		/* Block SIGPIPE, so we get EPIPE. */
 		sa.sa_handler = SIG_IGN;
-		sigaction( SIGPIPE, &sa, nullptr );
+		sigaction( SIGPIPE, &sa, NULL );
 	}
 	handlers.push_back(h);
 }
@@ -202,7 +199,7 @@ void SignalHandler::OnClose( handler h )
 /*
  * (c) 2003-2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -212,7 +209,7 @@ void SignalHandler::OnClose( handler h )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

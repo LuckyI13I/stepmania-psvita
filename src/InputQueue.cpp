@@ -3,12 +3,10 @@
 #include "RageTimer.h"
 #include "RageLog.h"
 #include "InputEventPlus.h"
+#include "Foreach.h"
 #include "InputMapper.h"
 
-#include <vector>
-
-
-InputQueue*	INPUTQUEUE = nullptr;	// global and accessible from anywhere in our program
+InputQueue*	INPUTQUEUE = NULL;	// global and accessible from anywhere in our program
 
 const unsigned MAX_INPUT_QUEUE_LENGTH = 32;
 
@@ -40,7 +38,7 @@ bool InputQueue::WasPressedRecently( GameController c, const GameButton button, 
 		if( iep.GameI.button != button )
 			continue;
 
-		if( pIEP != nullptr )
+		if( pIEP != NULL )
 			*pIEP = iep;
 
 		return true;
@@ -71,7 +69,7 @@ bool InputQueueCode::EnteredCode( GameController controller ) const
 
 	// iterate newest to oldest
 	int iSequenceIndex = m_aPresses.size()-1;	// count down
-	const std::vector<InputEventPlus> &aQueue = INPUTQUEUE->GetQueue( controller );
+	const vector<InputEventPlus> &aQueue = INPUTQUEUE->GetQueue( controller );
 	int iQueueIndex = aQueue.size()-1;
 	while( iQueueIndex >= 0 )
 	{
@@ -97,7 +95,7 @@ bool InputQueueCode::EnteredCode( GameController controller ) const
 		int iMinSearchIndexUsed = iQueueIndex;
 		for( int b=0; b<(int) Press.m_aButtonsToPress.size(); ++b )
 		{
-			const InputEventPlus *pIEP = nullptr;
+			const InputEventPlus *pIEP = NULL;
 			int iQueueSearchIndex = iQueueIndex;
 			for( ; iQueueSearchIndex>=0; --iQueueSearchIndex )	// iterate newest to oldest
 			{
@@ -114,7 +112,7 @@ bool InputQueueCode::EnteredCode( GameController controller ) const
 					break;
 				}
 			}
-			if( pIEP == nullptr )
+			if( pIEP == NULL )
 				break;	// didn't find the button
 
 			// Check that m_aButtonsToHold were being held when the buttons were pressed.
@@ -133,7 +131,7 @@ bool InputQueueCode::EnteredCode( GameController controller ) const
 			}
 			if( !bAllHeldButtonsOK )
 				continue;
-			iMinSearchIndexUsed = std::min( iMinSearchIndexUsed, iQueueSearchIndex );
+			iMinSearchIndexUsed = min( iMinSearchIndexUsed, iQueueSearchIndex );
 			if( b == (int) Press.m_aButtonsToPress.size()-1 )
 				bMatched = true;
 		}
@@ -167,13 +165,13 @@ bool InputQueueCode::Load( RString sButtonsNames )
 {
 	m_aPresses.clear();
 
-	std::vector<RString> asPresses;
+	vector<RString> asPresses;
 	split( sButtonsNames, ",", asPresses, false );
-	for (RString &sPress : asPresses)
+	FOREACH( RString, asPresses, sPress )
 	{
-		std::vector<RString> asButtonNames;
+		vector<RString> asButtonNames;
 
-		split( sPress, "-", asButtonNames, false );
+		split( *sPress, "-", asButtonNames, false );
 
 		if( asButtonNames.size() < 1 )
 		{
@@ -183,8 +181,10 @@ bool InputQueueCode::Load( RString sButtonsNames )
 		}
 
 		m_aPresses.push_back( ButtonPress() );
-		for (RString sButtonName : asButtonNames)	// for each button in this code
+		for( unsigned i=0; i<asButtonNames.size(); i++ )	// for each button in this code
 		{
+			RString sButtonName = asButtonNames[i];
+
 			bool bHold = false;
 			bool bNotHold = false;
 			for(;;)
@@ -246,7 +246,7 @@ bool InputQueueCode::Load( RString sButtonsNames )
 /*
  * (c) 2001-2007 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -256,7 +256,7 @@ bool InputQueueCode::Load( RString sButtonsNames )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

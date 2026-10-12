@@ -7,8 +7,6 @@
 #include "RageSurface_Load.h"
 #include "archutils/Win32/ErrorStrings.h"
 
-#include <cstdint>
-
 #include <wingdi.h>
 
 HICON IconFromSurface( const RageSurface *pSrcImg )
@@ -47,8 +45,8 @@ HICON IconFromSurface( const RageSurface *pSrcImg )
 	pBitmap->biCompression = BI_RGB;
 	pBitmap->biSizeImage = pImg->h * pImg->pitch;
 
-	std::uint8_t *pImage = ((std::uint8_t *) pBitmap) + iSize;
-	std::uint8_t *pMask = pImage + pImg->h * pImg->pitch;
+	uint8_t *pImage = ((uint8_t *) pBitmap) + iSize;
+	uint8_t *pMask = pImage + pImg->h * pImg->pitch;
 
 	memcpy( pImage, pImg->pixels, pImg->h * pImg->pitch );
 
@@ -56,8 +54,8 @@ HICON IconFromSurface( const RageSurface *pSrcImg )
 	for( int y = 0; y < pImg->h; ++y )
 	{
 		int bit = 0x80;
-		std::uint32_t *pRow = (std::uint32_t *) (pImage + y*pImg->pitch);
-		std::uint8_t *pMaskRow = pMask + y*iMaskPitch;
+		uint32_t *pRow = (uint32_t *) (pImage + y*pImg->pitch);
+		uint8_t *pMaskRow = pMask + y*iMaskPitch;
 		for( int x = 0; x < pImg->w; ++x )
 		{
 			if( !(pRow[x] & pImg->fmt.Mask[3]) )
@@ -79,13 +77,13 @@ HICON IconFromSurface( const RageSurface *pSrcImg )
 	HICON icon = CreateIconFromResourceEx( (BYTE *) pBitmap, iSize + iSizeImage, TRUE, 0x00030000, pImg->w, pImg->h, LR_DEFAULTCOLOR );
 
 	delete pImg;
-	pImg = nullptr;
+	pImg = NULL;
 	free( pBitmap );
 
-	if( icon == nullptr )
+	if( icon == NULL )
 	{
 		LOG->Trace( "%s", werr_ssprintf( GetLastError(), "CreateIconFromResourceEx" ).c_str() );
-		return nullptr;
+		return NULL;
 	}
 
 	return icon;
@@ -95,10 +93,10 @@ HICON IconFromFile( const RString &sIconFile )
 {
 	RString sError;
 	RageSurface *pImg = RageSurfaceUtils::LoadFile( sIconFile, sError );
-	if( pImg == nullptr )
+	if( pImg == NULL )
 	{
 		LOG->Warn( "Couldn't open icon \"%s\": %s", sIconFile.c_str(), sError.c_str() );
-		return nullptr;
+		return NULL;
 	}
 
 	HICON icon = IconFromSurface( pImg );
@@ -109,7 +107,7 @@ HICON IconFromFile( const RString &sIconFile )
 /*
  * (c) 2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -119,7 +117,7 @@ HICON IconFromFile( const RString &sIconFile )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

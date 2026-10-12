@@ -6,7 +6,6 @@
 #include "Screen.h"
 #include "BitmapText.h"
 #include "Quad.h"
-#include <array>
 
 const int NUM_SKIPS_TO_SHOW = 5;
 
@@ -23,7 +22,7 @@ private:
 
 	BitmapText m_textStats;
 	Quad m_quadSkipBackground;
-	std::array<BitmapText, NUM_SKIPS_TO_SHOW> m_textSkips;
+	BitmapText m_textSkips[NUM_SKIPS_TO_SHOW];
 	RageTimer m_timerSkip;
 	int m_LastSkip;
 

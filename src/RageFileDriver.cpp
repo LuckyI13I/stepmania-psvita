@@ -3,9 +3,6 @@
 #include "RageUtil.h"
 #include "RageUtil_FileDB.h"
 
-#include <vector>
-
-
 RageFileDriver::~RageFileDriver()
 {
 	delete FDB;
@@ -13,7 +10,7 @@ RageFileDriver::~RageFileDriver()
 
 int RageFileDriver::GetPathValue( const RString &sPath )
 {
-	std::vector<RString> asParts;
+	vector<RString> asParts;
 	split( sPath, "/", asParts, true );
 
 	RString sPartialPath;
@@ -45,7 +42,7 @@ int RageFileDriver::GetPathValue( const RString &sPath )
 	return 0;
 }
 
-void RageFileDriver::GetDirListing( const RString &sPath, std::vector<RString> &asAddTo, bool bOnlyDirs, bool bReturnPathToo )
+void RageFileDriver::GetDirListing( const RString &sPath, vector<RString> &asAddTo, bool bOnlyDirs, bool bReturnPathToo )
 {
 	FDB->GetDirListing( sPath, asAddTo, bOnlyDirs, bReturnPathToo );
 }
@@ -71,7 +68,7 @@ void RageFileDriver::FlushDirCache( const RString &sPath )
 }
 
 
-const struct FileDriverEntry *g_pFileDriverList = nullptr;
+const struct FileDriverEntry *g_pFileDriverList = NULL;
 
 FileDriverEntry::FileDriverEntry( const RString &sType )
 {
@@ -82,7 +79,7 @@ FileDriverEntry::FileDriverEntry( const RString &sType )
 
 FileDriverEntry::~FileDriverEntry()
 {
-	g_pFileDriverList = nullptr; /* invalidate */
+	g_pFileDriverList = NULL; /* invalidate */
 }
 
 RageFileDriver *MakeFileDriver( const RString &sType, const RString &sRoot )
@@ -90,7 +87,7 @@ RageFileDriver *MakeFileDriver( const RString &sType, const RString &sRoot )
 	for( const FileDriverEntry *p = g_pFileDriverList; p; p = p->m_pLink )
 		if( !p->m_sType.CompareNoCase(sType) )
 			return p->Create( sRoot );
-	return nullptr;
+	return NULL;
 }
 
 /*

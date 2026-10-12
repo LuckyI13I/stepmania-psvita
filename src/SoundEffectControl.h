@@ -14,7 +14,7 @@ public:
 	void Load( const RString &sType, PlayerState *pPlayerState, const NoteData *pNoteData );
 
 	void SetSoundReader( RageSoundReader *pPlayer );
-	void ReleaseSound() { SetSoundReader(nullptr); }
+	void ReleaseSound() { SetSoundReader(NULL); }
 
 	void Update( float fDeltaTime );
 

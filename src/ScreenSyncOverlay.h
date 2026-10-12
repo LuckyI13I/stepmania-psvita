@@ -10,8 +10,10 @@ public:
 	virtual void Init();
 	
 	bool Input( const InputEventPlus &input );
+
 	void Update( float fDeltaTime );
 
+	static void SetShowAutoplay( bool b );
 private:
 	void UpdateText();
 	void ShowHelp();

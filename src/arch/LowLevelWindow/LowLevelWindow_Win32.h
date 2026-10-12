@@ -10,7 +10,7 @@ public:
 	~LowLevelWindow_Win32();
 	void *GetProcAddress( RString s );
 	RString TryVideoMode( const VideoModeParams &p, bool &bNewDeviceOut );
-	void GetDisplaySpecs( DisplaySpecs &out ) const;
+	void GetDisplayResolutions( DisplayResolutions &out ) const;
 	bool IsSoftwareRenderer( RString &sError );
 	void SwapBuffers();
 	void Update();
@@ -20,9 +20,7 @@ public:
 	virtual bool SupportsRenderToTexture() const { return true; }
 	virtual RenderTarget *CreateRenderTarget();
 
-	bool SupportsFullscreenBorderlessWindow() const { return true; }
-
-	const ActualVideoModeParams GetActualVideoModeParams() const;
+	const VideoModeParams &GetActualVideoModeParams() const;
 };
 
 #ifdef ARCH_LOW_LEVEL_WINDOW

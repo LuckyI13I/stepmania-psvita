@@ -8,7 +8,7 @@
 #include "RageLog.h"
 #include "GameState.h"
 #include "ThemeManager.h"
-#include "ProfileManager.h"
+#include "NetworkSyncManager.h"
 #include "Song.h"
 #include "Course.h"
 #include "Steps.h"
@@ -17,25 +17,21 @@
 #include "ActorUtil.h"
 #include "SongUtil.h"
 #include "CourseUtil.h"
+#include "Foreach.h"
 #include "Style.h"
 #include "PlayerState.h"
 #include "CommonMetrics.h"
 #include "MessageManager.h"
 #include "LocalizedString.h"
 
-#include <cmath>
-#include <cstddef>
-#include <vector>
-
-
 static Preference<bool> g_bMoveRandomToEnd( "MoveRandomToEnd", false );
 static Preference<bool> g_bPrecacheAllSorts( "PreCacheAllWheelSorts", false);
 
-#define NUM_WHEEL_ITEMS		((int)std::ceil(NUM_WHEEL_ITEMS_TO_DRAW+2))
+#define NUM_WHEEL_ITEMS		((int)ceil(NUM_WHEEL_ITEMS_TO_DRAW+2))
 #define WHEEL_TEXT(s)		THEME->GetString( "MusicWheel", ssprintf("%sText",s.c_str()) );
 #define CUSTOM_ITEM_WHEEL_TEXT(s)		THEME->GetString( "MusicWheel", ssprintf("CustomItem%sText",s.c_str()) );
 
-static RString SECTION_COLORS_NAME( std::size_t i )	{ return ssprintf("SectionColor%d",int(i+1)); }
+static RString SECTION_COLORS_NAME( size_t i )	{ return ssprintf("SectionColor%d",int(i+1)); }
 static RString CHOICE_NAME( RString s )		{ return ssprintf("Choice%s",s.c_str()); }
 static RString CUSTOM_WHEEL_ITEM_NAME( RString s )		{ return ssprintf("CustomWheelItem%s",s.c_str()); }
 static RString CUSTOM_WHEEL_ITEM_COLOR( RString s )		{ return ssprintf("%sColor",s.c_str()); }
@@ -64,12 +60,9 @@ static SortOrder ForceAppropriateSort( PlayMode pm, SortOrder so )
 		case SORT_NONSTOP_COURSES:
 		case SORT_ENDLESS_COURSES:
 			so = SortOrder_Invalid;
-			break;
 		default:
-			break;
+			return so;
 	}
-
-	return so;
 }
 
 MusicWheelItem *MusicWheel::MakeItem()
@@ -77,7 +70,7 @@ MusicWheelItem *MusicWheel::MakeItem()
 	return new MusicWheelItem;
 }
 
-void MusicWheel::Load( RString sType )
+void MusicWheel::Load( RString sType ) 
 {
 	ROULETTE_SWITCH_SECONDS		.Load(sType,"RouletteSwitchSeconds");
 	ROULETTE_SLOW_DOWN_SWITCHES	.Load(sType,"RouletteSlowDownSwitches");
@@ -97,13 +90,13 @@ void MusicWheel::Load( RString sType )
 	HIDE_INACTIVE_SECTIONS		.Load(sType,"OnlyShowActiveSection");
 	HIDE_ACTIVE_SECTION_TITLE		.Load(sType,"HideActiveSectionTitle");
 	REMIND_WHEEL_POSITIONS		.Load(sType,"RemindWheelPositions");
-	std::vector<RString> vsModeChoiceNames;
+	vector<RString> vsModeChoiceNames;
 	split( MODE_MENU_CHOICE_NAMES, ",", vsModeChoiceNames );
 	CHOICE				.Load(sType,CHOICE_NAME,vsModeChoiceNames);
 	SECTION_COLORS			.Load(sType,SECTION_COLORS_NAME,NUM_SECTION_COLORS);
 
 	CUSTOM_WHEEL_ITEM_NAMES		.Load(sType,"CustomWheelItemNames");
-	std::vector<RString> vsCustomItemNames;
+	vector<RString> vsCustomItemNames;
 	split( CUSTOM_WHEEL_ITEM_NAMES, ",", vsCustomItemNames );
 	CUSTOM_CHOICES.Load(sType,CUSTOM_WHEEL_ITEM_NAME,vsCustomItemNames);
 	CUSTOM_CHOICE_COLORS.Load(sType,CUSTOM_WHEEL_ITEM_COLOR,vsCustomItemNames);
@@ -129,7 +122,7 @@ void MusicWheel::Load( RString sType )
 	 * to re-sort by title each time. */
 	SONGMAN->SortSongs();
 
-
+	
 	FOREACH_ENUM( SortOrder, so ) {
 		m_WheelItemDatasStatus[so]=INVALID;
 	}
@@ -139,10 +132,10 @@ void MusicWheel::BeginScreen()
 {
 	RageTimer timer;
 	RString times;
-	FOREACH_ENUM( SortOrder, so ) {
+	FOREACH_ENUM( SortOrder, so ) {	
 		if(m_WheelItemDatasStatus[so]!=INVALID) {
 			m_WheelItemDatasStatus[so]=NEEDREFILTER;
-
+			
 		}
 
 		if(g_bPrecacheAllSorts) {
@@ -155,12 +148,12 @@ void MusicWheel::BeginScreen()
 	}
 
 	// Set m_LastModeMenuItem to the first item that matches the current mode.  (Do this
-	// after building wheel item data.)
+	// after building wheel item data.) 
 	{
-		const std::vector<MusicWheelItemData *> &from = getWheelItemsData(SORT_MODE_MENU);
+		const vector<MusicWheelItemData *> &from = getWheelItemsData(SORT_MODE_MENU);
 		for( unsigned i=0; i<from.size(); i++ )
 		{
-			ASSERT( !from[i]->m_pAction.isNull() );
+			ASSERT( &*from[i]->m_pAction != NULL );
 			if( from[i]->m_pAction->DescribesCurrentModeForAllPlayers() )
 			{
 				m_sLastModeMenuItem = from[i]->m_pAction->m_sName;
@@ -197,7 +190,7 @@ void MusicWheel::BeginScreen()
 		// first song in the group. -aj
 		if(!GAMESTATE->IsCourseMode())
 		{
-			std::vector<Song*> vTemp = SONGMAN->GetSongs(GAMESTATE->m_sPreferredSongGroup);
+			vector<Song*> vTemp = SONGMAN->GetSongs(GAMESTATE->m_sPreferredSongGroup);
 			ASSERT(vTemp.size() > 0);
 			GAMESTATE->m_pCurSong.Set(vTemp[0]);
 		};
@@ -229,28 +222,28 @@ void MusicWheel::BeginScreen()
 
 	/* Invalidate current Song if it can't be played
 	 * because there are not enough stages remaining. */
-	if(GAMESTATE->m_pCurSong != nullptr &&
+	if(GAMESTATE->m_pCurSong != NULL &&
 		GameState::GetNumStagesMultiplierForSong(GAMESTATE->m_pCurSong) >
 		GAMESTATE->GetSmallestNumStagesLeftForAnyHumanPlayer())
 	{
-		GAMESTATE->m_pCurSong.Set(nullptr);
+		GAMESTATE->m_pCurSong.Set(NULL);
 	}
 
 	/* Invalidate current Steps if it can't be played
 	 * because there are not enough stages remaining. */
 	FOREACH_ENUM(PlayerNumber, p)
 	{
-		if(GAMESTATE->m_pCurSteps[p] != nullptr)
+		if(GAMESTATE->m_pCurSteps[p] != NULL)
 		{
-			std::vector<Steps*> vpPossibleSteps;
-			if(GAMESTATE->m_pCurSong != nullptr)
+			vector<Steps*> vpPossibleSteps;
+			if(GAMESTATE->m_pCurSong != NULL)
 			{
 				SongUtil::GetPlayableSteps(GAMESTATE->m_pCurSong, vpPossibleSteps);
 			}
 			bool bStepsIsPossible = find(vpPossibleSteps.begin(), vpPossibleSteps.end(), GAMESTATE->m_pCurSteps[p]) == vpPossibleSteps.end();
 			if(!bStepsIsPossible)
 			{
-				GAMESTATE->m_pCurSteps[p].Set(nullptr);
+				GAMESTATE->m_pCurSteps[p].Set(NULL);
 			}
 		}
 	}
@@ -259,8 +252,8 @@ void MusicWheel::BeginScreen()
 MusicWheel::~MusicWheel()
 {
 	FOREACH_ENUM( SortOrder, so ) {
-		std::vector<MusicWheelItemData*>::iterator i = m__UnFilteredWheelItemDatas[so].begin();
-		std::vector<MusicWheelItemData*>::iterator iEnd = m__UnFilteredWheelItemDatas[so].end();
+		vector<MusicWheelItemData*>::iterator i = m__UnFilteredWheelItemDatas[so].begin();
+		vector<MusicWheelItemData*>::iterator iEnd = m__UnFilteredWheelItemDatas[so].end();
 		for( ; i != iEnd; ++i ) {
 			delete *i;
 		}
@@ -301,7 +294,7 @@ bool MusicWheel::SelectSongOrCourse()
 		return true;
 
 	// Select the first selectable song based on the sort order...
-	std::vector<MusicWheelItemData *> &wiWheelItems = getWheelItemsData(GAMESTATE->m_SortOrder);
+	vector<MusicWheelItemData *> &wiWheelItems = getWheelItemsData(GAMESTATE->m_SortOrder);
 	for( unsigned i = 0; i < wiWheelItems.size(); i++ )
 	{
 		if( wiWheelItems[i]->m_pSong )
@@ -330,33 +323,21 @@ bool MusicWheel::SelectSection( const RString & SectionName )
 
 bool MusicWheel::SelectSong( const Song *p )
 {
-	if( p == nullptr )
+	if( p == NULL )
 		return false;
 
 	unsigned i;
-	std::vector<MusicWheelItemData *> &from = getWheelItemsData(GAMESTATE->m_SortOrder);
-	if (GAMESTATE->sLastOpenSection != "" && (GAMESTATE->m_SortOrder == SORT_PREFERRED || GAMESTATE->m_SortOrder == SORT_METER)) {
-		// Return to the last open section if it is defined and exists in the current sort
-		for( i=0; i<from.size(); i++ )
+	vector<MusicWheelItemData *> &from = getWheelItemsData(GAMESTATE->m_SortOrder);
+	for( i=0; i<from.size(); i++ )
+	{
+		if( from[i]->m_pSong == p )
 		{
-			if( from[i]->m_sText == GAMESTATE->sLastOpenSection )
-			{
-				// make its group the currently expanded group
-				SetOpenSection( from[i]->m_sText );
-				break;
-			}
-		}
-	} else {
-		for( i=0; i<from.size(); i++ )
-		{
-			if( from[i]->m_pSong == p )
-			{
-				// make its group the currently expanded group
-				SetOpenSection( from[i]->m_sText );
-				break;
-			}
+			// make its group the currently expanded group
+			SetOpenSection( from[i]->m_sText );
+			break;
 		}
 	}
+
 	if( i == from.size() )
 		return false;
 
@@ -370,11 +351,11 @@ bool MusicWheel::SelectSong( const Song *p )
 
 bool MusicWheel::SelectCourse( const Course *p )
 {
-	if( p == nullptr )
+	if( p == NULL )
 		return false;
 
 	unsigned i;
-	std::vector<MusicWheelItemData *> &from = getWheelItemsData(GAMESTATE->m_SortOrder);
+	vector<MusicWheelItemData *> &from = getWheelItemsData(GAMESTATE->m_SortOrder);
 	for( i=0; i<from.size(); i++ )
 	{
 		if( from[i]->m_pCourse == p )
@@ -401,7 +382,7 @@ bool MusicWheel::SelectModeMenuItem()
 {
 	// Select the last-chosen option.
 	ASSERT( GAMESTATE->m_SortOrder == SORT_MODE_MENU );
-	const std::vector<MusicWheelItemData *> &from = getWheelItemsData(GAMESTATE->m_SortOrder);
+	const vector<MusicWheelItemData *> &from = getWheelItemsData(GAMESTATE->m_SortOrder);
 	unsigned i;
 	for( i=0; i<from.size(); i++ )
 	{
@@ -428,9 +409,9 @@ bool MusicWheel::SelectModeMenuItem()
 
 // bool MusicWheel::SelectCustomItem()
 
-void MusicWheel::GetSongList( std::vector<Song*> &arraySongs, SortOrder so )
+void MusicWheel::GetSongList( vector<Song*> &arraySongs, SortOrder so )
 {
-	std::vector<Song*> apAllSongs;
+	vector<Song*> apAllSongs;
 	switch( so )
 	{
 	case SORT_PREFERRED:
@@ -447,27 +428,15 @@ void MusicWheel::GetSongList( std::vector<Song*> &arraySongs, SortOrder so )
 			apAllSongs = SONGMAN->GetSongs(GAMESTATE->m_sPreferredSongGroup);
 			break;
 		}
-		[[fallthrough]];
+		// otherwise fall through
 	default:
 		apAllSongs = SONGMAN->GetAllSongs();
 		break;
 	}
 
-	FOREACH_PlayerNumber(pn)
-	{
-		if(GAMESTATE->IsPlayerEnabled(pn))
-		{
-			Profile* prof= PROFILEMAN->GetProfile(pn);
-			for(std::size_t i= 0; i < prof->m_songs.size(); ++i)
-			{
-				apAllSongs.push_back(prof->m_songs[i]);
-			}
-		}
-	}
-
 	// filter songs that we don't have enough stages to play
 	{
-		std::vector<Song*> vTempSongs;
+		vector<Song*> vTempSongs;
 		SongCriteria sc;
 		sc.m_iMaxStagesForSong = GAMESTATE->GetSmallestNumStagesLeftForAnyHumanPlayer();
 		SongUtil::FilterSongs( sc, apAllSongs, vTempSongs );
@@ -506,9 +475,35 @@ void MusicWheel::GetSongList( std::vector<Song*> &arraySongs, SortOrder so )
 		}
 		else
 		{
-			// If the song has at least one steps, add it.
-			if( pSong->HasStepsType(GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType) )
-				arraySongs.push_back( pSong );
+			// Online mode doesn't support auto set style.  A song that only has
+			// dance-double steps will show up when dance-single was selected, with
+			// no playable steps.  Then the game will crash when trying to play it.
+			// -Kyz
+			if(CommonMetrics::AUTO_SET_STYLE && !NSMAN->isSMOnline)
+			{
+				// with AUTO_SET_STYLE on and Autogen off, some songs may get
+				// hidden. Search through every playable StepsType until you
+				// find one, then add the song.
+				// see Issue 147 for more information. -aj
+				// http://ssc.ajworld.net/sm-ssc/bugtracker/view.php?id=147
+				set<StepsType> vStepsType;
+				SongUtil::GetPlayableStepsTypes( pSong, vStepsType );
+
+				FOREACHS( StepsType, vStepsType, st )
+				{
+					if(pSong->HasStepsType(*st))
+					{
+						arraySongs.push_back( pSong );
+						break;
+					}
+				}
+			}
+			else
+			{
+				// If the song has at least one steps, add it.
+				if( pSong->HasStepsType(GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType) )
+					arraySongs.push_back( pSong );
+			}
 		}
 	}
 
@@ -525,18 +520,18 @@ void MusicWheel::GetSongList( std::vector<Song*> &arraySongs, SortOrder so )
 	}
 }
 
-void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWheelItemDatas, SortOrder so )
+void MusicWheel::BuildWheelItemDatas( vector<MusicWheelItemData *> &arrayWheelItemDatas, SortOrder so )
 {
 	switch( so )
 	{
 		case SORT_MODE_MENU:
 		{
-			arrayWheelItemDatas.clear();	// clear out the previous wheel items
-			std::vector<RString> vsNames;
+			arrayWheelItemDatas.clear();	// clear out the previous wheel items 
+			vector<RString> vsNames;
 			split( MODE_MENU_CHOICE_NAMES, ",", vsNames );
 			for( unsigned i=0; i<vsNames.size(); ++i )
 			{
-				MusicWheelItemData wid( WheelItemDataType_Sort, nullptr, "", nullptr, SORT_MENU_COLOR, 0 );
+				MusicWheelItemData wid( WheelItemDataType_Sort, NULL, "", NULL, SORT_MENU_COLOR, 0 );
 				wid.m_pAction = HiddenPtr<GameCommand>( new GameCommand );
 				wid.m_pAction->m_sName = vsNames[i];
 				wid.m_pAction->Load( i, ParseCommands(CHOICE.GetValue(vsNames[i])) );
@@ -549,7 +544,6 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 			}
 			break;
 		}
-		case SORT_METER:
 		case SORT_PREFERRED:
 		case SORT_ROULETTE:
 		case SORT_GROUP:
@@ -557,8 +551,6 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 		case SORT_BPM:
 		case SORT_POPULARITY:
 		case SORT_TOP_GRADES:
-		case SORT_TOP_GRADES_P1:
-		case SORT_TOP_GRADES_P2:
 		case SORT_ARTIST:
 		case SORT_GENRE:
 		case SORT_BEGINNER_METER:
@@ -574,7 +566,7 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 		case SORT_RECENT:
 		{
 			// Make an array of Song*, then sort them
-			std::vector<Song*> arraySongs;
+			vector<Song*> arraySongs;
 			GetSongList( arraySongs, so );
 
 			bool bUseSections = true;
@@ -582,9 +574,6 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 			// sort the songs
 			switch( so )
 			{
-				case SORT_METER:
-					SONGMAN->UpdateMeterSort(arraySongs);
-					break;
 				case SORT_PREFERRED:
 					// obey order specified by the preferred sort list
 					break;
@@ -618,16 +607,7 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 					bUseSections = false;
 					break;
 				case SORT_TOP_GRADES:
-						SongUtil::SortSongPointerArrayByGrades( arraySongs, true );
-					break;
-				case SORT_TOP_GRADES_P1:
-					// Check if player profile is persistent
-					if( PROFILEMAN->IsPersistentProfile(PLAYER_1) )
-						SongUtil::SortSongPointerArrayByProfileGrades( arraySongs, true, PLAYER_1);
-					break;
-				case SORT_TOP_GRADES_P2:
-					if( PROFILEMAN->IsPersistentProfile(PLAYER_2) )
-						SongUtil::SortSongPointerArrayByProfileGrades( arraySongs, true, PLAYER_2);
+					SongUtil::SortSongPointerArrayByGrades( arraySongs, true );
 					break;
 				case SORT_ARTIST:
 					SongUtil::SortSongPointerArrayByArtist( arraySongs );
@@ -663,7 +643,7 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 			}
 
 			// Build an array of WheelItemDatas from the sorted list of Song*'s
-			arrayWheelItemDatas.clear();	// clear out the previous wheel items
+			arrayWheelItemDatas.clear();	// clear out the previous wheel items 
 			arrayWheelItemDatas.reserve( arraySongs.size() );
 
 			switch( PREFSMAN->m_MusicWheelUsesSections )
@@ -684,105 +664,60 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 				// Sorting twice isn't necessary. Instead, modify the compatator
 				// functions in Song.cpp to have the desired effect. -Chris
 				/* Keeping groups together with the sorts is tricky and brittle; we
-				 * keep getting OTHER split up without this. However, it puts the
+				 * keep getting OTHER split up without this. However, it puts the 
 				 * Grade and BPM sorts in the wrong order, and they're already correct,
 				 * so don't re-sort for them. */
 				/* We're using sections, so use the section name as the top-level sort. */
 				switch( so )
 				{
-					case SORT_METER:
 					case SORT_PREFERRED:
 					case SORT_TOP_GRADES:
-					case SORT_TOP_GRADES_P1:
-					case SORT_TOP_GRADES_P2:
 					case SORT_BPM:
-					case SORT_LENGTH:
 						break;	// don't sort by section
 					default:
 						SongUtil::SortSongPointerArrayBySectionName(arraySongs, so);
 						break;
 				}
 			}
+
 			// make WheelItemDatas with sections
 			RString sLastSection = "";
 			int iSectionColorIndex = 0;
-			switch (so) {
-				case SORT_PREFERRED:
-					// If the sort order is Preferred handle it differently because we already know the sections
-					if( bUseSections )
-					{
-						// Get mappping of section names to songs
-						std::map<RString, std::vector<Song*>> preferredSortSongsMap = SONGMAN->GetPreferredSortSongsMap();
-						for (auto const& [sectionName, songs] : SONGMAN->GetPreferredSortSongsMap())
-						{
-							// todo: preferred sort section color handling? -aj
-							RageColor colorSection = SECTION_COLORS.GetValue(iSectionColorIndex);
-							iSectionColorIndex = (iSectionColorIndex+1) % NUM_SECTION_COLORS;
-							// Add the section item
-							arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Section, nullptr, sectionName, nullptr, colorSection, songs.size()) );
-							// Add all the songs in this section
-							for (auto const& song : songs)
-							{
-								arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Song, song, sectionName, nullptr, SONGMAN->GetSongColor(song), 0) );
-							}
-						}
-					}
-					break;
-				case SORT_METER:
-					if( bUseSections )
+			for( unsigned i=0; i< arraySongs.size(); i++ )
+			{
+				Song* pSong = arraySongs[i];
+				if( bUseSections )
+				{
+					RString sThisSection = SongUtil::GetSectionNameFromSongAndSort( pSong, so );
+
+					if( sThisSection != sLastSection )
 					{
 						int iSectionCount = 0;
-						for (auto const& [sectionName, songs] : SONGMAN->GetMeterToSongsMap()) {
-							RageColor colorSection = SECTION_COLORS.GetValue(iSectionColorIndex);
-							iSectionColorIndex = (iSectionColorIndex+1) % NUM_SECTION_COLORS;
-							// Add the section item
-							arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Section, nullptr, ssprintf("%d",sectionName), nullptr, colorSection, songs.size()) );
-							// Add all the songs in this section
-							for (auto const& song : songs)
-							{
-								arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Song, song, ssprintf("%d",sectionName), nullptr, SONGMAN->GetSongColor(song), 0) );
-							}
-						} 
-					}
-					break;
-				default:
-					for( unsigned i=0; i< arraySongs.size(); i++ )
-					{
-						Song* pSong = arraySongs[i];
-						if( bUseSections )
+						// Count songs in this section
+						unsigned j;
+						for( j=i; j < arraySongs.size(); j++ )
 						{
-							RString sThisSection = SongUtil::GetSectionNameFromSongAndSort( pSong, so );
-
-							if( sThisSection != sLastSection )
-							{
-								int iSectionCount = 0;
-								// Count songs in this section
-								unsigned j;
-								for( j=i; j < arraySongs.size(); j++ )
-								{
-									if( SongUtil::GetSectionNameFromSongAndSort( arraySongs[j], so ) != sThisSection )
-										break;
-								}
-								iSectionCount = j-i;
-
-								// new section, make a section item
-								// todo: preferred sort section color handling? -aj
-								RageColor colorSection = (so==SORT_GROUP) ? SONGMAN->GetSongGroupColor(pSong->m_sGroupName) : SECTION_COLORS.GetValue(iSectionColorIndex);
-								iSectionColorIndex = (iSectionColorIndex+1) % NUM_SECTION_COLORS;
-								arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Section, nullptr, sThisSection, nullptr, colorSection, iSectionCount) );
-								sLastSection = sThisSection;
-							}
+							if( SongUtil::GetSectionNameFromSongAndSort( arraySongs[j], so ) != sThisSection )
+								break;
 						}
-						arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Song, pSong, sLastSection, nullptr, SONGMAN->GetSongColor(pSong), 0) );
+						iSectionCount = j-i;
+
+						// new section, make a section item
+						// todo: preferred sort section color handling? -aj
+						RageColor colorSection = (so==SORT_GROUP) ? SONGMAN->GetSongGroupColor(pSong->m_sGroupName) : SECTION_COLORS.GetValue(iSectionColorIndex);
+						iSectionColorIndex = (iSectionColorIndex+1) % NUM_SECTION_COLORS;
+						arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Section, NULL, sThisSection, NULL, colorSection, iSectionCount) );
+						sLastSection = sThisSection;
 					}
-					break;
+				}
+				arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Song, pSong, sLastSection, NULL, SONGMAN->GetSongColor(pSong), 0) );
 			}
 
 			if( so != SORT_ROULETTE )
 			{
 				// todo: allow themers to change the order of the items. -aj
 				if( SHOW_ROULETTE )
-					arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Roulette, nullptr, "", nullptr, ROULETTE_COLOR, 0) );
+					arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Roulette, NULL, "", NULL, ROULETTE_COLOR, 0) );
 
 				// Only add WheelItemDataType_Random and WheelItemDataType_Portal if there's at least
 				// one song on the list.
@@ -792,17 +727,17 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 						bFoundAnySong = true;
 
 				if( SHOW_RANDOM && bFoundAnySong )
-					arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Random, nullptr, "", nullptr, RANDOM_COLOR, 0) );
+					arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Random, NULL, "", NULL, RANDOM_COLOR, 0) );
 
 				if( SHOW_PORTAL && bFoundAnySong )
-					arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Portal, nullptr, "", nullptr, PORTAL_COLOR, 0) );
+					arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Portal, NULL, "", NULL, PORTAL_COLOR, 0) );
 
 				// add custom wheel items
-				std::vector<RString> vsNames;
+				vector<RString> vsNames;
 				split( CUSTOM_WHEEL_ITEM_NAMES, ",", vsNames );
 				for( unsigned i=0; i<vsNames.size(); ++i )
 				{
-					MusicWheelItemData wid( WheelItemDataType_Custom, nullptr, "", nullptr, CUSTOM_CHOICE_COLORS.GetValue(vsNames[i]), 0 );
+					MusicWheelItemData wid( WheelItemDataType_Custom, NULL, "", NULL, CUSTOM_CHOICE_COLORS.GetValue(vsNames[i]), 0 );
 					wid.m_pAction = HiddenPtr<GameCommand>( new GameCommand );
 					wid.m_pAction->m_sName = vsNames[i];
 					wid.m_pAction->Load( i, ParseCommands(CUSTOM_CHOICES.GetValue(vsNames[i])) );
@@ -820,7 +755,7 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 				Song* pSong;
 				Steps* pSteps;
 				SONGMAN->GetExtraStageInfo( GAMESTATE->IsExtraStage2(), GAMESTATE->GetCurrentStyle(PLAYER_INVALID), pSong, pSteps );
-
+				
 				for( unsigned i=0; i<arrayWheelItemDatas.size(); i++ )
 				{
 					if( arrayWheelItemDatas[i]->m_pSong == pSong )
@@ -840,7 +775,7 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 		{
 			bool bOnlyPreferred = PREFSMAN->m_CourseSortOrder == COURSE_SORT_PREFERRED;
 
-			std::vector<CourseType> vct;
+			vector<CourseType> vct;
 			switch( so )
 			{
 			case SORT_NONSTOP_COURSES:
@@ -861,13 +796,13 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 				FAIL_M(ssprintf("Wrong sort order: %i", so));
 			}
 
-			std::vector<Course*> apCourses;
-			for (CourseType const &ct : vct)
+			vector<Course*> apCourses;
+			FOREACH_CONST( CourseType, vct, ct )
 			{
 				if( bOnlyPreferred )
-					SONGMAN->GetPreferredSortCourses( ct, apCourses, PREFSMAN->m_bAutogenGroupCourses );
+					SONGMAN->GetPreferredSortCourses( *ct, apCourses, PREFSMAN->m_bAutogenGroupCourses );
 				else
-					SONGMAN->GetCourses( ct, apCourses, PREFSMAN->m_bAutogenGroupCourses );
+					SONGMAN->GetCourses( *ct, apCourses, PREFSMAN->m_bAutogenGroupCourses );
 			}
 
 			switch( PREFSMAN->m_CourseSortOrder )
@@ -896,7 +831,7 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 			if( so == SORT_ALL_COURSES )
 				CourseUtil::SortCoursePointerArrayByType( apCourses );
 
-			arrayWheelItemDatas.clear();	// clear out the previous wheel items
+			arrayWheelItemDatas.clear();	// clear out the previous wheel items 
 
 			RString sLastSection = "";
 			int iSectionColorIndex = 0;
@@ -928,12 +863,12 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 				{
 					RageColor c = SECTION_COLORS.GetValue(iSectionColorIndex);
 					iSectionColorIndex = (iSectionColorIndex+1) % NUM_SECTION_COLORS;
-					arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Section, nullptr, sThisSection, nullptr, c, 0) );
+					arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Section, NULL, sThisSection, NULL, c, 0) );
 					sLastSection = sThisSection;
 				}
 
 				RageColor c = ( pCourse->m_sGroupName.size() == 0 ) ? pCourse->GetColor() : SONGMAN->GetCourseColor(pCourse);
-				arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Course, nullptr, sThisSection, pCourse, c, 0) );
+				arrayWheelItemDatas.push_back( new MusicWheelItemData(WheelItemDataType_Course, NULL, sThisSection, pCourse, c, 0) );
 			}
 			break;
 		}
@@ -942,51 +877,52 @@ void MusicWheel::BuildWheelItemDatas( std::vector<MusicWheelItemData *> &arrayWh
 	}
 
 	// init music status icons
-	for (MusicWheelItemData *WID : arrayWheelItemDatas)
+	for( unsigned i=0; i<arrayWheelItemDatas.size(); i++ )
 	{
-		if( WID->m_pSong != nullptr )
+		MusicWheelItemData& WID = *arrayWheelItemDatas[i];
+		if( WID.m_pSong != NULL )
 		{
-			WID->m_Flags.bHasBeginnerOr1Meter = WID->m_pSong->IsEasy( GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType ) && SHOW_EASY_FLAG;
-			WID->m_Flags.bEdits = false;
-			std::set<StepsType> vStepsType;
-			SongUtil::GetPlayableStepsTypes( WID->m_pSong, vStepsType );
-			for (StepsType const &type : vStepsType)
-				WID->m_Flags.bEdits |= WID->m_pSong->HasEdits( type );
-			WID->m_Flags.iStagesForSong = GameState::GetNumStagesMultiplierForSong( WID->m_pSong );
+			WID.m_Flags.bHasBeginnerOr1Meter = WID.m_pSong->IsEasy( GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType ) && SHOW_EASY_FLAG;
+			WID.m_Flags.bEdits = false;
+			set<StepsType> vStepsType;
+			SongUtil::GetPlayableStepsTypes( WID.m_pSong, vStepsType );
+			FOREACHS( StepsType, vStepsType, st )
+				WID.m_Flags.bEdits |= WID.m_pSong->HasEdits( *st );
+			WID.m_Flags.iStagesForSong = GameState::GetNumStagesMultiplierForSong( WID.m_pSong );
 		}
-		else if( WID->m_pCourse != nullptr )
+		else if( WID.m_pCourse != NULL )
 		{
-			WID->m_Flags.bHasBeginnerOr1Meter = false;
-			WID->m_Flags.bEdits = WID->m_pCourse->IsAnEdit();
-			WID->m_Flags.iStagesForSong = 1;
+			WID.m_Flags.bHasBeginnerOr1Meter = false;
+			WID.m_Flags.bEdits = WID.m_pCourse->IsAnEdit();
+			WID.m_Flags.iStagesForSong = 1;
 		}
 	}
 }
 
-std::vector<MusicWheelItemData *> & MusicWheel::getWheelItemsData(SortOrder so) {
+vector<MusicWheelItemData *> & MusicWheel::getWheelItemsData(SortOrder so) {
 	// Update the popularity and init icons.
-	readyWheelItemsData(so);
+	readyWheelItemsData(so);	
 	return m__WheelItemDatas[so];
 }
 
 void MusicWheel::readyWheelItemsData(SortOrder so) {
-	if(m_WheelItemDatasStatus[so] == VALID && so != SORT_PREFERRED)
-		return;
+	if(m_WheelItemDatasStatus[so]!=VALID) {
+		RageTimer timer;
 
-	std::vector<MusicWheelItemData*> &aUnFilteredDatas = m__UnFilteredWheelItemDatas[so];
+		vector<MusicWheelItemData *> &aUnFilteredDatas=m__UnFilteredWheelItemDatas[so];
 
-	if(m_WheelItemDatasStatus[so]==INVALID) {
-		BuildWheelItemDatas(  aUnFilteredDatas, so );
-	}
-	FilterWheelItemDatas( aUnFilteredDatas, m__WheelItemDatas[so], so );
-	// The preferred sort's songs are subject to change during a session (particularly if two players have different preferred songs) 
-	// thus it's status should remain invalid so the wheel items are rebuilt each time in case of change.
-	if (so != SORT_PREFERRED) {
+		if(m_WheelItemDatasStatus[so]==INVALID) {
+			BuildWheelItemDatas(  aUnFilteredDatas, so );
+		}
+		FilterWheelItemDatas( aUnFilteredDatas, m__WheelItemDatas[so], so );
 		m_WheelItemDatasStatus[so]=VALID;
+
+		LOG->Trace( "MusicWheel sorting took: %f", timer.GetTimeSinceStart() );
 	}
+
 }
 
-void MusicWheel::FilterWheelItemDatas(std::vector<MusicWheelItemData *> &aUnFilteredDatas, std::vector<MusicWheelItemData *> &aFilteredData, SortOrder so )
+void MusicWheel::FilterWheelItemDatas(vector<MusicWheelItemData *> &aUnFilteredDatas, vector<MusicWheelItemData *> &aFilteredData, SortOrder so )
 {
 	aFilteredData.clear();
 
@@ -1001,12 +937,12 @@ void MusicWheel::FilterWheelItemDatas(std::vector<MusicWheelItemData *> &aUnFilt
 		}
 	}
 
-	std::vector<bool> aiRemove;
+	vector<bool> aiRemove;
 	aiRemove.insert( aiRemove.begin(), unfilteredSize, false );
 
 	const int iMaxStagesForSong = GAMESTATE->GetSmallestNumStagesLeftForAnyHumanPlayer();
 
-	Song *pExtraStageSong = nullptr;
+	Song *pExtraStageSong = NULL;
 	if( GAMESTATE->IsAnExtraStage() )
 	{
 		Steps *pSteps;
@@ -1080,7 +1016,7 @@ void MusicWheel::FilterWheelItemDatas(std::vector<MusicWheelItemData *> &aUnFilt
 				aiRemove[i] = true;
 				continue;
 			}
-
+			
 			// if AutoSetStyle, make sure the song is playable in the end.
 			if (!SongUtil::IsSongPlayable(pSong))
 			{
@@ -1097,7 +1033,7 @@ void MusicWheel::FilterWheelItemDatas(std::vector<MusicWheelItemData *> &aUnFilt
 	}
 
 	/* Filter out the songs we're removing. */
-
+	 
 	aFilteredData.reserve( unfilteredSize );
 	for( unsigned i=0; i< unfilteredSize; i++ )
 	{
@@ -1138,7 +1074,7 @@ void MusicWheel::FilterWheelItemDatas(std::vector<MusicWheelItemData *> &aUnFilt
 	/* Update the popularity.  This is affected by filtering. */
 	if( so == SORT_POPULARITY )
 	{
-		for( unsigned i=0; i < std::min<unsigned int>(3u, aFilteredData.size()); i++ )
+		for( unsigned i=0; i< min(3u,aFilteredData.size()); i++ )
 		{
 			MusicWheelItemData& WID = *aFilteredData[i];
 			WID.m_Flags.iPlayersBestNumber = i+1;
@@ -1147,7 +1083,7 @@ void MusicWheel::FilterWheelItemDatas(std::vector<MusicWheelItemData *> &aUnFilt
 
 	// If we've filtered all items, insert a dummy.
 	if( aFilteredData.empty() )
-		aFilteredData.push_back( new MusicWheelItemData(WheelItemDataType_Section, nullptr, EMPTY_STRING, nullptr, EMPTY_COLOR, 0) );
+		aFilteredData.push_back( new MusicWheelItemData(WheelItemDataType_Section, NULL, EMPTY_STRING, NULL, EMPTY_COLOR, 0) );
 }
 
 void MusicWheel::UpdateSwitch()
@@ -1271,11 +1207,7 @@ void MusicWheel::ChangeMusic( int iDist )
 bool MusicWheel::ChangeSort( SortOrder new_so, bool allowSameSort )	// return true if change successful
 {
 	ASSERT( new_so < NUM_SortOrder );
-	// Reset LastOpenSection as sections differ between sorts
-	GAMESTATE->sLastOpenSection = "";
-	// NOTE(crashcringle): Ignore allowSameSort if we're using SORT_PREFERRED.
-	// Each player has their own preferred songs which sorts the songs differently
-	if( GAMESTATE->m_SortOrder == new_so && (!allowSameSort && new_so != SORT_PREFERRED ))
+	if( GAMESTATE->m_SortOrder == new_so && !allowSameSort )
 	{
 		return false;
 	}
@@ -1315,7 +1247,7 @@ bool MusicWheel::NextSort()		// return true if change successful
 	if( GAMESTATE->m_SortOrder == SORT_MODE_MENU )
 		return false;
 
-	std::vector<SortOrder> aSortOrders;
+	vector<SortOrder> aSortOrders;
 	{
 		Lua *L = LUA->Get();
 		SORT_ORDERS.PushSelf( L );
@@ -1357,7 +1289,7 @@ bool MusicWheel::Select()	// return true if this selection ends the screen
 			m_fTimeLeftInState = 0.1f;
 			return false;
 		case STATE_RANDOM_SPINNING:
-			m_fPositionOffsetFromSelection = std::max(m_fPositionOffsetFromSelection, 0.3f);
+			m_fPositionOffsetFromSelection = max(m_fPositionOffsetFromSelection, 0.3f);
 			m_WheelState = STATE_LOCKED;
 			SCREENMAN->PlayStartSound();
 			m_fLockedWheelVelocity = 0;
@@ -1373,7 +1305,7 @@ bool MusicWheel::Select()	// return true if this selection ends the screen
 
 	switch( m_CurWheelItemData[m_iSelection]->m_Type )
 	{
-		case WheelItemDataType_Roulette:
+		case WheelItemDataType_Roulette:  
 			StartRoulette();
 			return false;
 		case WheelItemDataType_Random:
@@ -1394,7 +1326,7 @@ bool MusicWheel::Select()	// return true if this selection ends the screen
 	}
 }
 
-void MusicWheel::StartRoulette()
+void MusicWheel::StartRoulette() 
 {
 	MESSAGEMAN->Broadcast("StartRoulette");
 	m_WheelState = STATE_ROULETTE_SPINNING;
@@ -1416,7 +1348,7 @@ void MusicWheel::StartRandom()
 	{
 		// Shuffle and use the roulette wheel.
 		RandomGen rnd;
-		std::shuffle( getWheelItemsData(SORT_ROULETTE).begin(), getWheelItemsData(SORT_ROULETTE).end(), rnd );
+		random_shuffle( getWheelItemsData(SORT_ROULETTE).begin(), getWheelItemsData(SORT_ROULETTE).end(), rnd );
 		GAMESTATE->m_SortOrder.Set( SORT_ROULETTE );
 	}
 	else
@@ -1446,16 +1378,16 @@ void MusicWheel::SetOpenSection( RString group )
 	if ( REMIND_WHEEL_POSITIONS && HIDE_INACTIVE_SECTIONS )
 		m_viWheelPositions.resize( SONGMAN->GetNumSongGroups() );
 
-	const WheelItemBaseData *old = nullptr;
+	const WheelItemBaseData *old = NULL;
 	if( !m_CurWheelItemData.empty() )
 		old = GetCurWheelItemData(m_iSelection);
 
-	std::vector<const Style*> vpPossibleStyles;
+	vector<const Style*> vpPossibleStyles;
 	if( CommonMetrics::AUTO_SET_STYLE )
 		GAMEMAN->GetCompatibleStyles( GAMESTATE->m_pCurGame, GAMESTATE->GetNumPlayersEnabled(), vpPossibleStyles );
 
 	m_CurWheelItemData.clear();
-	std::vector<MusicWheelItemData *> &from = getWheelItemsData(GAMESTATE->m_SortOrder);
+	vector<MusicWheelItemData *> &from = getWheelItemsData(GAMESTATE->m_SortOrder);
 	m_CurWheelItemData.reserve( from.size() );
 	for( unsigned i = 0; i < from.size(); ++i )
 	{
@@ -1488,7 +1420,7 @@ void MusicWheel::SetOpenSection( RString group )
 		}
 
 		// Only show tutorial songs in arcade
-		if( GAMESTATE->m_PlayMode!=PLAY_MODE_REGULAR &&
+		if( GAMESTATE->m_PlayMode!=PLAY_MODE_REGULAR && 
 			d.m_pSong &&
 			d.m_pSong->IsTutorial() )
 			continue;
@@ -1514,15 +1446,7 @@ void MusicWheel::SetOpenSection( RString group )
 
 		for( unsigned i=0; i<m_CurWheelItemData.size(); i++ )
 		{
-			if (GAMESTATE->m_SortOrder == SORT_PREFERRED && !GAMESTATE->sLastOpenSection.empty()) {
-				
-				// old doesn't always have data, use LastOpenSection instead
-				if( m_CurWheelItemData[i]->m_sText == GAMESTATE->sLastOpenSection)
-				{
-					m_iSelection=i;
-					break;
-				}
-			} else if( m_CurWheelItemData[i] == old )
+			if( m_CurWheelItemData[i] == old )
 			{
 				m_iSelection=i;
 				break;
@@ -1531,16 +1455,6 @@ void MusicWheel::SetOpenSection( RString group )
 	}
 
 	RebuildWheelItems();
-}
-
-void MusicWheel::GetCurrentSections(std::vector<RString> &sections)
-{
-	std::vector<MusicWheelItemData *> &wiWheelItems = getWheelItemsData(GAMESTATE->m_SortOrder);
-	for( unsigned i = 0; i < wiWheelItems.size(); i++ )
-	{
-		if ( wiWheelItems[i]->m_Type == WheelItemDataType_Section && !wiWheelItems[i]->m_sText.empty())
-			sections.push_back(wiWheelItems[i]->m_sText);
-	}
 }
 
 // sm-ssc additions: jump to group
@@ -1677,24 +1591,24 @@ Song* MusicWheel::GetSelectedSong()
 }
 
 /* Find a random song.  If possible, find one that has the preferred difficulties of
- * each player.  Prefer songs in the active group, if any.
+ * each player.  Prefer songs in the active group, if any. 
  *
  * Note that if this is called, we *must* find a song.  We will only be called if
  * the active sort has at least one song, but there may be no open group.  This means
  * that any filters and preferences applied here must be optional. */
 Song *MusicWheel::GetPreferredSelectionForRandomOrPortal()
 {
-	// probe to find a song that has the preferred
+	// probe to find a song that has the preferred 
 	// difficulties of each player
-	std::vector<Difficulty> vDifficultiesToRequire;
+	vector<Difficulty> vDifficultiesToRequire;
 	FOREACH_HumanPlayer(p)
 	{
 		if( GAMESTATE->m_PreferredDifficulty[p] == Difficulty_Invalid )
 			continue;	// skip
 
-		// TRICKY: Don't require that edits be present if perferred
-		// difficulty is Difficulty_Edit.  Otherwise, players could use this
-		// to set up a 100% chance of getting a particular locked song by
+		// TRICKY: Don't require that edits be present if perferred 
+		// difficulty is Difficulty_Edit.  Otherwise, players could use this 
+		// to set up a 100% chance of getting a particular locked song by 
 		// having a single edit for a locked song.
 		if( GAMESTATE->m_PreferredDifficulty[p] == Difficulty_Edit )
 			continue;	// skip
@@ -1703,7 +1617,7 @@ Song *MusicWheel::GetPreferredSelectionForRandomOrPortal()
 	}
 
 	RString sPreferredGroup = m_sExpandedSectionName;
-	std::vector<MusicWheelItemData *> &wid = getWheelItemsData(GAMESTATE->m_SortOrder);
+	vector<MusicWheelItemData *> &wid = getWheelItemsData(GAMESTATE->m_SortOrder);
 
 	StepsType st = GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType;
 
@@ -1731,9 +1645,14 @@ Song *MusicWheel::GetPreferredSelectionForRandomOrPortal()
 		if( i < 900 && pSong->IsTutorial() )
 			continue;
 
-		isValid = std::none_of(vDifficultiesToRequire.begin(), vDifficultiesToRequire.end(), [&](Difficulty const &d) {
-			return !pSong->HasStepsTypeAndDifficulty(st, d);
-		});
+		FOREACH( Difficulty, vDifficultiesToRequire, d )
+		{
+			if( !pSong->HasStepsTypeAndDifficulty(st,*d) )
+			{
+				isValid = false;
+				break;
+			}
+		}
 
 		if (isValid)
 		{
@@ -1768,13 +1687,6 @@ public:
 		return 1;
 	}
 	DEFINE_METHOD(GetSelectedSection, GetSelectedSection());
-	static int GetCurrentSections( T* p, lua_State *L )
-	{
-		std::vector<RString> v;
-		p->GetCurrentSections(v);
-		LuaHelpers::CreateTableFromArray<RString>( v, L );
-		return 1;
-	}
 	static int IsRouletting( T* p, lua_State *L ){ lua_pushboolean( L, p->IsRouletting() ); return 1; }
 	static int SelectSong( T* p, lua_State *L )
 	{
@@ -1797,15 +1709,6 @@ public:
 		return 1;
 	}
 
-	static int Move(T* p, lua_State *L)
-	{
-		if (lua_isnil(L, 1)) { p->Move(0); }
-		else
-		{
-			p->Move(IArg(1));
-		}
-		return 1;
-	}
 
 	LunaMusicWheel()
 	{
@@ -1814,8 +1717,6 @@ public:
 		ADD_METHOD( IsRouletting );
 		ADD_METHOD( SelectSong );
 		ADD_METHOD( SelectCourse );
-		ADD_METHOD( Move );
-		ADD_METHOD( GetCurrentSections );
 	}
 };
 
@@ -1825,7 +1726,7 @@ LUA_REGISTER_DERIVED_CLASS( MusicWheel, WheelBase )
 /*
  * (c) 2001-2004 Chris Danford, Chris Gomez, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -1835,7 +1736,7 @@ LUA_REGISTER_DERIVED_CLASS( MusicWheel, WheelBase )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

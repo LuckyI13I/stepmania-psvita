@@ -3,9 +3,10 @@
 #ifndef RAGE_MATH_H
 #define RAGE_MATH_H
 
-#include <vector>
+#define PI		(3.141592653589793f)
+#define DegreeToRadian( degree ) ((degree) * (PI / 180.0f))
+#define RadianToDegree( radian ) ((radian) * (180.0f / PI))
 
-constexpr float PI = 3.1415926536f;
 
 struct lua_State;
 struct RageVector2;
@@ -18,7 +19,7 @@ void RageVec3AddToBounds( const RageVector3 &p, RageVector3 &mins, RageVector3 &
 
 void RageVec2Normalize( RageVector2* pOut, const RageVector2* pV );
 void RageVec3Normalize( RageVector3* pOut, const RageVector3* pV );
-void VectorFloatNormalize(std::vector<float>& v);
+void VectorFloatNormalize(vector<float>& v);
 void RageVec3Cross(RageVector3* ret, RageVector3 const* a, RageVector3 const* b);
 void RageVec3TransformCoord( RageVector3* pOut, const RageVector3* pV, const RageMatrix* pM );
 void RageVec3TransformNormal( RageVector3* pOut, const RageVector3* pV, const RageMatrix* pM );
@@ -52,8 +53,8 @@ RageMatrix RageLookAt(
 void RageMatrixAngles( RageMatrix* pOut, const RageVector3 &angles );
 void RageMatrixTranspose( RageMatrix* pOut, const RageMatrix* pIn );
 
-float RageSquare( float x) CONST_FUNCTION;
-float RageTriangle( float x) CONST_FUNCTION;
+float RageFastSin( float x ) CONST_FUNCTION;
+float RageFastCos( float x ) CONST_FUNCTION;
 
 class RageQuadratic
 {

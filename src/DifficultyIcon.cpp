@@ -24,7 +24,7 @@ bool DifficultyIcon::Load( RString sPath )
 	Sprite::Load( sPath );
 	int iStates = GetNumStates();
 	bool bWarn = iStates != NUM_Difficulty  &&  iStates != NUM_Difficulty*2;
-	if( sPath.find("_blank") != std::string::npos )
+	if( sPath.find("_blank") != string::npos )
 		bWarn = false;
 	if( bWarn )
 	{
@@ -62,7 +62,7 @@ void DifficultyIcon::SetPlayer( PlayerNumber pn )
 void DifficultyIcon::SetFromSteps( PlayerNumber pn, const Steps* pSteps )
 {
 	SetPlayer( pn );
-	if( pSteps == nullptr )
+	if( pSteps == NULL )
 		Unset();
 	else
 		SetFromDifficulty( pSteps->GetDifficulty() );
@@ -71,7 +71,7 @@ void DifficultyIcon::SetFromSteps( PlayerNumber pn, const Steps* pSteps )
 void DifficultyIcon::SetFromTrail( PlayerNumber pn, const Trail* pTrail )
 {
 	SetPlayer( pn );
-	if( pTrail == nullptr )
+	if( pTrail == NULL )
 		Unset();
 	else
 		SetFromDifficulty( pTrail->m_CourseDifficulty );

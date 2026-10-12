@@ -5,9 +5,6 @@
 #import "RageFile.h"
 #include "ThemeManager.h"
 
-#include <vector>
-
-
 @interface LoadingWindowHelper : NSObject
 {
 	@public
@@ -55,7 +52,7 @@
 	[m_Text setSelectable:NO];
 	[m_Text setDrawsBackground:NO];
 	[m_Text setBackgroundColor:[NSColor lightGrayColor]];
-	[m_Text setAlignment:NSTextAlignmentCenter];
+	[m_Text setAlignment:NSCenterTextAlignment];
 	[m_Text setHorizontallyResizable:NO];
 	[m_Text setVerticallyResizable:NO];
 	[m_Text setString:@"Initializing Hardware..."];
@@ -67,15 +64,17 @@
 
 	windowRect = NSMakeRect( 0, 0, size.width, size.height + height + progressHeight + padding);
 	m_Window = [[NSWindow alloc] initWithContentRect:windowRect
-							styleMask:NSWindowStyleMaskTitled
+							styleMask:NSTitledWindowMask
 							backing:NSBackingStoreBuffered
 							defer:YES];
 
 	NSView *view = [m_Window contentView];
 
 	// Set some properties.
+	[m_Window setOneShot:YES];
 	[m_Window setReleasedWhenClosed:YES];
 	[m_Window setExcludedFromWindowsMenu:YES];
+	[m_Window useOptimizedDrawing:YES];
 	[m_Window setTitle:@PRODUCT_FAMILY];
 	[m_Window center];
 
@@ -137,7 +136,7 @@ void LoadingWindow_MacOSX::SetSplash( const RageSurface *pSplash )
 {
 	RageFile f;
 	RString data;
-	std::vector<RString> vs;
+	vector<RString> vs;
 
 	// Try to load a custom splash from the current theme, first.
 	GetDirListing( THEME->GetPathG( "Common", "splash"), vs, false, true );

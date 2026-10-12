@@ -4,6 +4,7 @@
 #include "global.h"
 #include "RageInputDevice.h"
 #include "RageUtil.h"
+#include "Foreach.h"
 #include "LocalizedString.h"
 
 static const char *InputDeviceStateNames[] = {
@@ -16,8 +17,8 @@ XToString( InputDeviceState );
 XToLocalizedString( InputDeviceState );
 LuaXType(InputDevice);
 
-static std::map<DeviceButton, RString> g_mapNamesToString;
-static std::map<RString, DeviceButton> g_mapStringToNames;
+static map<DeviceButton,RString> g_mapNamesToString;
+static map<RString,DeviceButton> g_mapStringToNames;
 static void InitNames()
 {
 	if( !g_mapNamesToString.empty() )
@@ -136,8 +137,8 @@ static void InitNames()
 	g_mapNamesToString[MOUSE_WHEELUP] = "mousewheel up";
 	g_mapNamesToString[MOUSE_WHEELDOWN] = "mousewheel down";
 
-	for (std::pair<DeviceButton const &, RString const &> m : g_mapNamesToString)
-		g_mapStringToNames[m.second] = m.first;
+	FOREACHM( DeviceButton, RString, g_mapNamesToString, m )
+		g_mapStringToNames[m->second] = m->first;
 }
 
 /* Return a reversible representation of a DeviceButton. This is not affected
@@ -148,7 +149,7 @@ RString DeviceButtonToString( DeviceButton key )
 
 	// Check the name map first to allow making names for keys that are inside
 	// the ascii range. -Kyz
-	std::map<DeviceButton, RString>::const_iterator it = g_mapNamesToString.find( key );
+	map<DeviceButton,RString>::const_iterator it = g_mapNamesToString.find( key );
 	if( it != g_mapNamesToString.end() )
 		return it->second;
 
@@ -188,7 +189,7 @@ DeviceButton StringToDeviceButton( const RString& s )
 	if( sscanf(s, "Mouse %i", &i) == 1 )
 		return enum_add2( MOUSE_LEFT, i );
 
-	std::map<RString, DeviceButton>::const_iterator it = g_mapStringToNames.find( s );
+	map<RString,DeviceButton>::const_iterator it = g_mapStringToNames.find( s );
 	if( it != g_mapStringToNames.end() )
 		return it->second;
 

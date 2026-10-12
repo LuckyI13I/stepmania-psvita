@@ -3,11 +3,11 @@
 #include "InputHandler_Linux_Event.h"
 #include "InputHandler_Linux_Joystick.h"
 
-#include "RageInput.h" // g_sInputDrivers g_sInputDeviceOrder
+#include "RageInput.h" // g_sInputDrivers
 #include "RageLog.h"
+#include "Foreach.h"
 
 #include <string> // std::string::npos
-#include <vector>
 
 #if defined(HAVE_DIRENT_H)
 #include <dirent.h>
@@ -19,11 +19,11 @@ RString getDevice(RString inputDir, RString type)
 {
 	RString result = "";
 	DIR* dir = opendir( inputDir.c_str() );
-	if(dir == nullptr)
+	if(dir == NULL)
 		{ LOG->Warn("LinuxInputManager: Couldn't open %s: %s.", inputDir.c_str(), strerror(errno) ); return ""; }
 	
 	struct dirent* d;
-	while( ( d = readdir(dir) ) != nullptr)
+	while( ( d = readdir(dir) ) != NULL)
 		if( strncmp( type.c_str(), d->d_name, type.size() ) == 0)
 		{
 			result = RString("/dev/input/") + d->d_name;
@@ -34,11 +34,6 @@ RString getDevice(RString inputDir, RString type)
 	return result;
 }
 
-static bool cmpDevices(RString a, RString b)
-{
-	return a < b;
-}
-
 LinuxInputManager::LinuxInputManager()
 {
 	m_bEventEnabled = g_sInputDrivers.Get().find("LinuxEvent") != std::string::npos;
@@ -47,12 +42,12 @@ LinuxInputManager::LinuxInputManager()
 	if( g_sInputDrivers.Get() == "" )
 		{ m_bEventEnabled = true; m_bJoystickEnabled = true; }
 	
-	m_EventDriver = nullptr;
-	m_JoystickDriver = nullptr;
+	m_EventDriver = NULL;
+	m_JoystickDriver = NULL;
 	
 	// XXX: Can I use RageFile for this?
 	DIR* sysClassInput = opendir("/sys/class/input");
-	if( sysClassInput == nullptr)
+	if( sysClassInput == NULL )
 	{
 		// XXX: Probably should throw a Dialog. But Linux doesn't have a DialogDriver yet so eh.
 		LOG->Warn("Couldn't open /sys/class/input: %s. Joysticks will not work!", strerror(errno) );
@@ -60,7 +55,7 @@ LinuxInputManager::LinuxInputManager()
 	}
 	
 	struct dirent* d;
-	while( ( d = readdir(sysClassInput) ) != nullptr)
+	while( ( d = readdir(sysClassInput) ) != NULL)
 	{
 		if( strncmp( "input", d->d_name, 5) != 0) continue;
 		
@@ -77,27 +72,21 @@ LinuxInputManager::LinuxInputManager()
 		if( !bEventPresent && !bJoystickPresent )
 			LOG->Info("LinuxInputManager: %s seems to have no eventNN or jsNN.", dName.c_str() );
 	}
-
-	// Sort devices for more consistent numbering.
-	std::sort(m_vsPendingEventDevices.begin(), m_vsPendingEventDevices.end(), cmpDevices);
-	std::sort(m_vsPendingJoystickDevices.begin(), m_vsPendingJoystickDevices.end(), cmpDevices);
-
-	closedir(sysClassInput);
 }
 
 void LinuxInputManager::InitDriver(InputHandler_Linux_Event* driver)
 {
 	m_EventDriver = driver;
 
-	for (RString &dev : m_vsPendingEventDevices)
+	FOREACH(RString, m_vsPendingEventDevices, dev)
 	{
-		RString devFile = getDevice(dev, "event");
+		RString devFile = getDevice(*dev, "event");
 		ASSERT( devFile != "" );
 		
-		if( ! driver->TryDevice(devFile) && m_bJoystickEnabled && getDevice(dev, "js") != "" )
-			m_vsPendingJoystickDevices.push_back(dev);
+		if( ! driver->TryDevice(devFile) && m_bJoystickEnabled && getDevice(*dev, "js") != "" )
+			m_vsPendingJoystickDevices.push_back(*dev);
 	}
-	if( m_JoystickDriver != nullptr ) InitDriver(m_JoystickDriver);
+	if( m_JoystickDriver != NULL ) InitDriver(m_JoystickDriver);
 
 	m_vsPendingEventDevices.clear();
 }
@@ -105,31 +94,19 @@ void LinuxInputManager::InitDriver(InputHandler_Linux_Event* driver)
 void LinuxInputManager::InitDriver(InputHandler_Linux_Joystick* driver)
 {
 	m_JoystickDriver = driver;
-	// Discard all the joystick devices if they were assigned manually via 
-	// 	InputDeviceOrder
-	if( g_sInputDeviceOrder.Get() != "" ) {
-		m_vsPendingJoystickDevices.clear();
-	}
 
-	for (RString &dev : m_vsPendingJoystickDevices)
+	FOREACH(RString, m_vsPendingJoystickDevices, dev)
 	{
-		RString devFile = getDevice(dev, "js");
+		RString devFile = getDevice(*dev, "js");
 		ASSERT( devFile != "" );
 		
 		driver->TryDevice(devFile);
 	}
-
-	// If any, add the manually specified devices via InputDeviceOrder
-	std::vector<RString> fixedDevices;
-	split( g_sInputDeviceOrder, ",", fixedDevices, true );
-
-	for (RString dev : fixedDevices) {
-		RString devFile = dev;
-		driver->TryDevice(devFile);
-	}
+	
+	m_vsPendingJoystickDevices.clear();
 }
 
-LinuxInputManager* LINUXINPUT = nullptr; // global and accessible anywhere in our program
+LinuxInputManager* LINUXINPUT = NULL; // global and accessible anywhere in our program
 
 /*
  * (c) 2013 Ben "root" Anderson

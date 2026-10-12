@@ -18,7 +18,7 @@ public:
 	/* If you previously loaded a cached banner, and are now loading the full-
 	 * resolution banner, set bLowResToHighRes to true. */
 	void Load( RageTextureID ID, bool bLowResToHighRes=false );
-	void LoadFromSong( const Song* pSong );		// nullptr means no song
+	void LoadFromSong( const Song* pSong );		// NULL means no song
 	void LoadMode();
 	void LoadFromSongGroup( RString sSongGroup );
 	void LoadFromCourse( const Course* pCourse );
@@ -32,6 +32,7 @@ public:
 	void LoadCustom( RString sBanner );
 
 	bool LoadFromCachedBanner( const RString &path );
+	bool LoadFromCachedBackground( const RString &path );
 
 	void SetMovingFast( bool fast ) { m_bMovingFast=fast; }
 	virtual void UpdateInternal( float fDeltaTime );

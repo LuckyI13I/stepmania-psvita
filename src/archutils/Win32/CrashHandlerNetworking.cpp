@@ -5,9 +5,7 @@
 #include "RageThreads.h"
 #include "RageTimer.h"
 #include "RageUtil.h"
-
-#include <cstddef>
-#include <cstdint>
+#include "Foreach.h"
 
 #if defined(WINDOWS)
 #include <windows.h>
@@ -73,14 +71,14 @@ public:
 	/* Read data. Block until any data is received, then return all data
 	 * available. Return the number of bytes read. The return value will always
 	 * be >= 0, unless an error or cancellation occured. */
-	virtual int Read( void *pBuffer, std::size_t iSize ) = 0;
+	virtual int Read( void *pBuffer, size_t iSize ) = 0;
 
 	/* Write data to the socket. (Design note: we always write all of the data
 	 * unless an error or cancellation occurs, and those states are checked
 	 * with GetState(). If that happens, the number of bytes written is
 	 * meaningless, since it may have simply been buffered and never sent.
 	 * So, this function returns no value.) */
-	virtual void Write( const void *pBuffer, std::size_t iSize ) = 0;
+	virtual void Write( const void *pBuffer, size_t iSize ) = 0;
 
 	/* Cancel the connection. This operation can clear an error state, aborts
 	 * any blocking calls, never fails, and will always result in the socket
@@ -128,8 +126,8 @@ public:
 	void Open( const RString &sHost, int iPort, ConnectionType ct = CONN_TCP );
 	void Shutdown();
 	void Close();
-	int Read( void *pBuffer, std::size_t iSize );
-	void Write( const void *pBuffer, std::size_t iSize );
+	int Read( void *pBuffer, size_t iSize );
+	void Write( const void *pBuffer, size_t iSize );
 
 	void Cancel();
 
@@ -160,7 +158,7 @@ NetworkStream *CreateNetworkStream()
 		WSADATA WSAData;
 		WORD iVersionRequested = MAKEWORD(2,0);
 		if( WSAStartup(iVersionRequested, &WSAData) != 0 )
-			return nullptr;
+			return NULL;
 	}
 
 	return new NetworkStream_Win32;
@@ -174,9 +172,9 @@ NetworkStream_Win32::NetworkStream_Win32():
 	m_State = STATE_IDLE;
 	m_Socket = NULL;
 #if defined(WINDOWS)
-	m_hResolve = nullptr;
-	m_hResolveHwnd = nullptr;
-	m_hCompletionEvent = CreateEvent( nullptr, true, false, nullptr );
+	m_hResolve = NULL;
+	m_hResolveHwnd = NULL;
+	m_hCompletionEvent = CreateEvent( NULL, true, false, NULL );
 #endif
 }
 
@@ -357,7 +355,7 @@ void NetworkStream_Win32::Open( const RString &sHost, int iPort, ConnectionType 
 	m_iPort = iPort;
 
 	// Look up the hostname.
-	hostent *pHost = nullptr;
+	hostent *pHost = NULL;
 	char pBuf[MAXGETHOSTSTRUCT];
 	{
 		pHost = (hostent *) pBuf;
@@ -376,8 +374,8 @@ void NetworkStream_Win32::Open( const RString &sHost, int iPort, ConnectionType 
 		mw.Run();
 
 		m_Mutex.Lock();
-		m_hResolve = nullptr;
-		m_hResolveHwnd = nullptr;
+		m_hResolve = NULL;
+		m_hResolveHwnd = NULL;
 		if( m_State == STATE_CANCELLED )
 		{
 			m_Mutex.Unlock();
@@ -397,7 +395,7 @@ void NetworkStream_Win32::Open( const RString &sHost, int iPort, ConnectionType 
 		sockaddr_in addr;
 		addr.sin_addr.s_addr = *(DWORD *)pHost->h_addr_list[0];
 		addr.sin_family = PF_INET;
-		addr.sin_port = htons( (std::uint16_t) iPort );
+		addr.sin_port = htons( (uint16_t) iPort );
 
 		m_Mutex.Lock();
 		m_Socket = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
@@ -441,7 +439,7 @@ void NetworkStream_Win32::Close()
 {
 	if( m_State == STATE_IDLE )
 		return;
-
+	
 	/* If we have an active, stable connection, make sure we flush any data
 	 * completely before closing. If you don't want to do this, call Cancel()
 	 * first. */
@@ -477,7 +475,7 @@ void NetworkStream_Win32::Cancel()
 	m_State = STATE_CANCELLED;
 
 	// If resolving, abort the resolve.
-	if( m_hResolve != nullptr )
+	if( m_hResolve != NULL )
 	{
 		/* When we cancel the request, no message at all will be sent to the window,
 		 * so we need to do it ourself to inform it that it was cancelled. Be sure
@@ -492,7 +490,7 @@ void NetworkStream_Win32::Cancel()
 	m_Mutex.Unlock();
 }
 
-int NetworkStream_Win32::Read( void *pBuffer, std::size_t iSize )
+int NetworkStream_Win32::Read( void *pBuffer, size_t iSize )
 {
 	if( m_State != STATE_CONNECTED )
 		return 0;
@@ -541,7 +539,7 @@ int NetworkStream_Win32::Read( void *pBuffer, std::size_t iSize )
 	return iRead;
 }
 
-void NetworkStream_Win32::Write( const void *pBuffer, std::size_t iSize )
+void NetworkStream_Win32::Write( const void *pBuffer, size_t iSize )
 {
 	if( m_State != STATE_CONNECTED )
 		return;
@@ -584,24 +582,24 @@ NetworkPostData::~NetworkPostData()
 }
 
 /** @brief Create a MIME multipart data block from the given set of fields. */
-void NetworkPostData::CreateMimeData( const std::map<RString, RString> &mapNameToData, RString &sOut, RString &sMimeBoundaryOut )
+void NetworkPostData::CreateMimeData( const map<RString,RString> &mapNameToData, RString &sOut, RString &sMimeBoundaryOut )
 {
 	// Find a non-conflicting mime boundary.
 	while(1)
 	{
 		sMimeBoundaryOut = ssprintf( "--%08i", rand() );
-		for (auto const &d : mapNameToData)
-			if( d.second.find(sMimeBoundaryOut) != RString::npos )
+		FOREACHM_CONST( RString, RString, mapNameToData, d )
+			if( d->second.find(sMimeBoundaryOut) != RString::npos )
 				continue;
 		break;
 	}
 
-	for (auto const &d : mapNameToData)
+	FOREACHM_CONST( RString, RString, mapNameToData, d )
 	{
 		sOut += "--" + sMimeBoundaryOut + "\r\n";
-		sOut += ssprintf( "Content-Disposition: form-data; name=\"%s\"\r\n", d.first.c_str() );
+		sOut += ssprintf( "Content-Disposition: form-data; name=\"%s\"\r\n", d->first.c_str() );
 		sOut += "\r\n";
-		sOut += d.second;
+		sOut += d->second;
 		sOut += "\r\n";
 	}
 	if( sOut.size() )
@@ -669,7 +667,7 @@ void NetworkPostData::HttpThread()
 
 	// Parse the results.
 	int iStart = 0, iSize = -1;
-	std::map<RString, RString> mapHeaders;
+	map<RString,RString> mapHeaders;
 	while( 1 )
 	{
 		split( sResult, "\n", iStart, iSize, false );
@@ -749,7 +747,7 @@ void NetworkPostData::SetData( const RString &sKey, const RString &sData )
 /*
  * (c) 2006 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -759,7 +757,7 @@ void NetworkPostData::SetData( const RString &sKey, const RString &sData )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

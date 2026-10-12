@@ -5,6 +5,7 @@
 #if defined(VITA)
 #include "Vita/ArchHooks_Vita.h"
 #include "Vita/LowLevelWindow_Vita.h"
+#include "LoadingWindow/LoadingWindow_Vita.h"
 #define ARCH_LOW_LEVEL_WINDOW LowLevelWindow_Vita
 #define DEFAULT_INPUT_DRIVER_LIST "Vita"
 #define DEFAULT_MOVIE_DRIVER_LIST "Null"
@@ -17,7 +18,7 @@
 #include "LowLevelWindow/LowLevelWindow_Win32.h"
 #include "MemoryCard/MemoryCardDriverThreaded_Windows.h"
 #define DEFAULT_INPUT_DRIVER_LIST "DirectInput,Pump,Para"
-#define DEFAULT_MOVIE_DRIVER_LIST "FFMpeg,Null"
+#define DEFAULT_MOVIE_DRIVER_LIST "FFMpeg,DShow,Null"
 #define DEFAULT_SOUND_DRIVER_LIST "WaveOut,DirectSound-sw,WDMKS,Null"
 
 
@@ -48,15 +49,14 @@
 #define DEFAULT_INPUT_DRIVER_LIST "X11"
 #endif
 #define DEFAULT_MOVIE_DRIVER_LIST "FFMpeg,Null"
-// PulseAudio is the preferred Unix driver since it allows the gives non
-// exclusive access to the audio device, unlike ALSA.
-// Use ALSA next because it is the lowest latency.
+// ALSA comes first, as the system may have OSS compat but we don't want to use
+// it if it's actually an ALSA wrapper.
 // Then try OSS before daemon drivers so we're going direct instead of
 // unwittingly starting a daemon.
-// JACK gives us an explicit option to NOT start a daemon, so try it last,
+// JACK gives us an explicit option to NOT start a daemon, so try it third,
 // as PulseAudio will successfully Init() but not actually work if the
 // PulseAudio daemon has been suspended by/for jackd.
-#define DEFAULT_SOUND_DRIVER_LIST "Pulse,ALSA-sw,OSS,JACK,Null"
+#define DEFAULT_SOUND_DRIVER_LIST "ALSA-sw,OSS,JACK,Pulse,Null"
 #else
 #error Which arch?
 #endif
@@ -64,7 +64,6 @@
 /* All use these. */
 #include "LoadingWindow/LoadingWindow_Null.h"
 #include "MemoryCard/MemoryCardDriver_Null.h"
-#include "MemoryCard/MemoryCardDriverThreaded_Folder.h"
 
 #endif
 

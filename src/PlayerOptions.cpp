@@ -7,14 +7,10 @@
 #include "Course.h"
 #include "Steps.h"
 #include "ThemeManager.h"
+#include "Foreach.h"
 #include "Style.h"
 #include "CommonMetrics.h"
-
-#include <cfloat>
-#include <cmath>
-#include <sstream>
-#include <vector>
-
+#include <float.h>
 
 static const char *LifeTypeNames[] = {
 	"Bar",
@@ -33,16 +29,6 @@ static const char *DrainTypeNames[] = {
 XToString( DrainType );
 XToLocalizedString( DrainType );
 LuaXType( DrainType );
-
-static const char *ModTimerTypeNames[] = {
-	"Game",
-	"Beat",
-	"Song",
-	"Default",
-};
-XToString( ModTimerType );
-XToLocalizedString( ModTimerType );
-LuaXType( ModTimerType );
 
 void NextFloat( float fValues[], int size );
 void NextBool( bool bValues[], int size );
@@ -65,7 +51,6 @@ void PlayerOptions::Init()
 {
 	m_LifeType = LifeType_Bar;
 	m_DrainType = DrainType_Normal;
-	m_ModTimerType = ModTimerType_Default;
 	m_BatteryLives = 4;
 	m_MinTNSToHideNotes= PREFSMAN->m_MinTNSToHideNotes;
 	m_bSetScrollSpeed = false;
@@ -87,52 +72,22 @@ void PlayerOptions::Init()
 	m_fSkew = 0;			m_SpeedfSkew = 1.0f;
 	m_fPassmark = 0;		m_SpeedfPassmark = 1.0f;
 	m_fRandomSpeed = 0;		m_SpeedfRandomSpeed = 1.0f;
-	m_fModTimerMult = 0;		m_SpeedfModTimerMult = 1.0f;
-	m_fModTimerOffset = 0;		m_SpeedfModTimerOffset = 1.0f;
-	m_fDrawSize = 0;		m_SpeedfDrawSize = 1.0f;
-	m_fDrawSizeBack = 0;		m_SpeedfDrawSizeBack = 1.0f;
 	ZERO( m_bTurns );
 	ZERO( m_bTransforms );
 	m_bMuteOnError = false;
-	m_bStealthType = false;
-	m_bStealthPastReceptors = false;
-	m_bDizzyHolds = false;
-	m_bZBuffer = false;
-	m_bCosecant = false;
 	m_sNoteSkin = "";
-	m_fVisualDelay = 0.0f;
-	m_twDisabledWindows.reset();
-	ZERO( m_fMovesX );		ONE( m_SpeedfMovesX );
-	ZERO( m_fMovesY );		ONE( m_SpeedfMovesY );
-	ZERO( m_fMovesZ );		ONE( m_SpeedfMovesZ );
-	ZERO( m_fConfusionX );		ONE( m_SpeedfConfusionX );
-	ZERO( m_fConfusionY );		ONE( m_SpeedfConfusionY );
-	ZERO( m_fConfusionZ );		ONE( m_SpeedfConfusionZ );
-	ZERO( m_fDarks );		ONE( m_SpeedfDarks );
-	ZERO( m_fStealth );		ONE( m_SpeedfStealth );
-	ZERO( m_fTiny );		ONE( m_SpeedfTiny );
-	ZERO( m_fBumpy );		ONE( m_SpeedfBumpy );
-	ZERO( m_fReverse );		ONE( m_SpeedfReverse );
-
 }
 
 void PlayerOptions::Approach( const PlayerOptions& other, float fDeltaSeconds )
 {
-	const float fRateMult = PREFSMAN->m_bRateModsAffectTweens ? GAMESTATE->m_SongOptions.GetCurrent().m_fMusicRate : 1.0f;
-
 #define APPROACH( opt ) \
-	fapproach( m_ ## opt, other.m_ ## opt, fRateMult * fDeltaSeconds * other.m_Speed ## opt );
+	fapproach( m_ ## opt, other.m_ ## opt, fDeltaSeconds * other.m_Speed ## opt );
 #define DO_COPY( x ) \
 	x = other.x;
 
 	DO_COPY( m_LifeType );
 	DO_COPY( m_DrainType );
-	DO_COPY( m_ModTimerType );
 	DO_COPY( m_BatteryLives );
-	APPROACH( fModTimerMult );
-	APPROACH( fModTimerOffset );
-	APPROACH( fDrawSize );
-	APPROACH( fDrawSizeBack );
 	APPROACH( fTimeSpacing );
 	APPROACH( fScrollSpeed );
 	APPROACH( fMaxScrollBPM );
@@ -155,28 +110,6 @@ void PlayerOptions::Approach( const PlayerOptions& other, float fDeltaSeconds )
 	APPROACH( fSkew );
 	APPROACH( fPassmark );
 	APPROACH( fRandomSpeed );
-	for( int i=0; i<16; i++)
-	    APPROACH( fMovesX[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fMovesY[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fMovesZ[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fConfusionX[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fConfusionY[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fConfusionZ[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fDarks[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fStealth[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fTiny[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fBumpy[i] );
-	for( int i=0; i<16; i++)
-	    APPROACH( fReverse[i] );
 
 	DO_COPY( m_bSetScrollSpeed );
 	for( int i=0; i<NUM_TURNS; i++ )
@@ -184,38 +117,31 @@ void PlayerOptions::Approach( const PlayerOptions& other, float fDeltaSeconds )
 	for( int i=0; i<NUM_TRANSFORMS; i++ )
 		DO_COPY( m_bTransforms[i] );
 	DO_COPY( m_bMuteOnError );
-	DO_COPY( m_bStealthType );
-	DO_COPY( m_bStealthPastReceptors );
-	DO_COPY( m_bDizzyHolds );
-	DO_COPY( m_bZBuffer );
-	DO_COPY( m_bCosecant );
 	DO_COPY( m_FailType );
 	DO_COPY( m_MinTNSToHideNotes );
 	DO_COPY( m_sNoteSkin );
-	DO_COPY( m_fVisualDelay );
-	DO_COPY( m_twDisabledWindows );
 #undef APPROACH
 #undef DO_COPY
 }
 
-static void AddPart( std::vector<RString> &AddTo, float level, RString name )
+static void AddPart( vector<RString> &AddTo, float level, RString name )
 {
 	if( level == 0 )
 		return;
 
-	const RString LevelStr = (level == 1)? RString(""): ssprintf( "%ld%% ", std::lrint(level*100) );
+	const RString LevelStr = (level == 1)? RString(""): ssprintf( "%ld%% ", lrintf(level*100) );
 
 	AddTo.push_back( LevelStr + name );
 }
 
 RString PlayerOptions::GetString( bool bForceNoteSkin ) const
 {
-	std::vector<RString> v;
+	vector<RString> v;
 	GetMods( v, bForceNoteSkin );
 	return join( ", ", v );
 }
 
-void PlayerOptions::GetMods( std::vector<RString> &AddTo, bool bForceNoteSkin ) const
+void PlayerOptions::GetMods( vector<RString> &AddTo, bool bForceNoteSkin ) const
 {
 	//RString sReturn;
 
@@ -275,187 +201,26 @@ void PlayerOptions::GetMods( std::vector<RString> &AddTo, bool bForceNoteSkin ) 
 		AddTo.push_back( s );
 	}
 
-	switch(m_ModTimerType)
-	{
-		case ModTimerType_Game:
-			AddTo.push_back("ModTimerGame");
-			break;
-		case ModTimerType_Beat:
-			AddTo.push_back("ModTimerBeat");
-			break;
-		case ModTimerType_Song:
-			AddTo.push_back("ModTimerSong");
-			break;
-		case ModTimerType_Default:
-			break;
-		default:
-			FAIL_M(ssprintf("Invalid ModTimerType: %i", m_ModTimerType));
-	}
-
 	AddPart( AddTo, m_fAccels[ACCEL_BOOST],		"Boost" );
 	AddPart( AddTo, m_fAccels[ACCEL_BRAKE],		"Brake" );
 	AddPart( AddTo, m_fAccels[ACCEL_WAVE],			"Wave" );
-	AddPart( AddTo, m_fAccels[ACCEL_WAVE_PERIOD],		"WavePeriod" );
 	AddPart( AddTo, m_fAccels[ACCEL_EXPAND],		"Expand" );
-	AddPart( AddTo, m_fAccels[ACCEL_EXPAND_PERIOD],		"ExpandPeriod" );
-	AddPart( AddTo, m_fAccels[ACCEL_TAN_EXPAND],		"TanExpand" );
-	AddPart( AddTo, m_fAccels[ACCEL_TAN_EXPAND_PERIOD],	"TanExpandPeriod" );
 	AddPart( AddTo, m_fAccels[ACCEL_BOOMERANG],	"Boomerang" );
 
 	AddPart( AddTo, m_fEffects[EFFECT_DRUNK],		"Drunk" );
-	AddPart( AddTo, m_fEffects[EFFECT_DRUNK_SPEED],		"DrunkSpeed" );
-	AddPart( AddTo, m_fEffects[EFFECT_DRUNK_OFFSET],	"DrunkOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_DRUNK_PERIOD],	"DrunkPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DRUNK],		"TanDrunk" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DRUNK_SPEED],	"TanDrunkSpeed" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DRUNK_OFFSET],	"TanDrunkOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DRUNK_PERIOD],	"TanDrunkPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_DRUNK_Z],		"DrunkZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_DRUNK_Z_SPEED],	"DrunkZSpeed" );
-	AddPart( AddTo, m_fEffects[EFFECT_DRUNK_Z_OFFSET],	"DrunkZOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_DRUNK_Z_PERIOD],	"DrunkZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DRUNK_Z],		"TanDrunkZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DRUNK_Z_SPEED],	"TanDrunkZSpeed" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DRUNK_Z_OFFSET],	"TanDrunkZOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DRUNK_Z_PERIOD],	"TanDrunkZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_SHRINK_TO_LINEAR],	"ShrinkLinear" );
-	AddPart( AddTo, m_fEffects[EFFECT_SHRINK_TO_MULT],	"ShrinkMult" );
-	AddPart( AddTo, m_fEffects[EFFECT_PULSE_INNER],		"PulseInner" );
-	AddPart( AddTo, m_fEffects[EFFECT_PULSE_OUTER],		"PulseOuter" );
-	AddPart( AddTo, m_fEffects[EFFECT_PULSE_PERIOD],	"PulsePeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_PULSE_OFFSET],	"PulseOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_ATTENUATE_X],		"AttenuateX" );
-	AddPart( AddTo, m_fEffects[EFFECT_ATTENUATE_Y],		"AttenuateY" );
-	AddPart( AddTo, m_fEffects[EFFECT_ATTENUATE_Z],		"AttenuateZ" );
 	AddPart( AddTo, m_fEffects[EFFECT_DIZZY],		"Dizzy" );
 	AddPart( AddTo, m_fEffects[EFFECT_CONFUSION],	"Confusion" );
-	AddPart( AddTo, m_fEffects[EFFECT_CONFUSION_OFFSET],	"ConfusionOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_CONFUSION_X],	"ConfusionX" );
-	AddPart( AddTo, m_fEffects[EFFECT_CONFUSION_X_OFFSET],	"ConfusionXOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_CONFUSION_Y],	"ConfusionY" );
-	AddPart( AddTo, m_fEffects[EFFECT_CONFUSION_Y_OFFSET],	"ConfusionYOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_BOUNCE],		"Bounce" );
-	AddPart( AddTo, m_fEffects[EFFECT_BOUNCE_PERIOD],	"BouncePeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_BOUNCE_OFFSET],	"BounceOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_BOUNCE_Z],		"BounceZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_BOUNCE_Z_PERIOD],	"BounceZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_BOUNCE_Z_OFFSET],	"BounceZOffset" );
 	AddPart( AddTo, m_fEffects[EFFECT_MINI],		"Mini" );
 	AddPart( AddTo, m_fEffects[EFFECT_TINY],		"Tiny" );
 	AddPart( AddTo, m_fEffects[EFFECT_FLIP],		"Flip" );
 	AddPart( AddTo, m_fEffects[EFFECT_INVERT],		"Invert" );
 	AddPart( AddTo, m_fEffects[EFFECT_TORNADO],	"Tornado" );
-	AddPart( AddTo, m_fEffects[EFFECT_TORNADO_PERIOD],	"TornadoPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TORNADO_OFFSET],	"TornadoOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_TORNADO],	"TanTornado" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_TORNADO_PERIOD],	"TanTornadoPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_TORNADO_OFFSET],	"TanTornadoOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TORNADO_Z],	"TornadoZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_TORNADO_Z_PERIOD],	"TornadoZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TORNADO_Z_OFFSET],	"TornadoZOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_TORNADO_Z],	"TanTornadoZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_TORNADO_Z_PERIOD],"TanTornadoZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_TORNADO_Z_OFFSET],"TanTornadoZOffset" );
 	AddPart( AddTo, m_fEffects[EFFECT_TIPSY],		"Tipsy" );
-	AddPart( AddTo, m_fEffects[EFFECT_TIPSY_SPEED],		"TipsySpeed" );
-	AddPart( AddTo, m_fEffects[EFFECT_TIPSY_OFFSET],	"TipsyOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_TIPSY],		"TanTipsy" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_TIPSY_SPEED],	"TanTipsySpeed" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_TIPSY_OFFSET],	"TanTipsyOffset" );
 	AddPart( AddTo, m_fEffects[EFFECT_BUMPY],		"Bumpy" );
-	AddPart( AddTo, m_fEffects[EFFECT_BUMPY_OFFSET],	"BumpyOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_BUMPY_PERIOD],	"BumpyPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_BUMPY],		"TanBumpy" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_BUMPY_OFFSET],	"TanBumpyOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_BUMPY_PERIOD],	"TanBumpyPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_BUMPY_X],		"BumpyX" );
-	AddPart( AddTo, m_fEffects[EFFECT_BUMPY_X_OFFSET],	"BumpyXOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_BUMPY_X_PERIOD],	"BumpyXPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_BUMPY_X],		"TanBumpyX" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_BUMPY_X_OFFSET],	"TanBumpyXOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_BUMPY_X_PERIOD],	"TanBumpyXPeriod" );
 	AddPart( AddTo, m_fEffects[EFFECT_BEAT],		"Beat" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_OFFSET],		"BeatOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_PERIOD],		"BeatPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_MULT],		"BeatMult" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_Y],		"BeatY" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_Y_OFFSET],	"BeatYOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_Y_PERIOD],	"BeatYPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_Y_MULT],		"BeatYMult" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_Z],		"BeatZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_Z_OFFSET],	"BeatZOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_Z_PERIOD],	"BeatZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_BEAT_Z_MULT],		"BeatZMult" );
-	AddPart( AddTo, m_fEffects[EFFECT_ZIGZAG],		"Zigzag" );
-	AddPart( AddTo, m_fEffects[EFFECT_ZIGZAG_PERIOD],	"ZigzagPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_ZIGZAG_OFFSET],	"ZigzagOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_ZIGZAG_Z],		"ZigzagZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_ZIGZAG_Z_PERIOD],	"ZigzagZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_ZIGZAG_Z_OFFSET],	"ZigzagZOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_SAWTOOTH],		"Sawtooth" );
-	AddPart( AddTo, m_fEffects[EFFECT_SAWTOOTH_PERIOD],	"SawtoothPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_SAWTOOTH_Z],		"SawtoothZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_SAWTOOTH_Z_PERIOD],	"SawtoothZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_SQUARE],		"Square" );
-	AddPart( AddTo, m_fEffects[EFFECT_SQUARE_OFFSET],	"SquareOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_SQUARE_PERIOD],	"SquarePeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_SQUARE_Z],		"SquareZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_SQUARE_Z_OFFSET],	"SquareZOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_SQUARE_Z_PERIOD],	"SquareZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_DIGITAL],		"Digital" );
-	AddPart( AddTo, m_fEffects[EFFECT_DIGITAL_STEPS],	"DigitalSteps" );
-	AddPart( AddTo, m_fEffects[EFFECT_DIGITAL_PERIOD],	"DigitalPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_DIGITAL_OFFSET],	"DigitalOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DIGITAL],		"TanDigital" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DIGITAL_STEPS],	"TanDigitalSteps" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DIGITAL_PERIOD],	"TanDigitalPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DIGITAL_OFFSET],	"TanDigitalOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_DIGITAL_Z],		"DigitalZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_DIGITAL_Z_STEPS],	"DigitalZSteps" );
-	AddPart( AddTo, m_fEffects[EFFECT_DIGITAL_Z_PERIOD],	"DigitalZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_DIGITAL_Z_OFFSET],	"DigitalZOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DIGITAL_Z],	"TanDigitalZ" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DIGITAL_Z_STEPS],	"TanDigitalZSteps" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DIGITAL_Z_PERIOD],"TanDigitalZPeriod" );
-	AddPart( AddTo, m_fEffects[EFFECT_TAN_DIGITAL_Z_OFFSET],"TanDigitalZOffset" );
-	AddPart( AddTo, m_fEffects[EFFECT_PARABOLA_X],		"ParabolaX" );
-	AddPart( AddTo, m_fEffects[EFFECT_PARABOLA_Y],		"ParabolaY" );
-	AddPart( AddTo, m_fEffects[EFFECT_PARABOLA_Z],		"ParabolaZ" );
 	AddPart( AddTo, m_fEffects[EFFECT_XMODE],		"XMode" );
 	AddPart( AddTo, m_fEffects[EFFECT_TWIRL],		"Twirl" );
 	AddPart( AddTo, m_fEffects[EFFECT_ROLL],		"Roll" );
-	AddPart( AddTo, m_bStealthType,				"StealthType" );
-	AddPart( AddTo, m_bStealthPastReceptors,		"StealthPastReceptors");
-	AddPart( AddTo, m_bDizzyHolds,				"DizzyHolds");
-	AddPart( AddTo, m_bZBuffer,				"ZBuffer");
-	AddPart( AddTo, m_bCosecant,				"Cosecant");
-
-	for( int i=0; i<16; i++)
-	{
-		RString s = ssprintf( "MoveX%d", i+1 );
-
-		AddPart( AddTo, m_fMovesX[i],				s );
-		s = ssprintf( "MoveY%d", i+1 );
-		AddPart( AddTo, m_fMovesY[i],				s );
-		s = ssprintf( "MoveZ%d", i+1 );
-		AddPart( AddTo, m_fMovesZ[i],				s );
-		s = ssprintf( "ConfusionOffset%d", i+1);
-		AddPart( AddTo, m_fConfusionX[i],				s );
-		s = ssprintf( "ConfusionYOffset%d", i+1 );
-		AddPart( AddTo, m_fConfusionY[i],				s );
-		s = ssprintf( "ConfusionZOffset%d", i+1 );
-		AddPart( AddTo, m_fConfusionZ[i],				s );
-		s = ssprintf( "Dark%d", i+1 );
-		AddPart( AddTo, m_fDarks[i],				s );
-		s = ssprintf( "Stealth%d", i+1 );
-		AddPart( AddTo, m_fStealth[i],				s );
-		s = ssprintf( "Tiny%d", i+1 );
-		AddPart( AddTo, m_fTiny[i],				s );
-		s = ssprintf( "Bumpy%d", i+1 );
-		AddPart( AddTo, m_fBumpy[i],				s );
-		s = ssprintf( "Reverse%d", i+1 );
-		AddPart( AddTo, m_fReverse[i],				s );
-	}
 
 	AddPart( AddTo, m_fAppearances[APPEARANCE_HIDDEN],			"Hidden" );
 	AddPart( AddTo, m_fAppearances[APPEARANCE_HIDDEN_OFFSET],	"HiddenOffset" );
@@ -471,11 +236,6 @@ void PlayerOptions::GetMods( std::vector<RString> &AddTo, bool bForceNoteSkin ) 
 	AddPart( AddTo, m_fScrolls[SCROLL_CROSS],		"Cross" );
 	AddPart( AddTo, m_fScrolls[SCROLL_CENTERED],	"Centered" );
 
-	AddPart( AddTo, m_fModTimerMult,	"ModTimerMult" );
-	AddPart( AddTo, m_fModTimerOffset,	"ModTimerOffset" );
-	AddPart( AddTo, m_fDrawSize,		"DrawSize" );
-	AddPart( AddTo, m_fDrawSizeBack,	"DrawSizeBack" );
-
 	AddPart( AddTo, m_fDark,	"Dark" );
 
 	AddPart( AddTo, m_fBlind,	"Blind" );
@@ -490,15 +250,12 @@ void PlayerOptions::GetMods( std::vector<RString> &AddTo, bool bForceNoteSkin ) 
 	AddPart( AddTo, m_fRandomSpeed,	"RandomSpeed" );
 
 	if( m_bTurns[TURN_MIRROR] )		AddTo.push_back( "Mirror" );
-	if( m_bTurns[TURN_LRMIRROR] )		AddTo.push_back( "LRMirror" );
-	if( m_bTurns[TURN_UDMIRROR] )		AddTo.push_back( "UDMirror" );
 	if( m_bTurns[TURN_BACKWARDS] )		AddTo.push_back( "Backwards" );
 	if( m_bTurns[TURN_LEFT] )			AddTo.push_back( "Left" );
 	if( m_bTurns[TURN_RIGHT] )			AddTo.push_back( "Right" );
 	if( m_bTurns[TURN_SHUFFLE] )		AddTo.push_back( "Shuffle" );
 	if( m_bTurns[TURN_SOFT_SHUFFLE] )	AddTo.push_back( "SoftShuffle" );
 	if( m_bTurns[TURN_SUPER_SHUFFLE] )	AddTo.push_back( "SuperShuffle" );
-	if( m_bTurns[TURN_HYPER_SHUFFLE] )	AddTo.push_back( "HyperShuffle" );
 
 	if( m_bTransforms[TRANSFORM_NOHOLDS] )	AddTo.push_back( "NoHolds" );
 	if( m_bTransforms[TRANSFORM_NOROLLS] )	AddTo.push_back( "NoRolls" );
@@ -546,11 +303,11 @@ void PlayerOptions::GetMods( std::vector<RString> &AddTo, bool bForceNoteSkin ) 
 		else
 			AddPart( AddTo, -m_fPerspectiveTilt, "Hallway" );
 	}
-	else if( std::abs(m_fSkew-m_fPerspectiveTilt) < 0.0001f )
+	else if( fabsf(m_fSkew-m_fPerspectiveTilt) < 0.0001f )
 	{
 		AddPart( AddTo, m_fSkew, "Space" );
 	}
-	else if( std::abs(m_fSkew+m_fPerspectiveTilt) < 0.0001f )
+	else if( fabsf(m_fSkew+m_fPerspectiveTilt) < 0.0001f )
 	{
 		AddPart( AddTo, m_fSkew, "Incoming" );
 	}
@@ -567,32 +324,6 @@ void PlayerOptions::GetMods( std::vector<RString> &AddTo, bool bForceNoteSkin ) 
 		Capitalize( s );
 		AddTo.push_back( s );
 	}
-
-	if ( std::abs(m_fVisualDelay) > 0.0001f )
-	{
-		// Format the string to be something like "10ms VisualDelay".
-		// Note that we don't process sub-millisecond visual delay.
-		AddTo.push_back( ssprintf("%.0fms VisualDelay", m_fVisualDelay * 1000.0f) );
-	}
-
-	if (m_twDisabledWindows.count() != 0) {
-		std::stringstream ss;
-		bool is_first = true;
-		ss << "No ";
-		for (int i=TW_W1; i <= TW_W5; ++i) {
-			if (m_twDisabledWindows[i]) {
-				if (!is_first) {
-					ss << "/";
-				} else {
-					is_first = false;
-				}
-				ss << TimingWindowToString(static_cast<TimingWindow>(i)).c_str();
-			}
-		}
-
-		// Final string will be something like "No W4/W5"
-		AddTo.push_back(ss.str());
-	}
 }
 
 /* Options are added to the current settings; call Init() beforehand if
@@ -600,24 +331,23 @@ void PlayerOptions::GetMods( std::vector<RString> &AddTo, bool bForceNoteSkin ) 
 void PlayerOptions::FromString( const RString &sMultipleMods )
 {
 	RString sTemp = sMultipleMods;
-	std::vector<RString> vs;
+	vector<RString> vs;
 	split( sTemp, ",", vs, true );
 	RString sThrowAway;
-	for (RString &s : vs)
+	FOREACH( RString, vs, s )
 	{
-		if (!FromOneModString( s, sThrowAway ))
+		if (!FromOneModString( *s, sThrowAway ))
 		{
-			LOG->Trace( "Attempted to load a non-existing mod \'%s\' for the Player. Ignoring.", s.c_str() );
+			LOG->Trace( "Attempted to load a non-existing mod \'%s\' for the Player. Ignoring.", (*s).c_str() );
 		}
 	}
 }
 
 bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut )
 {
-	ASSERT_M( NOTESKIN != nullptr, "The Noteskin Manager must be loaded in order to process mods." );
+	ASSERT_M( NOTESKIN != NULL, "The Noteskin Manager must be loaded in order to process mods." );
 
 	RString sBit = sOneMod;
-	RString sMod = "";
 	sBit.MakeLower();
 	Trim( sBit );
 
@@ -628,41 +358,35 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 
 	float level = 1;
 	float speed = 1;
-	std::vector<RString> asParts;
+	vector<RString> asParts;
 	split( sBit, " ", asParts, true );
 
-	for (RString const &s : asParts)
+	FOREACH_CONST( RString, asParts, s )
 	{
-		if( s == "no" )
+		if( *s == "no" )
 		{
 			level = 0;
 		}
-		else if( isdigit(s[0]) || s[0] == '-' )
+		else if( isdigit((*s)[0]) || (*s)[0] == '-' )
 		{
-			if ( EndsWith(s, "ms") )
-			{
-				// Strip off the "ms" before parsing and convert to seconds.
-				RString ms_value = s.substr(0, s.size()-2 );
-				level = StringToFloat( ms_value ) / 1000.0f;
-			}
 			/* If the last character is a *, they probably said "123*" when
 			 * they meant "*123". */
-			else if( s.Right(1) == "*" )
+			if( s->Right(1) == "*" )
 			{
 				// XXX: We know what they want, is there any reason not to handle it?
 				// Yes. We should be strict in handling the format. -Chris
-				sErrorOut = ssprintf("Invalid player options \"%s\"; did you mean '*%d'?", s.c_str(), StringToInt(s) );
+				sErrorOut = ssprintf("Invalid player options \"%s\"; did you mean '*%d'?", s->c_str(), StringToInt(*s) );
 				return false;
 			}
 			else
 			{
-				level = StringToFloat( s ) / 100.0f;
+				level = StringToFloat( *s ) / 100.0f;
 			}
 		}
-		else if( s[0]=='*' )
+		else if( *s[0]=='*' )
 		{
-			sscanf( s, "*%f", &speed );
-			if( !std::isfinite(speed) )
+			sscanf( *s, "*%f", &speed );
+			if( !isfinite(speed) )
 				speed = 1.0f;
 		}
 	}
@@ -673,8 +397,7 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 	const bool on = (level > 0.5f);
 
 	static Regex mult("^([0-9]+(\\.[0-9]+)?)x$");
-	static Regex disabledWindows("(w[1-5])");
-	std::vector<RString> matches;
+	vector<RString> matches;
 	if( mult.Compare(sBit, matches) )
 	{
 		StringConversion::FromString( matches[0], level );
@@ -685,7 +408,7 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 	}
 	else if( sscanf( sBit, "c%f", &level ) == 1 )
 	{
-		if( !std::isfinite(level) || level <= 0.0f )
+		if( !isfinite(level) || level <= 0.0f )
 			level = CMOD_DEFAULT;
 		SET_FLOAT( fScrollBPM )
 		SET_FLOAT( fTimeSpacing )
@@ -697,7 +420,7 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 	{
 		// OpenITG doesn't have this block:
 		/*
-		if( !std::isfinite(level) || level <= 0.0f )
+		if( !isfinite(level) || level <= 0.0f )
 			level = CMOD_DEFAULT;
 		*/
 		SET_FLOAT( fMaxScrollBPM )
@@ -727,20 +450,6 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 		// level is a percentage for every other option, so multiply by 100. -Kyz
 		m_BatteryLives= level * 100.0f;
 	}
-	else if( sBit.find("modtimer") != sBit.npos)
-	{
-	    if( sBit == "modtimerdefault" )			{ m_ModTimerType= ModTimerType_Default; }
-	    else if( sBit == "modtimersong" )			{ m_ModTimerType= ModTimerType_Song; }
-	    else if( sBit == "modtimerbeat" )			{ m_ModTimerType= ModTimerType_Beat; }
-	    else if( sBit == "modtimergame" )			{ m_ModTimerType= ModTimerType_Game; }
-	    else if( sBit == "modtimermult" )			SET_FLOAT( fModTimerMult )
-	    else if( sBit == "modtimeroffset" )			SET_FLOAT( fModTimerOffset )
-	}
-	else if( sBit.find("drawsize") != sBit.npos)
-	{
-	    if( sBit == "drawsize" )				SET_FLOAT( fDrawSize )
-	    else if( sBit == "drawsizeback" )			SET_FLOAT( fDrawSizeBack )
-	}
 	else if( sBit == "bar" ) { m_LifeType= LifeType_Bar; }
 	else if( sBit == "battery" ) { m_LifeType= LifeType_Battery; }
 	else if( sBit == "lifetime" ) { m_LifeType= LifeType_Time; }
@@ -749,256 +458,20 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 	else if( sBit == "normal-drain" ) { m_DrainType= DrainType_Normal; }
 	else if( sBit == "boost" )				SET_FLOAT( fAccels[ACCEL_BOOST] )
 	else if( sBit == "brake" || sBit == "land" )		SET_FLOAT( fAccels[ACCEL_BRAKE] )
-	else if( sBit.find("wave") != sBit.npos)
-	{
-	    if( sBit == "wave" )				SET_FLOAT( fAccels[ACCEL_WAVE] )
-	    else if( sBit == "waveperiod" )			SET_FLOAT( fAccels[ACCEL_WAVE_PERIOD] )
-	}
-	else if( (sBit.find("expand") != sBit.npos) || (sBit.find("dwiwave") != sBit.npos) )
-	{
-	    if( sBit == "expand" || sBit == "dwiwave" )		SET_FLOAT( fAccels[ACCEL_EXPAND] )
-	    else if( sBit == "expandperiod" )			SET_FLOAT( fAccels[ACCEL_EXPAND_PERIOD] )
-	    else if( sBit == "tanexpand" )			SET_FLOAT( fAccels[ACCEL_TAN_EXPAND] )
-	    else if( sBit == "tanexpandperiod" )		SET_FLOAT( fAccels[ACCEL_TAN_EXPAND_PERIOD] )
-	}
+	else if( sBit == "wave" )				SET_FLOAT( fAccels[ACCEL_WAVE] )
+	else if( sBit == "expand" || sBit == "dwiwave" )	SET_FLOAT( fAccels[ACCEL_EXPAND] )
 	else if( sBit == "boomerang" )				SET_FLOAT( fAccels[ACCEL_BOOMERANG] )
-	else if( sBit.find("drunk") != sBit.npos)
-	{
-	    if( sBit == "drunk" )				SET_FLOAT( fEffects[EFFECT_DRUNK] )
-	    else if( sBit == "drunkspeed" )			SET_FLOAT( fEffects[EFFECT_DRUNK_SPEED] )
-	    else if( sBit == "drunkoffset" )			SET_FLOAT( fEffects[EFFECT_DRUNK_OFFSET] )
-	    else if( sBit == "drunkperiod" )			SET_FLOAT( fEffects[EFFECT_DRUNK_PERIOD] )
-	    else if( sBit == "tandrunk" )			SET_FLOAT( fEffects[EFFECT_TAN_DRUNK] )
-	    else if( sBit == "tandrunkspeed" )			SET_FLOAT( fEffects[EFFECT_TAN_DRUNK_SPEED] )
-	    else if( sBit == "tandrunkoffset" )			SET_FLOAT( fEffects[EFFECT_TAN_DRUNK_OFFSET] )
-	    else if( sBit == "tandrunkperiod" )			SET_FLOAT( fEffects[EFFECT_TAN_DRUNK_PERIOD] )
-	    else if( sBit == "drunkz" )				SET_FLOAT( fEffects[EFFECT_DRUNK_Z] )
-	    else if( sBit == "drunkzspeed" )			SET_FLOAT( fEffects[EFFECT_DRUNK_Z_SPEED] )
-	    else if( sBit == "drunkzoffset" )			SET_FLOAT( fEffects[EFFECT_DRUNK_Z_OFFSET] )
-	    else if( sBit == "drunkzperiod" )			SET_FLOAT( fEffects[EFFECT_DRUNK_Z_PERIOD] )
-	    else if( sBit == "tandrunkz" )			SET_FLOAT( fEffects[EFFECT_TAN_DRUNK_Z] )
-	    else if( sBit == "tandrunkzspeed" )			SET_FLOAT( fEffects[EFFECT_TAN_DRUNK_Z_SPEED] )
-	    else if( sBit == "tandrunkzoffset" )		SET_FLOAT( fEffects[EFFECT_TAN_DRUNK_Z_OFFSET] )
-	    else if( sBit == "tandrunkzperiod" )		SET_FLOAT( fEffects[EFFECT_TAN_DRUNK_Z_PERIOD] )
-	}
-	else if( sBit.find("shrink") != sBit.npos)
-	{
-	    if( sBit == "shrinklinear" )			SET_FLOAT( fEffects[EFFECT_SHRINK_TO_LINEAR] )
-	    else if( sBit == "shrinkmult" )			SET_FLOAT( fEffects[EFFECT_SHRINK_TO_MULT] )
-	}
-	else if( sBit.find("pulse") != sBit.npos)
-	{
-	    if( sBit == "pulseinner" )				SET_FLOAT( fEffects[EFFECT_PULSE_INNER] )
-	    else if( sBit == "pulseouter" )			SET_FLOAT( fEffects[EFFECT_PULSE_OUTER] )
-	    else if( sBit == "pulseoffset" )			SET_FLOAT( fEffects[EFFECT_PULSE_OFFSET] )
-	    else if( sBit == "pulseperiod" )			SET_FLOAT( fEffects[EFFECT_PULSE_PERIOD] )
-	}
-	else if( sBit.find("dizzy") != sBit.npos)
-	{
-	    if( sBit == "dizzy" )				SET_FLOAT( fEffects[EFFECT_DIZZY] )
-	    else if( sBit == "dizzyholds" )			m_bDizzyHolds = on;
-	}
-	else if( sBit.find("confusion") != sBit.npos)
-	{
-	    if( sBit.find("x") != sBit.npos)
-	    {
-		if( sBit == "confusionx" )			SET_FLOAT( fEffects[EFFECT_CONFUSION_X] )
-		else if( sBit == "confusionxoffset" )		SET_FLOAT( fEffects[EFFECT_CONFUSION_X_OFFSET] )
-		else
-		{
-		    for (int i=0; i<16; i++)
-		    {
-			sMod = ssprintf( "confusionxoffset%d", i+1 );
-			if( sBit == sMod)
-			{
-			    SET_FLOAT( fConfusionX[i] )
-			    break;
-			}
-		    }
-		}
-	    }
-	    else if( sBit.find("y") != sBit.npos)
-	    {
-		if( sBit == "confusiony" )			SET_FLOAT( fEffects[EFFECT_CONFUSION_Y] )
-		else if( sBit == "confusionyoffset" )		SET_FLOAT( fEffects[EFFECT_CONFUSION_Y_OFFSET] )
-		else
-		{
-		    for (int i=0; i<16; i++)
-		    {
-			sMod = ssprintf( "confusionyoffset%d", i+1 );
-			if( sBit == sMod)
-			{
-			    SET_FLOAT( fConfusionY[i] )
-			    break;
-			}
-		    }
-		}
-	    }
-	    if( sBit == "confusion" )				SET_FLOAT( fEffects[EFFECT_CONFUSION] )
-	    else if( sBit == "confusionoffset" )		SET_FLOAT( fEffects[EFFECT_CONFUSION_OFFSET] )
-	    else
-	    {
-		for (int i=0; i<16; i++)
-		{
-		    sMod = ssprintf( "confusionoffset%d", i+1 );
-		    if( sBit == sMod)
-		    {
-			SET_FLOAT( fConfusionZ[i] )
-			break;
-		    }
-		}
-	    }
-	}
-	else if( sBit.find("bounce") != sBit.npos)
-	{
-	    if( sBit == "bounce" )				SET_FLOAT( fEffects[EFFECT_BOUNCE] )
-	    else if( sBit == "bounceperiod" )			SET_FLOAT( fEffects[EFFECT_BOUNCE_PERIOD] )
-	    else if( sBit == "bounceoffset" )			SET_FLOAT( fEffects[EFFECT_BOUNCE_OFFSET] )
-	    else if( sBit == "bouncez" )			SET_FLOAT( fEffects[EFFECT_BOUNCE_Z] )
-	    else if( sBit == "bouncezperiod" )			SET_FLOAT( fEffects[EFFECT_BOUNCE_Z_PERIOD] )
-	    else if( sBit == "bouncezoffset" )			SET_FLOAT( fEffects[EFFECT_BOUNCE_Z_OFFSET] )
-	}
+	else if( sBit == "drunk" )				SET_FLOAT( fEffects[EFFECT_DRUNK] )
+	else if( sBit == "dizzy" )				SET_FLOAT( fEffects[EFFECT_DIZZY] )
+	else if( sBit == "confusion" )				SET_FLOAT( fEffects[EFFECT_CONFUSION] )
 	else if( sBit == "mini" )				SET_FLOAT( fEffects[EFFECT_MINI] )
-	else if ( sBit.find("tiny") != sBit.npos)
-	{
-	    if( sBit == "tiny" )				SET_FLOAT( fEffects[EFFECT_TINY] )
-	    else
-	    {
-		for (int i=0; i<16; i++)
-		{
-		    sMod = ssprintf( "tiny%d", i+1 );
-		    if( sBit == sMod)
-		    {
-			SET_FLOAT( fTiny[i] )
-			break;
-		    }
-		}
-	    }
-	}
+	else if( sBit == "tiny" )				SET_FLOAT( fEffects[EFFECT_TINY] )
 	else if( sBit == "flip" )				SET_FLOAT( fEffects[EFFECT_FLIP] )
 	else if( sBit == "invert" )				SET_FLOAT( fEffects[EFFECT_INVERT] )
-	else if( sBit.find("tornado") != sBit.npos)
-	{
-	    if( sBit == "tornado" )				SET_FLOAT( fEffects[EFFECT_TORNADO] )
-	    else if( sBit == "tornadoperiod" )			SET_FLOAT( fEffects[EFFECT_TORNADO_PERIOD] )
-	    else if( sBit == "tornadooffset" )			SET_FLOAT( fEffects[EFFECT_TORNADO_OFFSET] )
-	    else if( sBit == "tantornado" )			SET_FLOAT( fEffects[EFFECT_TAN_TORNADO] )
-	    else if( sBit == "tantornadoperiod" )		SET_FLOAT( fEffects[EFFECT_TAN_TORNADO_PERIOD] )
-	    else if( sBit == "tantornadooffset" )		SET_FLOAT( fEffects[EFFECT_TAN_TORNADO_OFFSET] )
-	    else if( sBit == "tornadoz" )			SET_FLOAT( fEffects[EFFECT_TORNADO_Z] )
-	    else if( sBit == "tornadozperiod" )			SET_FLOAT( fEffects[EFFECT_TORNADO_Z_PERIOD] )
-	    else if( sBit == "tornadozoffset" )			SET_FLOAT( fEffects[EFFECT_TORNADO_Z_OFFSET] )
-	    else if( sBit == "tantornadoz" )			SET_FLOAT( fEffects[EFFECT_TAN_TORNADO_Z] )
-	    else if( sBit == "tantornadozperiod" )		SET_FLOAT( fEffects[EFFECT_TAN_TORNADO_Z_PERIOD] )
-	    else if( sBit == "tantornadozoffset" )		SET_FLOAT( fEffects[EFFECT_TAN_TORNADO_Z_OFFSET] )
-	}
-	else if( sBit.find("tipsy") != sBit.npos)
-	{
-	    if( sBit == "tipsy" )				SET_FLOAT( fEffects[EFFECT_TIPSY] )
-	    else if( sBit == "tipsyspeed" )			SET_FLOAT( fEffects[EFFECT_TIPSY_SPEED] )
-	    else if( sBit == "tipsyoffset" )			SET_FLOAT( fEffects[EFFECT_TIPSY_OFFSET] )
-	    else if( sBit == "tantipsy" )			SET_FLOAT( fEffects[EFFECT_TAN_TIPSY] )
-	    else if( sBit == "tantipsyspeed" )			SET_FLOAT( fEffects[EFFECT_TAN_TIPSY_SPEED] )
-	    else if( sBit == "tantipsyoffset" )			SET_FLOAT( fEffects[EFFECT_TAN_TIPSY_OFFSET] )
-	}
-	else if( sBit.find("bumpy") != sBit.npos)
-	{
-	    if( sBit == "bumpy" )				SET_FLOAT( fEffects[EFFECT_BUMPY] )
-	    else if( sBit == "bumpyoffset" )			SET_FLOAT( fEffects[EFFECT_BUMPY_OFFSET] )
-	    else if( sBit == "bumpyperiod" )			SET_FLOAT( fEffects[EFFECT_BUMPY_PERIOD] )
-	    else if( sBit == "tanbumpy" )			SET_FLOAT( fEffects[EFFECT_TAN_BUMPY] )
-	    else if( sBit == "tanbumpyoffset" )			SET_FLOAT( fEffects[EFFECT_TAN_BUMPY_OFFSET] )
-	    else if( sBit == "tanbumpyperiod" )			SET_FLOAT( fEffects[EFFECT_TAN_BUMPY_PERIOD] )
-	    else if( sBit == "bumpyx" )				SET_FLOAT( fEffects[EFFECT_BUMPY_X] )
-	    else if( sBit == "bumpyxoffset" )			SET_FLOAT( fEffects[EFFECT_BUMPY_X_OFFSET] )
-	    else if( sBit == "bumpyxperiod" )			SET_FLOAT( fEffects[EFFECT_BUMPY_X_PERIOD] )
-	    else if( sBit == "tanbumpyx" )			SET_FLOAT( fEffects[EFFECT_TAN_BUMPY_X] )
-	    else if( sBit == "tanbumpyxoffset" )		SET_FLOAT( fEffects[EFFECT_TAN_BUMPY_X_OFFSET] )
-	    else if( sBit == "tanbumpyxperiod" )		SET_FLOAT( fEffects[EFFECT_TAN_BUMPY_X_PERIOD] )
-	    else
-	    {
-		for (int i=0; i<16; i++)
-		{
-		    sMod = ssprintf( "bumpy%d", i+1 );
-		    if( sBit == sMod)
-		    {
-			SET_FLOAT( fBumpy[i] )
-			break;
-		    }
-		}
-	    }
-	}
-	else if( sBit.find("beat") != sBit.npos)
-	{
-	    if( sBit == "beat" )				SET_FLOAT( fEffects[EFFECT_BEAT] )
-	    else if( sBit == "beatoffset" )			SET_FLOAT( fEffects[EFFECT_BEAT_OFFSET] )
-	    else if( sBit == "beatperiod" )			SET_FLOAT( fEffects[EFFECT_BEAT_PERIOD] )
-	    else if( sBit == "beatmult" )			SET_FLOAT( fEffects[EFFECT_BEAT_MULT] )
-	    else if( sBit == "beaty" )				SET_FLOAT( fEffects[EFFECT_BEAT_Y] )
-	    else if( sBit == "beatyoffset" )			SET_FLOAT( fEffects[EFFECT_BEAT_Y_OFFSET] )
-	    else if( sBit == "beatyperiod" )			SET_FLOAT( fEffects[EFFECT_BEAT_Y_PERIOD] )
-	    else if( sBit == "beatymult" )			SET_FLOAT( fEffects[EFFECT_BEAT_Y_MULT] )
-	    else if( sBit == "beatz" )				SET_FLOAT( fEffects[EFFECT_BEAT_Z] )
-	    else if( sBit == "beatzoffset" )			SET_FLOAT( fEffects[EFFECT_BEAT_Z_OFFSET] )
-	    else if( sBit == "beatzperiod" )			SET_FLOAT( fEffects[EFFECT_BEAT_Z_PERIOD] )
-	    else if( sBit == "beatzmult" )			SET_FLOAT( fEffects[EFFECT_BEAT_Z_MULT] )
-	}
-	else if( sBit.find("digital") != sBit.npos)
-	{
-	    if( sBit == "digital" )				SET_FLOAT( fEffects[EFFECT_DIGITAL] )
-	    else if( sBit == "digitalsteps" )			SET_FLOAT( fEffects[EFFECT_DIGITAL_STEPS] )
-	    else if( sBit == "digitalperiod" )			SET_FLOAT( fEffects[EFFECT_DIGITAL_PERIOD] )
-	    else if( sBit == "digitaloffset" )			SET_FLOAT( fEffects[EFFECT_DIGITAL_OFFSET] )
-	    else if( sBit == "tandigital" )			SET_FLOAT( fEffects[EFFECT_TAN_DIGITAL] )
-	    else if( sBit == "tandigitalsteps" )		SET_FLOAT( fEffects[EFFECT_TAN_DIGITAL_STEPS] )
-	    else if( sBit == "tandigitalperiod" )		SET_FLOAT( fEffects[EFFECT_TAN_DIGITAL_PERIOD] )
-	    else if( sBit == "tandigitaloffset" )		SET_FLOAT( fEffects[EFFECT_TAN_DIGITAL_OFFSET] )
-	    else if( sBit == "digitalz" )			SET_FLOAT( fEffects[EFFECT_DIGITAL_Z] )
-	    else if( sBit == "digitalzsteps" )			SET_FLOAT( fEffects[EFFECT_DIGITAL_Z_STEPS] )
-	    else if( sBit == "digitalzperiod" )			SET_FLOAT( fEffects[EFFECT_DIGITAL_Z_PERIOD] )
-	    else if( sBit == "digitalzoffset" )			SET_FLOAT( fEffects[EFFECT_DIGITAL_Z_OFFSET] )
-	    else if( sBit == "tandigitalz" )			SET_FLOAT( fEffects[EFFECT_TAN_DIGITAL_Z] )
-	    else if( sBit == "tandigitalzsteps" )		SET_FLOAT( fEffects[EFFECT_TAN_DIGITAL_Z_STEPS] )
-	    else if( sBit == "tandigitalzperiod" )		SET_FLOAT( fEffects[EFFECT_TAN_DIGITAL_Z_PERIOD] )
-	    else if( sBit == "tandigitalzoffset" )		SET_FLOAT( fEffects[EFFECT_TAN_DIGITAL_Z_OFFSET] )
-	}
-	else if( sBit.find("zigzag") != sBit.npos)
-	{
-	    if( sBit == "zigzag" )				SET_FLOAT( fEffects[EFFECT_ZIGZAG] )
-	    else if( sBit == "zigzagperiod" )			SET_FLOAT( fEffects[EFFECT_ZIGZAG_PERIOD] )
-	    else if( sBit == "zigzagoffset" )			SET_FLOAT( fEffects[EFFECT_ZIGZAG_OFFSET] )
-	    else if( sBit == "zigzagz" )			SET_FLOAT( fEffects[EFFECT_ZIGZAG_Z] )
-	    else if( sBit == "zigzagzperiod" )			SET_FLOAT( fEffects[EFFECT_ZIGZAG_Z_PERIOD] )
-	    else if( sBit == "zigzagzoffset" )			SET_FLOAT( fEffects[EFFECT_ZIGZAG_Z_OFFSET] )
-	}
-	else if( sBit.find("sawtooth") != sBit.npos)
-	{
-	    if( sBit == "sawtooth" )				SET_FLOAT( fEffects[EFFECT_SAWTOOTH] )
-	    else if( sBit == "sawtoothperiod" )			SET_FLOAT( fEffects[EFFECT_SAWTOOTH_PERIOD] )
-	    else if( sBit == "sawtoothz" )			SET_FLOAT( fEffects[EFFECT_SAWTOOTH_Z] )
-	    else if( sBit == "sawtoothzperiod" )		SET_FLOAT( fEffects[EFFECT_SAWTOOTH_Z_PERIOD] )
-	}
-	else if( sBit.find("square") != sBit.npos)
-	{
-	    if( sBit == "square" )				SET_FLOAT( fEffects[EFFECT_SQUARE] )
-	    else if( sBit == "squareoffset" )			SET_FLOAT( fEffects[EFFECT_SQUARE_OFFSET] )
-	    else if( sBit == "squareperiod" )			SET_FLOAT( fEffects[EFFECT_SQUARE_PERIOD] )
-	    else if( sBit == "squarez" )			SET_FLOAT( fEffects[EFFECT_SQUARE_Z] )
-	    else if( sBit == "squarezoffset" )			SET_FLOAT( fEffects[EFFECT_SQUARE_Z_OFFSET] )
-	    else if( sBit == "squarezperiod" )			SET_FLOAT( fEffects[EFFECT_SQUARE_Z_PERIOD] )
-	}
-	else if( sBit.find("parabola") != sBit.npos)
-	{
-	    if( sBit == "parabolax" )				SET_FLOAT( fEffects[EFFECT_PARABOLA_X] )
-	    else if( sBit == "parabolay" )			SET_FLOAT( fEffects[EFFECT_PARABOLA_Y] )
-	    else if( sBit == "parabolaz" )			SET_FLOAT( fEffects[EFFECT_PARABOLA_Z] )
-	}
-	else if( sBit.find("attenuate") != sBit.npos)
-	{
-	    if( sBit == "attenuatex" )				SET_FLOAT( fEffects[EFFECT_ATTENUATE_X] )
-	    else if( sBit == "attenuatey" )			SET_FLOAT( fEffects[EFFECT_ATTENUATE_Y] )
-	    else if( sBit == "attenuatez" )			SET_FLOAT( fEffects[EFFECT_ATTENUATE_Z] )
-	}
+	else if( sBit == "tornado" )				SET_FLOAT( fEffects[EFFECT_TORNADO] )
+	else if( sBit == "tipsy" )				SET_FLOAT( fEffects[EFFECT_TIPSY] )
+	else if( sBit == "bumpy" )				SET_FLOAT( fEffects[EFFECT_BUMPY] )
+	else if( sBit == "beat" )				SET_FLOAT( fEffects[EFFECT_BEAT] )
 	else if( sBit == "xmode" )				SET_FLOAT( fEffects[EFFECT_XMODE] )
 	else if( sBit == "twirl" )				SET_FLOAT( fEffects[EFFECT_TWIRL] )
 	else if( sBit == "roll" )				SET_FLOAT( fEffects[EFFECT_ROLL] )
@@ -1006,37 +479,17 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 	else if( sBit == "hiddenoffset" )			SET_FLOAT( fAppearances[APPEARANCE_HIDDEN_OFFSET] )
 	else if( sBit == "sudden" )				SET_FLOAT( fAppearances[APPEARANCE_SUDDEN] )
 	else if( sBit == "suddenoffset" )			SET_FLOAT( fAppearances[APPEARANCE_SUDDEN_OFFSET] )
-	else if ( sBit.find("stealth") != sBit.npos)
-	{
-	    if( sBit == "stealth" )				SET_FLOAT( fAppearances[APPEARANCE_STEALTH] )
-	    else if( sBit == "stealthtype" )			m_bStealthType = on;
-	    else if( sBit == "stealthpastreceptors" )		m_bStealthPastReceptors = on;
-	    else
-	    {
-		for (int i=0; i<16; i++)
-		{
-		    sMod = ssprintf( "stealth%d", i+1 );
-		    if( sBit == sMod)
-		    {
-			SET_FLOAT( fStealth[i] )
-			break;
-		    }
-		}
-	    }
-	}
+	else if( sBit == "stealth" )				SET_FLOAT( fAppearances[APPEARANCE_STEALTH] )
 	else if( sBit == "blink" )				SET_FLOAT( fAppearances[APPEARANCE_BLINK] )
 	else if( sBit == "randomvanish" )			SET_FLOAT( fAppearances[APPEARANCE_RANDOMVANISH] )
 	else if( sBit == "turn" && !on )			ZERO( m_bTurns ); /* "no turn" */
 	else if( sBit == "mirror" )				m_bTurns[TURN_MIRROR] = on;
-	else if( sBit == "lrmirror" )				m_bTurns[TURN_LRMIRROR] = on;
-	else if( sBit == "udmirror" )				m_bTurns[TURN_UDMIRROR] = on;
 	else if( sBit == "backwards" )			m_bTurns[TURN_BACKWARDS] = on;
 	else if( sBit == "left" )				m_bTurns[TURN_LEFT] = on;
 	else if( sBit == "right" )				m_bTurns[TURN_RIGHT] = on;
 	else if( sBit == "shuffle" )				m_bTurns[TURN_SHUFFLE] = on;
 	else if( sBit == "softshuffle" )				m_bTurns[TURN_SOFT_SHUFFLE] = on;
 	else if( sBit == "supershuffle" )			m_bTurns[TURN_SUPER_SHUFFLE] = on;
-	else if( sBit == "hypershuffle" )			m_bTurns[TURN_HYPER_SHUFFLE] = on;
 	else if( sBit == "little" )				m_bTransforms[TRANSFORM_LITTLE] = on;
 	else if( sBit == "wide" )				m_bTransforms[TRANSFORM_WIDE] = on;
 	else if( sBit == "big" )				m_bTransforms[TRANSFORM_BIG] = on;
@@ -1054,22 +507,7 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 	else if( sBit == "nojumps" )				m_bTransforms[TRANSFORM_NOJUMPS] = on;
 	else if( sBit == "nohands" )				m_bTransforms[TRANSFORM_NOHANDS] = on;
 	else if( sBit == "noquads" )				m_bTransforms[TRANSFORM_NOQUADS] = on;
-	else if ( sBit.find("reverse") != sBit.npos)
-	{
-	    if( sBit == "reverse" )				SET_FLOAT( fScrolls[SCROLL_REVERSE] )
-	    else
-	    {
-		for (int i=0; i<16; i++)
-		{
-		    sMod = ssprintf( "reverse%d", i+1 );
-		    if( sBit == sMod)
-		    {
-			SET_FLOAT( fReverse[i] )
-			break;
-		    }
-		}
-	    }
-	}
+	else if( sBit == "reverse" )				SET_FLOAT( fScrolls[SCROLL_REVERSE] )
 	else if( sBit == "split" )				SET_FLOAT( fScrolls[SCROLL_SPLIT] )
 	else if( sBit == "alternate" )				SET_FLOAT( fScrolls[SCROLL_ALTERNATE] )
 	else if( sBit == "cross" )				SET_FLOAT( fScrolls[SCROLL_CROSS] )
@@ -1080,22 +518,7 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 	else if( sBit == "nostretch" )				m_bTransforms[TRANSFORM_NOSTRETCH] = on;
 	else if( sBit == "nolifts" )				m_bTransforms[TRANSFORM_NOLIFTS] = on;
 	else if( sBit == "nofakes" )				m_bTransforms[TRANSFORM_NOFAKES] = on;
-	else if( sBit.find("dark") != sBit.npos )
-	{
-	    if( sBit == "dark" )				SET_FLOAT( fDark )
-	    else
-	    {
-		for (int i=0; i<16; i++)
-		{
-		    sMod = ssprintf( "dark%d", i+1 );
-		    if( sBit == sMod)
-		    {
-			SET_FLOAT( fDarks[i] )
-			break;
-		    }
-		}
-	    }
-	}
+	else if( sBit == "dark" )				SET_FLOAT( fDark )
 	else if( sBit == "blind" )				SET_FLOAT( fBlind )
 	else if( sBit == "cover" )				SET_FLOAT( fCover )
 	else if( sBit == "randomattacks" )			SET_FLOAT( fRandAttack )
@@ -1118,7 +541,7 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 		m_sNoteSkin = CommonMetrics::DEFAULT_NOTESKIN_NAME;
 	}
 	else if( sBit == "randomspeed" ) 			SET_FLOAT( fRandomSpeed )
-	else if( sBit == "failarcade" ||
+	else if( sBit == "failarcade" || 
 		 sBit == "failimmediate" )			m_FailType = FailType_Immediate;
 	else if( sBit == "failendofsong" ||
 		 sBit == "failimmediatecontinue" )		m_FailType = FailType_ImmediateContinue;
@@ -1132,81 +555,11 @@ bool PlayerOptions::FromOneModString( const RString &sOneMod, RString &sErrorOut
 	}
 	else if( sBit == "muteonerror" )			m_bMuteOnError = on;
 	else if( sBit == "random" )				ChooseRandomModifiers();
-
-	else if( sBit.find("move") != sBit.npos)
-	{
-	    if (sBit.find("x") != sBit.npos)
-	    {
-			for (int i=0; i<16; i++)
-			{
-				sMod = ssprintf( "movex%d", i+1 );
-				if( sBit == sMod)
-				{
-				SET_FLOAT( fMovesX[i] )
-				break;
-				}
-			}
-	    }
-	    else if (sBit.find("y") != sBit.npos)
-	    {
-			for (int i=0; i<16; i++)
-			{
-				sMod = ssprintf( "movey%d", i+1 );
-				if( sBit == sMod)
-				{
-				SET_FLOAT( fMovesY[i] )
-				break;
-				}
-			}
-	    }
-	    else if (sBit.find("z") != sBit.npos)
-	    {
-			for (int i=0; i<16; i++)
-			{
-				sMod = ssprintf( "movez%d", i+1 );
-				if( sBit == sMod)
-				{
-				SET_FLOAT( fMovesZ[i] )
-				break;
-				}
-			}
-	    }
-	}
-	else if( sBit == "zbuffer" )				m_bZBuffer = on;
-	else if( sBit == "cosecant" )				m_bCosecant = on;
-	else if( sBit == "visualdelay" )			m_fVisualDelay = level;
-	else if( level == 0 && disabledWindows.Compare(sBit)) // "No w1" etc.
-	{
-		// We come into this condition if there is at least a single window present but there may be more.
-		// To get all of the windows, we go through in a loop to extract all of them.
-		static Regex allDisabledWindows("(w[1-5])(.*)$");
-		RString input = sBit;
-		while (true)
-		{
-			if (!allDisabledWindows.Compare(input, matches))
-				break;
-
-			TimingWindow tw;
-			bool ret = StringConversion::FromString(matches[0].MakeUpper(), tw);
-			if (ret && TW_W1 <= tw && tw <= TW_W5)
-			{
-				m_twDisabledWindows.set(tw);
-			}
-			input = matches[1];
-		}
-	}
 	// deprecated mods/left in for compatibility
 	else if( sBit == "converge" )				SET_FLOAT( fScrolls[SCROLL_CENTERED] )
 	// end of the list
 	else
 	{
-		// Maybe the original string is a noteskin name with a space. -Kyz
-		RString name= sOneMod;
-		name.MakeLower();
-		if(NOTESKIN && NOTESKIN->DoesNoteSkinExist(name))
-		{
-			m_sNoteSkin = name;
-		}
 		return false;
 	}
 
@@ -1383,11 +736,10 @@ float PlayerOptions::GetReversePercentForColumn( int iCol ) const
 {
 	float f = 0;
 	ASSERT(m_pn == PLAYER_1 || m_pn == PLAYER_2);
-	ASSERT(GAMESTATE->GetCurrentStyle(m_pn) != nullptr);
+	ASSERT(GAMESTATE->GetCurrentStyle(m_pn) != NULL);
 	int iNumCols = GAMESTATE->GetCurrentStyle(m_pn)->m_iColsPerPlayer;
 
 	f += m_fScrolls[SCROLL_REVERSE];
-	f += m_fReverse[iCol];
 
 	if( iCol >= iNumCols/2 )
 		f += m_fScrolls[SCROLL_SPLIT];
@@ -1401,7 +753,7 @@ float PlayerOptions::GetReversePercentForColumn( int iCol ) const
 		f += m_fScrolls[SCROLL_CROSS];
 
 	if( f > 2 )
-		f = std::fmod( f, 2 );
+		f = fmodf( f, 2 );
 	if( f > 1 )
 		f = SCALE( f, 1.f, 2.f, 1.f, 0.f );
 	return f;
@@ -1412,11 +764,6 @@ bool PlayerOptions::operator==( const PlayerOptions &other ) const
 #define COMPARE(x) { if( x != other.x ) return false; }
 	COMPARE(m_LifeType);
 	COMPARE(m_DrainType);
-	COMPARE(m_ModTimerType);
-	COMPARE(m_fModTimerMult);
-	COMPARE(m_fModTimerOffset);
-	COMPARE(m_fDrawSize);
-	COMPARE(m_fDrawSizeBack);
 	COMPARE(m_BatteryLives);
 	COMPARE(m_fTimeSpacing);
 	COMPARE(m_fScrollSpeed);
@@ -1426,11 +773,6 @@ bool PlayerOptions::operator==( const PlayerOptions &other ) const
 	COMPARE(m_FailType);
 	COMPARE(m_MinTNSToHideNotes);
 	COMPARE(m_bMuteOnError);
-	COMPARE(m_bStealthType);
-	COMPARE(m_bStealthPastReceptors);
-	COMPARE(m_bDizzyHolds);
-	COMPARE(m_bZBuffer);
-	COMPARE(m_bCosecant);
 	COMPARE(m_fDark);
 	COMPARE(m_fBlind);
 	COMPARE(m_fCover);
@@ -1447,8 +789,6 @@ bool PlayerOptions::operator==( const PlayerOptions &other ) const
 	{
 		return false;
 	}
-	COMPARE(m_fVisualDelay);
-	COMPARE(m_twDisabledWindows); // != is defined correctly for ordered sets.
 	for( int i = 0; i < PlayerOptions::NUM_ACCELS; ++i )
 		COMPARE(m_fAccels[i]);
 	for( int i = 0; i < PlayerOptions::NUM_EFFECTS; ++i )
@@ -1461,28 +801,6 @@ bool PlayerOptions::operator==( const PlayerOptions &other ) const
 		COMPARE(m_bTurns[i]);
 	for( int i = 0; i < PlayerOptions::NUM_TRANSFORMS; ++i )
 		COMPARE(m_bTransforms[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fMovesX[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fMovesY[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fMovesZ[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fConfusionX[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fConfusionY[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fConfusionZ[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fDarks[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fStealth[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fTiny[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fBumpy[i]);
-	for( int i = 0; i < 16; ++i )
-		COMPARE(m_fReverse[i]);
 #undef COMPARE
 	return true;
 }
@@ -1495,11 +813,6 @@ PlayerOptions& PlayerOptions::operator=(PlayerOptions const& other)
 #define CPY_SPEED(x) m_ ## x = other.m_ ## x; m_Speed ## x = other.m_Speed ## x;
 	CPY(m_LifeType);
 	CPY(m_DrainType);
-	CPY(m_ModTimerType);
-	CPY_SPEED(fModTimerMult);
-	CPY_SPEED(fModTimerOffset);
-	CPY_SPEED(fDrawSize);
-	CPY_SPEED(fDrawSizeBack);
 	CPY(m_BatteryLives);
 	CPY_SPEED(fTimeSpacing);
 	CPY_SPEED(fScrollSpeed);
@@ -1509,13 +822,6 @@ PlayerOptions& PlayerOptions::operator=(PlayerOptions const& other)
 	CPY(m_FailType);
 	CPY(m_MinTNSToHideNotes);
 	CPY(m_bMuteOnError);
-	CPY(m_bStealthType);
-	CPY(m_bStealthPastReceptors);
-	CPY(m_bDizzyHolds);
-	CPY(m_bZBuffer);
-	CPY(m_bCosecant);
-	CPY(m_fVisualDelay);
-	CPY(m_twDisabledWindows);
 	CPY_SPEED(fDark);
 	CPY_SPEED(fBlind);
 	CPY_SPEED(fCover);
@@ -1553,50 +859,6 @@ PlayerOptions& PlayerOptions::operator=(PlayerOptions const& other)
 	{
 		CPY(m_bTransforms[i]);
 	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fMovesX[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fMovesY[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fMovesZ[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fConfusionX[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fConfusionY[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fConfusionZ[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fDarks[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fStealth[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fTiny[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fBumpy[i]);
-	}
-	for( int i = 0; i < 16; ++i )
-	{
-		CPY_SPEED(fReverse[i]);
-	}
 #undef CPY
 #undef CPY_SPEED
 	return *this;
@@ -1627,7 +889,7 @@ bool PlayerOptions::IsEasierForSongAndSteps( Song* pSong, Steps* pSteps, PlayerN
 	if( m_bTransforms[TRANSFORM_NOSTRETCH] )
 		return true;
 
-	// Inserted holds can be really easy on some songs, and scores will be
+	// Inserted holds can be really easy on some songs, and scores will be 
 	// highly hold-weighted, and very little tap score weighted.
 	if( m_bTransforms[TRANSFORM_LITTLE] )	return true;
 	if( m_bTransforms[TRANSFORM_PLANTED] )	return true;
@@ -1636,13 +898,13 @@ bool PlayerOptions::IsEasierForSongAndSteps( Song* pSong, Steps* pSteps, PlayerN
 
 	// This makes songs with sparse notes easier.
 	if( m_bTransforms[TRANSFORM_ECHO] )	return true;
-
+	
 	// Removing attacks is easier in general.
 	if ((m_fNoAttack && pSteps->HasAttacks()) || m_fRandAttack)
 		return true;
-
+	
 	if( m_fCover )	return true;
-
+	
 	// M-mods make songs with indefinite BPMs easier because
 	// they ensure that the song has a scrollable speed.
 	if( m_fMaxScrollBPM != 0 )
@@ -1673,23 +935,28 @@ bool PlayerOptions::IsEasierForSongAndSteps( Song* pSong, Steps* pSteps, PlayerN
 
 bool PlayerOptions::IsEasierForCourseAndTrail( Course* pCourse, Trail* pTrail ) const
 {
-	ASSERT( pCourse != nullptr );
-	ASSERT( pTrail != nullptr );
+	ASSERT( pCourse != NULL );
+	ASSERT( pTrail != NULL );
 
-	return std::any_of(pTrail->m_vEntries.begin(), pTrail->m_vEntries.end(), [&](TrailEntry const &e) {
-		return e.pSong && IsEasierForSongAndSteps(e.pSong, e.pSteps, PLAYER_1);
-	});
+	FOREACH_CONST( TrailEntry, pTrail->m_vEntries, e )
+	{
+		if( e->pSong && IsEasierForSongAndSteps(e->pSong, e->pSteps, PLAYER_1) )
+			return true;
+	}
+	return false;
 }
 
-void PlayerOptions::GetLocalizedMods( std::vector<RString> &AddTo ) const
+void PlayerOptions::GetLocalizedMods( vector<RString> &AddTo ) const
 {
-	std::vector<RString> vMods;
+	vector<RString> vMods;
 	GetMods( vMods );
-	for (RString const &sOneMod : vMods)
+	FOREACH_CONST( RString, vMods, s )
 	{
+		const RString& sOneMod = *s;
+
 		ASSERT( !sOneMod.empty() );
 
-		std::vector<RString> asTokens;
+		vector<RString> asTokens;
 		split( sOneMod, " ", asTokens );
 
 		if( asTokens.empty() )
@@ -1747,8 +1014,6 @@ RString PlayerOptions::GetSavedPrefsString() const
 	SAVE( m_bTransforms[TRANSFORM_NOFAKES] );
 	SAVE( m_bMuteOnError );
 	SAVE( m_sNoteSkin );
-	SAVE( m_fVisualDelay );
-	SAVE( m_twDisabledWindows );
 #undef SAVE
 	return po_prefs.GetString();
 }
@@ -1772,16 +1037,6 @@ void PlayerOptions::ResetPrefs( ResetPrefsType type )
 	CPY(m_LifeType);
 	CPY(m_DrainType);
 	CPY(m_BatteryLives);
-	CPY(m_ModTimerType);
-	CPY(m_fModTimerMult);
-	CPY(m_fModTimerOffset);
-	CPY(m_fDrawSize);
-	CPY(m_fDrawSizeBack);
-	CPY(m_bStealthType);
-	CPY(m_bStealthPastReceptors);
-	CPY(m_bDizzyHolds);
-	CPY(m_bZBuffer);
-	CPY(m_bCosecant);
 	CPY(m_MinTNSToHideNotes);
 
 	CPY( m_fPerspectiveTilt );
@@ -1796,8 +1051,6 @@ void PlayerOptions::ResetPrefs( ResetPrefsType type )
 	CPY( m_bTransforms[TRANSFORM_NOFAKES] );
 	// Don't clear this.
 	// CPY( m_sNoteSkin );
-	CPY(m_fVisualDelay);
-	CPY(m_twDisabledWindows);
 #undef CPY
 }
 
@@ -1805,7 +1058,7 @@ void PlayerOptions::ResetPrefs( ResetPrefsType type )
 #include "LuaBinding.h"
 #include "OptionsBinding.h"
 
-/** @brief Allow Lua to have access to PlayerOptions. */
+/** @brief Allow Lua to have access to PlayerOptions. */ 
 class LunaPlayerOptions: public Luna<PlayerOptions>
 {
 public:
@@ -1830,12 +1083,7 @@ public:
 
 	ENUM_INTERFACE(LifeSetting, LifeType, LifeType);
 	ENUM_INTERFACE(DrainSetting, DrainType, DrainType);
-	ENUM_INTERFACE(ModTimerSetting, ModTimerType, ModTimerType)
 	INT_INTERFACE(BatteryLives, BatteryLives);
-	FLOAT_INTERFACE(ModTimerMult, ModTimerMult, true);
-	FLOAT_INTERFACE(ModTimerOffset, ModTimerOffset, true);
-	FLOAT_INTERFACE(DrawSize, DrawSize, true);
-	FLOAT_INTERFACE(DrawSizeBack, DrawSizeBack, true);
 	FLOAT_INTERFACE(TimeSpacing, TimeSpacing, true);
 	FLOAT_INTERFACE(MaxScrollBPM, MaxScrollBPM, true);
 	FLOAT_INTERFACE(ScrollSpeed, ScrollSpeed, true);
@@ -1843,131 +1091,19 @@ public:
 	FLOAT_INTERFACE(Boost, Accels[PlayerOptions::ACCEL_BOOST], true);
 	FLOAT_INTERFACE(Brake, Accels[PlayerOptions::ACCEL_BRAKE], true);
 	FLOAT_INTERFACE(Wave, Accels[PlayerOptions::ACCEL_WAVE], true);
-	FLOAT_INTERFACE(WavePeriod, Accels[PlayerOptions::ACCEL_WAVE_PERIOD], true);
 	FLOAT_INTERFACE(Expand, Accels[PlayerOptions::ACCEL_EXPAND], true);
-	FLOAT_INTERFACE(ExpandPeriod, Accels[PlayerOptions::ACCEL_EXPAND_PERIOD], true);
-	FLOAT_INTERFACE(TanExpand, Accels[PlayerOptions::ACCEL_TAN_EXPAND], true);
-	FLOAT_INTERFACE(TanExpandPeriod, Accels[PlayerOptions::ACCEL_TAN_EXPAND_PERIOD], true);
 	FLOAT_INTERFACE(Boomerang, Accels[PlayerOptions::ACCEL_BOOMERANG], true);
 	FLOAT_INTERFACE(Drunk, Effects[PlayerOptions::EFFECT_DRUNK], true);
-	FLOAT_INTERFACE(DrunkSpeed, Effects[PlayerOptions::EFFECT_DRUNK_SPEED], true);
-	FLOAT_INTERFACE(DrunkOffset, Effects[PlayerOptions::EFFECT_DRUNK_OFFSET], true);
-	FLOAT_INTERFACE(DrunkPeriod, Effects[PlayerOptions::EFFECT_DRUNK_PERIOD], true);
-	FLOAT_INTERFACE(TanDrunk, Effects[PlayerOptions::EFFECT_TAN_DRUNK], true);
-	FLOAT_INTERFACE(TanDrunkSpeed, Effects[PlayerOptions::EFFECT_TAN_DRUNK_SPEED], true);
-	FLOAT_INTERFACE(TanDrunkOffset, Effects[PlayerOptions::EFFECT_TAN_DRUNK_OFFSET], true);
-	FLOAT_INTERFACE(TanDrunkPeriod, Effects[PlayerOptions::EFFECT_TAN_DRUNK_PERIOD], true);
-	FLOAT_INTERFACE(DrunkZ, Effects[PlayerOptions::EFFECT_DRUNK_Z], true);
-	FLOAT_INTERFACE(DrunkZSpeed, Effects[PlayerOptions::EFFECT_DRUNK_Z_SPEED], true);
-	FLOAT_INTERFACE(DrunkZOffset, Effects[PlayerOptions::EFFECT_DRUNK_Z_OFFSET], true);
-	FLOAT_INTERFACE(DrunkZPeriod, Effects[PlayerOptions::EFFECT_DRUNK_Z_PERIOD], true);
-	FLOAT_INTERFACE(TanDrunkZ, Effects[PlayerOptions::EFFECT_TAN_DRUNK_Z], true);
-	FLOAT_INTERFACE(TanDrunkZSpeed, Effects[PlayerOptions::EFFECT_TAN_DRUNK_Z_SPEED], true);
-	FLOAT_INTERFACE(TanDrunkZOffset, Effects[PlayerOptions::EFFECT_TAN_DRUNK_Z_OFFSET], true);
-	FLOAT_INTERFACE(TanDrunkZPeriod, Effects[PlayerOptions::EFFECT_TAN_DRUNK_Z_PERIOD], true);
 	FLOAT_INTERFACE(Dizzy, Effects[PlayerOptions::EFFECT_DIZZY], true);
-	FLOAT_INTERFACE(AttenuateX, Effects[PlayerOptions::EFFECT_ATTENUATE_X], true);
-	FLOAT_INTERFACE(AttenuateY, Effects[PlayerOptions::EFFECT_ATTENUATE_Y], true);
-	FLOAT_INTERFACE(AttenuateZ, Effects[PlayerOptions::EFFECT_ATTENUATE_Z], true);
-	FLOAT_INTERFACE(ShrinkLinear, Effects[PlayerOptions::EFFECT_SHRINK_TO_LINEAR], true);
-	FLOAT_INTERFACE(ShrinkMult, Effects[PlayerOptions::EFFECT_SHRINK_TO_MULT], true);
-	FLOAT_INTERFACE(PulseInner, Effects[PlayerOptions::EFFECT_PULSE_INNER], true);
-	FLOAT_INTERFACE(PulseOuter, Effects[PlayerOptions::EFFECT_PULSE_OUTER], true);
-	FLOAT_INTERFACE(PulsePeriod, Effects[PlayerOptions::EFFECT_PULSE_PERIOD], true);
-	FLOAT_INTERFACE(PulseOffset, Effects[PlayerOptions::EFFECT_PULSE_OFFSET], true);
 	FLOAT_INTERFACE(Confusion, Effects[PlayerOptions::EFFECT_CONFUSION], true);
-	FLOAT_INTERFACE(ConfusionOffset, Effects[PlayerOptions::EFFECT_CONFUSION_OFFSET], true);
-	FLOAT_INTERFACE(ConfusionX, Effects[PlayerOptions::EFFECT_CONFUSION_X], true);
-	FLOAT_INTERFACE(ConfusionXOffset, Effects[PlayerOptions::EFFECT_CONFUSION_X_OFFSET], true);
-	FLOAT_INTERFACE(ConfusionY, Effects[PlayerOptions::EFFECT_CONFUSION_Y], true);
-	FLOAT_INTERFACE(ConfusionYOffset, Effects[PlayerOptions::EFFECT_CONFUSION_Y_OFFSET], true);
-	FLOAT_INTERFACE(Bounce, Effects[PlayerOptions::EFFECT_BOUNCE], true);
-	FLOAT_INTERFACE(BouncePeriod, Effects[PlayerOptions::EFFECT_BOUNCE_PERIOD], true);
-	FLOAT_INTERFACE(BounceOffset, Effects[PlayerOptions::EFFECT_BOUNCE_OFFSET], true);
-	FLOAT_INTERFACE(BounceZ, Effects[PlayerOptions::EFFECT_BOUNCE_Z], true);
-	FLOAT_INTERFACE(BounceZPeriod, Effects[PlayerOptions::EFFECT_BOUNCE_Z_PERIOD], true);
-	FLOAT_INTERFACE(BounceZOffset, Effects[PlayerOptions::EFFECT_BOUNCE_Z_OFFSET], true);
 	FLOAT_INTERFACE(Mini, Effects[PlayerOptions::EFFECT_MINI], true);
 	FLOAT_INTERFACE(Tiny, Effects[PlayerOptions::EFFECT_TINY], true);
 	FLOAT_INTERFACE(Flip, Effects[PlayerOptions::EFFECT_FLIP], true);
 	FLOAT_INTERFACE(Invert, Effects[PlayerOptions::EFFECT_INVERT], true);
 	FLOAT_INTERFACE(Tornado, Effects[PlayerOptions::EFFECT_TORNADO], true);
-	FLOAT_INTERFACE(TornadoPeriod, Effects[PlayerOptions::EFFECT_TORNADO_PERIOD], true);
-	FLOAT_INTERFACE(TornadoOffset, Effects[PlayerOptions::EFFECT_TORNADO_OFFSET], true);
-	FLOAT_INTERFACE(TanTornado, Effects[PlayerOptions::EFFECT_TAN_TORNADO], true);
-	FLOAT_INTERFACE(TanTornadoPeriod, Effects[PlayerOptions::EFFECT_TAN_TORNADO_PERIOD], true);
-	FLOAT_INTERFACE(TanTornadoOffset, Effects[PlayerOptions::EFFECT_TAN_TORNADO_OFFSET], true);
-	FLOAT_INTERFACE(TornadoZ, Effects[PlayerOptions::EFFECT_TORNADO_Z], true);
-	FLOAT_INTERFACE(TornadoZPeriod, Effects[PlayerOptions::EFFECT_TORNADO_Z_PERIOD], true);
-	FLOAT_INTERFACE(TornadoZOffset, Effects[PlayerOptions::EFFECT_TORNADO_Z_OFFSET], true);
-	FLOAT_INTERFACE(TanTornadoZ, Effects[PlayerOptions::EFFECT_TAN_TORNADO_Z], true);
-	FLOAT_INTERFACE(TanTornadoZPeriod, Effects[PlayerOptions::EFFECT_TAN_TORNADO_Z_PERIOD], true);
-	FLOAT_INTERFACE(TanTornadoZOffset, Effects[PlayerOptions::EFFECT_TAN_TORNADO_Z_OFFSET], true);
 	FLOAT_INTERFACE(Tipsy, Effects[PlayerOptions::EFFECT_TIPSY], true);
-	FLOAT_INTERFACE(TipsySpeed, Effects[PlayerOptions::EFFECT_TIPSY_SPEED], true);
-	FLOAT_INTERFACE(TipsyOffset, Effects[PlayerOptions::EFFECT_TIPSY_OFFSET], true);
-	FLOAT_INTERFACE(TanTipsy, Effects[PlayerOptions::EFFECT_TAN_TIPSY], true);
-	FLOAT_INTERFACE(TanTipsySpeed, Effects[PlayerOptions::EFFECT_TAN_TIPSY_SPEED], true);
-	FLOAT_INTERFACE(TanTipsyOffset, Effects[PlayerOptions::EFFECT_TAN_TIPSY_OFFSET], true);
 	FLOAT_INTERFACE(Bumpy, Effects[PlayerOptions::EFFECT_BUMPY], true);
-	FLOAT_INTERFACE(BumpyOffset, Effects[PlayerOptions::EFFECT_BUMPY_OFFSET], true);
-	FLOAT_INTERFACE(BumpyPeriod, Effects[PlayerOptions::EFFECT_BUMPY_PERIOD], true);
-	FLOAT_INTERFACE(TanBumpy, Effects[PlayerOptions::EFFECT_TAN_BUMPY], true);
-	FLOAT_INTERFACE(TanBumpyOffset, Effects[PlayerOptions::EFFECT_TAN_BUMPY_OFFSET], true);
-	FLOAT_INTERFACE(TanBumpyPeriod, Effects[PlayerOptions::EFFECT_TAN_BUMPY_PERIOD], true);
-	FLOAT_INTERFACE(BumpyX, Effects[PlayerOptions::EFFECT_BUMPY_X], true);
-	FLOAT_INTERFACE(BumpyXOffset, Effects[PlayerOptions::EFFECT_BUMPY_X_OFFSET], true);
-	FLOAT_INTERFACE(BumpyXPeriod, Effects[PlayerOptions::EFFECT_BUMPY_X_PERIOD], true);
-	FLOAT_INTERFACE(TanBumpyX, Effects[PlayerOptions::EFFECT_TAN_BUMPY_X], true);
-	FLOAT_INTERFACE(TanBumpyXOffset, Effects[PlayerOptions::EFFECT_TAN_BUMPY_X_OFFSET], true);
-	FLOAT_INTERFACE(TanBumpyXPeriod, Effects[PlayerOptions::EFFECT_TAN_BUMPY_X_PERIOD], true);
 	FLOAT_INTERFACE(Beat, Effects[PlayerOptions::EFFECT_BEAT], true);
-	FLOAT_INTERFACE(BeatOffset, Effects[PlayerOptions::EFFECT_BEAT_OFFSET], true);
-	FLOAT_INTERFACE(BeatPeriod, Effects[PlayerOptions::EFFECT_BEAT_PERIOD], true);
-	FLOAT_INTERFACE(BeatMult, Effects[PlayerOptions::EFFECT_BEAT_MULT], true);
-	FLOAT_INTERFACE(BeatY, Effects[PlayerOptions::EFFECT_BEAT_Y], true);
-	FLOAT_INTERFACE(BeatYOffset, Effects[PlayerOptions::EFFECT_BEAT_Y_OFFSET], true);
-	FLOAT_INTERFACE(BeatYPeriod, Effects[PlayerOptions::EFFECT_BEAT_Y_PERIOD], true);
-	FLOAT_INTERFACE(BeatYMult, Effects[PlayerOptions::EFFECT_BEAT_Y_MULT], true);
-	FLOAT_INTERFACE(BeatZ, Effects[PlayerOptions::EFFECT_BEAT_Z], true);
-	FLOAT_INTERFACE(BeatZOffset, Effects[PlayerOptions::EFFECT_BEAT_Z_OFFSET], true);
-	FLOAT_INTERFACE(BeatZPeriod, Effects[PlayerOptions::EFFECT_BEAT_Z_PERIOD], true);
-	FLOAT_INTERFACE(BeatZMult, Effects[PlayerOptions::EFFECT_BEAT_Z_MULT], true);
-	FLOAT_INTERFACE(Zigzag, Effects[PlayerOptions::EFFECT_ZIGZAG], true);
-	FLOAT_INTERFACE(ZigzagPeriod, Effects[PlayerOptions::EFFECT_ZIGZAG_PERIOD], true);
-	FLOAT_INTERFACE(ZigzagOffset, Effects[PlayerOptions::EFFECT_ZIGZAG_OFFSET], true);
-	FLOAT_INTERFACE(ZigzagZ, Effects[PlayerOptions::EFFECT_ZIGZAG_Z], true);
-	FLOAT_INTERFACE(ZigzagZPeriod, Effects[PlayerOptions::EFFECT_ZIGZAG_Z_PERIOD], true);
-	FLOAT_INTERFACE(ZigzagZOffset, Effects[PlayerOptions::EFFECT_ZIGZAG_Z_OFFSET], true);
-	FLOAT_INTERFACE(Sawtooth, Effects[PlayerOptions::EFFECT_SAWTOOTH], true);
-	FLOAT_INTERFACE(SawtoothPeriod, Effects[PlayerOptions::EFFECT_SAWTOOTH_PERIOD], true);
-	FLOAT_INTERFACE(SawtoothZ, Effects[PlayerOptions::EFFECT_SAWTOOTH_Z], true);
-	FLOAT_INTERFACE(SawtoothZPeriod, Effects[PlayerOptions::EFFECT_SAWTOOTH_Z_PERIOD], true);
-	FLOAT_INTERFACE(Square, Effects[PlayerOptions::EFFECT_SQUARE], true);
-	FLOAT_INTERFACE(SquareOffset, Effects[PlayerOptions::EFFECT_SQUARE_OFFSET], true);
-	FLOAT_INTERFACE(SquarePeriod, Effects[PlayerOptions::EFFECT_SQUARE_PERIOD], true);
-	FLOAT_INTERFACE(SquareZ, Effects[PlayerOptions::EFFECT_SQUARE_Z], true);
-	FLOAT_INTERFACE(SquareZOffset, Effects[PlayerOptions::EFFECT_SQUARE_Z_OFFSET], true);
-	FLOAT_INTERFACE(SquareZPeriod, Effects[PlayerOptions::EFFECT_SQUARE_Z_PERIOD], true);
-	FLOAT_INTERFACE(Digital, Effects[PlayerOptions::EFFECT_DIGITAL], true);
-	FLOAT_INTERFACE(DigitalSteps, Effects[PlayerOptions::EFFECT_DIGITAL_STEPS], true);
-	FLOAT_INTERFACE(DigitalPeriod, Effects[PlayerOptions::EFFECT_DIGITAL_PERIOD], true);
-	FLOAT_INTERFACE(DigitalOffset, Effects[PlayerOptions::EFFECT_DIGITAL_OFFSET], true);
-	FLOAT_INTERFACE(TanDigital, Effects[PlayerOptions::EFFECT_TAN_DIGITAL], true);
-	FLOAT_INTERFACE(TanDigitalSteps, Effects[PlayerOptions::EFFECT_TAN_DIGITAL_STEPS], true);
-	FLOAT_INTERFACE(TanDigitalPeriod, Effects[PlayerOptions::EFFECT_TAN_DIGITAL_PERIOD], true);
-	FLOAT_INTERFACE(TanDigitalOffset, Effects[PlayerOptions::EFFECT_TAN_DIGITAL_OFFSET], true);
-	FLOAT_INTERFACE(DigitalZ, Effects[PlayerOptions::EFFECT_DIGITAL_Z], true);
-	FLOAT_INTERFACE(DigitalZSteps, Effects[PlayerOptions::EFFECT_DIGITAL_Z_STEPS], true);
-	FLOAT_INTERFACE(DigitalZPeriod, Effects[PlayerOptions::EFFECT_DIGITAL_Z_PERIOD], true);
-	FLOAT_INTERFACE(DigitalZOffset, Effects[PlayerOptions::EFFECT_DIGITAL_Z_OFFSET], true);
-	FLOAT_INTERFACE(TanDigitalZ, Effects[PlayerOptions::EFFECT_TAN_DIGITAL_Z], true);
-	FLOAT_INTERFACE(TanDigitalZSteps, Effects[PlayerOptions::EFFECT_TAN_DIGITAL_Z_STEPS], true);
-	FLOAT_INTERFACE(TanDigitalZPeriod, Effects[PlayerOptions::EFFECT_TAN_DIGITAL_Z_PERIOD], true);
-	FLOAT_INTERFACE(TanDigitalZOffset, Effects[PlayerOptions::EFFECT_TAN_DIGITAL_Z_OFFSET], true);
-	FLOAT_INTERFACE(ParabolaX, Effects[PlayerOptions::EFFECT_PARABOLA_X], true);
-	FLOAT_INTERFACE(ParabolaY, Effects[PlayerOptions::EFFECT_PARABOLA_Y], true);
-	FLOAT_INTERFACE(ParabolaZ, Effects[PlayerOptions::EFFECT_PARABOLA_Z], true);
 	FLOAT_INTERFACE(Xmode, Effects[PlayerOptions::EFFECT_XMODE], true);
 	FLOAT_INTERFACE(Twirl, Effects[PlayerOptions::EFFECT_TWIRL], true);
 	FLOAT_INTERFACE(Roll, Effects[PlayerOptions::EFFECT_ROLL], true);
@@ -1993,35 +1129,14 @@ public:
 	FLOAT_INTERFACE(Tilt, PerspectiveTilt, true);
 	FLOAT_INTERFACE(Passmark, Passmark, true); // Passmark is not sanity checked to the [0, 1] range because LifeMeterBar::IsFailing is the only thing that uses it, and it's used in a <= test.  Any theme passing a value outside the [0, 1] range probably expects the result they get. -Kyz
 	FLOAT_INTERFACE(RandomSpeed, RandomSpeed, true);
-
-	MULTICOL_FLOAT_INTERFACE(MoveX, MovesX, true);
-	MULTICOL_FLOAT_INTERFACE(MoveY, MovesY, true);
-	MULTICOL_FLOAT_INTERFACE(MoveZ, MovesZ, true);
-	MULTICOL_FLOAT_INTERFACE(ConfusionXOffset, ConfusionX, true);
-	MULTICOL_FLOAT_INTERFACE(ConfusionYOffset, ConfusionY, true);
-	MULTICOL_FLOAT_INTERFACE(ConfusionOffset, ConfusionZ, true);
-	MULTICOL_FLOAT_INTERFACE(Dark, Darks, true);
-	MULTICOL_FLOAT_INTERFACE(Stealth, Stealth, true);
-	MULTICOL_FLOAT_INTERFACE(Tiny, Tiny, true);
-	MULTICOL_FLOAT_INTERFACE(Bumpy, Bumpy, true);
-	MULTICOL_FLOAT_INTERFACE(Reverse, Reverse, true);
-
-	BOOL_INTERFACE(StealthType, StealthType);
-	BOOL_INTERFACE(StealthPastReceptors, StealthPastReceptors);
-	BOOL_INTERFACE(DizzyHolds, DizzyHolds);
-	BOOL_INTERFACE(ZBuffer, ZBuffer);
-	BOOL_INTERFACE(Cosecant, Cosecant);
 	BOOL_INTERFACE(TurnNone, Turns[PlayerOptions::TURN_NONE]);
 	BOOL_INTERFACE(Mirror, Turns[PlayerOptions::TURN_MIRROR]);
-	BOOL_INTERFACE(LRMirror, Turns[PlayerOptions::TURN_LRMIRROR]);
-	BOOL_INTERFACE(UDMirror, Turns[PlayerOptions::TURN_UDMIRROR]);
 	BOOL_INTERFACE(Backwards, Turns[PlayerOptions::TURN_BACKWARDS]);
 	BOOL_INTERFACE(Left, Turns[PlayerOptions::TURN_LEFT]);
 	BOOL_INTERFACE(Right, Turns[PlayerOptions::TURN_RIGHT]);
 	BOOL_INTERFACE(Shuffle, Turns[PlayerOptions::TURN_SHUFFLE]);
 	BOOL_INTERFACE(SoftShuffle, Turns[PlayerOptions::TURN_SOFT_SHUFFLE]);
 	BOOL_INTERFACE(SuperShuffle, Turns[PlayerOptions::TURN_SUPER_SHUFFLE]);
-	BOOL_INTERFACE(HyperShuffle, Turns[PlayerOptions::TURN_HYPER_SHUFFLE]);
 	BOOL_INTERFACE(NoHolds, Transforms[PlayerOptions::TRANSFORM_NOHOLDS]);
 	BOOL_INTERFACE(NoRolls, Transforms[PlayerOptions::TRANSFORM_NOROLLS]);
 	BOOL_INTERFACE(NoMines, Transforms[PlayerOptions::TRANSFORM_NOMINES]);
@@ -2048,43 +1163,6 @@ public:
 	BOOL_INTERFACE(MuteOnError, MuteOnError);
 	ENUM_INTERFACE(FailSetting, FailType, FailType);
 	ENUM_INTERFACE(MinTNSToHideNotes, MinTNSToHideNotes, TapNoteScore);
-
-	FLOAT_NO_SPEED_INTERFACE(VisualDelay, VisualDelay, true);
-
-	static int DisableTimingWindow(T* p, lua_State* L)
-	{
-		int original_top= lua_gettop(L);
-		if (original_top >= 1 && !lua_isnil(L, 1))
-		{
-			// Insert the specified TimingWindow into the disabled windows set.
-			p->m_twDisabledWindows.set(Enum::Check<TimingWindow>(L, 1));
-		}
-		OPTIONAL_RETURN_SELF(original_top);
-		return 1;
-	}
-
-	static int ResetDisabledTimingWindows(T* p, lua_State* L)
-	{
-		int original_top= lua_gettop(L);
-		p->m_twDisabledWindows.reset();
-		OPTIONAL_RETURN_SELF(original_top);
-		return 1;
-	}
-
-	static int GetDisabledTimingWindows(T* p, lua_State* L)
-	{
-		int original_top= lua_gettop(L);
-		lua_newtable( L );
-		int j = 0;
-		for (int i=TW_W1; i <= TW_W5; ++i) {
-			if (p->m_twDisabledWindows[i]) {
-				Enum::Push(L, static_cast<TimingWindow>(i));
-				lua_rawseti( L, -2, j+1 );
-				++j;
-			}
-		}
-		return 1;
-	}
 
 	// NoteSkins
 	static int NoteSkin(T* p, lua_State* L)
@@ -2146,7 +1224,7 @@ public:
 		if(original_top >= 1 && lua_isnumber(L, 1))
 		{
 			float speed= FArg(1);
-			if(!std::isfinite(speed) || speed <= 0.0f)
+			if(!isfinite(speed) || speed <= 0.0f)
 			{
 				luaL_error(L, "CMod speed must be finite and greater than 0.");
 			}
@@ -2207,7 +1285,7 @@ public:
 		if(lua_isnumber(L, 1) && original_top >= 1)
 		{
 			float speed= FArg(1);
-			if(!std::isfinite(speed) || speed <= 0.0f)
+			if(!isfinite(speed) || speed <= 0.0f)
 			{
 				luaL_error(L, "MMod speed must be finite and greater than 0.");
 			}
@@ -2328,7 +1406,7 @@ public:
 		OPTIONAL_RETURN_SELF(original_top);
 		return 2;
 	}
-
+	
 	static int Distant(T* p, lua_State* L)
 	{
 		int original_top= lua_gettop(L);
@@ -2378,12 +1456,6 @@ public:
 		return 1;
 	}
 
-	static int FromString(T* p, lua_State* L)
-	{
-		p->FromString(SArg(1));
-		COMMON_RETURN_SELF;
-	}
-
 	LunaPlayerOptions()
 	{
 		ADD_METHOD( IsEasierForSongAndSteps );
@@ -2391,11 +1463,6 @@ public:
 
 		ADD_METHOD(LifeSetting);
 		ADD_METHOD(DrainSetting);
-		ADD_METHOD(ModTimerSetting);
-		ADD_METHOD(ModTimerMult);
-		ADD_METHOD(ModTimerOffset);
-		ADD_METHOD(DrawSize);
-		ADD_METHOD(DrawSizeBack);
 		ADD_METHOD(BatteryLives);
 		ADD_METHOD(TimeSpacing);
 		ADD_METHOD(MaxScrollBPM);
@@ -2404,131 +1471,19 @@ public:
 		ADD_METHOD(Boost);
 		ADD_METHOD(Brake);
 		ADD_METHOD(Wave);
-		ADD_METHOD(WavePeriod);
 		ADD_METHOD(Expand);
-		ADD_METHOD(ExpandPeriod);
-		ADD_METHOD(TanExpand);
-		ADD_METHOD(TanExpandPeriod);
 		ADD_METHOD(Boomerang);
 		ADD_METHOD(Drunk);
-		ADD_METHOD(DrunkSpeed);
-		ADD_METHOD(DrunkOffset);
-		ADD_METHOD(DrunkPeriod);
-		ADD_METHOD(TanDrunk);
-		ADD_METHOD(TanDrunkSpeed);
-		ADD_METHOD(TanDrunkOffset);
-		ADD_METHOD(TanDrunkPeriod);
-		ADD_METHOD(DrunkZ);
-		ADD_METHOD(DrunkZSpeed);
-		ADD_METHOD(DrunkZOffset);
-		ADD_METHOD(DrunkZPeriod);
-		ADD_METHOD(TanDrunkZ);
-		ADD_METHOD(TanDrunkZSpeed);
-		ADD_METHOD(TanDrunkZOffset);
-		ADD_METHOD(TanDrunkZPeriod);
 		ADD_METHOD(Dizzy);
-		ADD_METHOD(ShrinkLinear);
-		ADD_METHOD(ShrinkMult);
-		ADD_METHOD(PulseInner);
-		ADD_METHOD(PulseOuter);
-		ADD_METHOD(PulseOffset);
-		ADD_METHOD(PulsePeriod);
-		ADD_METHOD(AttenuateX);
-		ADD_METHOD(AttenuateY);
-		ADD_METHOD(AttenuateZ);
 		ADD_METHOD(Confusion);
-		ADD_METHOD(ConfusionOffset);
-		ADD_METHOD(ConfusionX);
-		ADD_METHOD(ConfusionXOffset);
-		ADD_METHOD(ConfusionY);
-		ADD_METHOD(ConfusionYOffset);
-		ADD_METHOD(Bounce);
-		ADD_METHOD(BouncePeriod);
-		ADD_METHOD(BounceOffset);
-		ADD_METHOD(BounceZ);
-		ADD_METHOD(BounceZPeriod);
-		ADD_METHOD(BounceZOffset);
 		ADD_METHOD(Mini);
 		ADD_METHOD(Tiny);
 		ADD_METHOD(Flip);
 		ADD_METHOD(Invert);
 		ADD_METHOD(Tornado);
-		ADD_METHOD(TornadoPeriod);
-		ADD_METHOD(TornadoOffset);
-		ADD_METHOD(TanTornado);
-		ADD_METHOD(TanTornadoPeriod);
-		ADD_METHOD(TanTornadoOffset);
-		ADD_METHOD(TornadoZ);
-		ADD_METHOD(TornadoZPeriod);
-		ADD_METHOD(TornadoZOffset);
-		ADD_METHOD(TanTornadoZ);
-		ADD_METHOD(TanTornadoZPeriod);
-		ADD_METHOD(TanTornadoZOffset);
 		ADD_METHOD(Tipsy);
-		ADD_METHOD(TipsySpeed);
-		ADD_METHOD(TipsyOffset);
-		ADD_METHOD(TanTipsy);
-		ADD_METHOD(TanTipsySpeed);
-		ADD_METHOD(TanTipsyOffset);
 		ADD_METHOD(Bumpy);
-		ADD_METHOD(BumpyOffset);
-		ADD_METHOD(BumpyPeriod);
-		ADD_METHOD(TanBumpy);
-		ADD_METHOD(TanBumpyOffset);
-		ADD_METHOD(TanBumpyPeriod);
-		ADD_METHOD(BumpyX);
-		ADD_METHOD(BumpyXOffset);
-		ADD_METHOD(BumpyXPeriod);
-		ADD_METHOD(TanBumpyX);
-		ADD_METHOD(TanBumpyXOffset);
-		ADD_METHOD(TanBumpyXPeriod);
 		ADD_METHOD(Beat);
-		ADD_METHOD(BeatOffset);
-		ADD_METHOD(BeatPeriod);
-		ADD_METHOD(BeatMult);
-		ADD_METHOD(BeatY);
-		ADD_METHOD(BeatYOffset);
-		ADD_METHOD(BeatYPeriod);
-		ADD_METHOD(BeatYMult);
-		ADD_METHOD(BeatZ);
-		ADD_METHOD(BeatZOffset);
-		ADD_METHOD(BeatZPeriod);
-		ADD_METHOD(BeatZMult);
-		ADD_METHOD(Zigzag);
-		ADD_METHOD(ZigzagPeriod);
-		ADD_METHOD(ZigzagOffset);
-		ADD_METHOD(ZigzagZ);
-		ADD_METHOD(ZigzagZPeriod);
-		ADD_METHOD(ZigzagZOffset);
-		ADD_METHOD(Sawtooth);
-		ADD_METHOD(SawtoothPeriod);
-		ADD_METHOD(SawtoothZ);
-		ADD_METHOD(SawtoothZPeriod);
-		ADD_METHOD(Square);
-		ADD_METHOD(SquareOffset);
-		ADD_METHOD(SquarePeriod);
-		ADD_METHOD(SquareZ);
-		ADD_METHOD(SquareZOffset);
-		ADD_METHOD(SquareZPeriod);
-		ADD_METHOD(Digital);
-		ADD_METHOD(DigitalSteps);
-		ADD_METHOD(DigitalPeriod);
-		ADD_METHOD(DigitalOffset);
-		ADD_METHOD(TanDigital);
-		ADD_METHOD(TanDigitalSteps);
-		ADD_METHOD(TanDigitalPeriod);
-		ADD_METHOD(TanDigitalOffset);
-		ADD_METHOD(DigitalZ);
-		ADD_METHOD(DigitalZSteps);
-		ADD_METHOD(DigitalZPeriod);
-		ADD_METHOD(DigitalZOffset);
-		ADD_METHOD(TanDigitalZ);
-		ADD_METHOD(TanDigitalZSteps);
-		ADD_METHOD(TanDigitalZPeriod);
-		ADD_METHOD(TanDigitalZOffset);
-		ADD_METHOD(ParabolaX);
-		ADD_METHOD(ParabolaY);
-		ADD_METHOD(ParabolaZ);
 		ADD_METHOD(Xmode);
 		ADD_METHOD(Twirl);
 		ADD_METHOD(Roll);
@@ -2547,11 +1502,6 @@ public:
 		ADD_METHOD(Dark);
 		ADD_METHOD(Blind);
 		ADD_METHOD(Cover);
-		ADD_METHOD(StealthType);
-		ADD_METHOD(StealthPastReceptors);
-		ADD_METHOD(DizzyHolds);
-		ADD_METHOD(ZBuffer);
-		ADD_METHOD(Cosecant);
 		ADD_METHOD(RandAttack);
 		ADD_METHOD(NoAttack);
 		ADD_METHOD(PlayerAutoPlay);
@@ -2561,15 +1511,12 @@ public:
 		ADD_METHOD(RandomSpeed);
 		ADD_METHOD(TurnNone);
 		ADD_METHOD(Mirror);
-		ADD_METHOD(LRMirror);
-		ADD_METHOD(UDMirror);
 		ADD_METHOD(Backwards);
 		ADD_METHOD(Left);
 		ADD_METHOD(Right);
 		ADD_METHOD(Shuffle);
 		ADD_METHOD(SoftShuffle);
 		ADD_METHOD(SuperShuffle);
-		ADD_METHOD(HyperShuffle);
 		ADD_METHOD(NoHolds);
 		ADD_METHOD(NoRolls);
 		ADD_METHOD(NoMines);
@@ -2595,26 +1542,9 @@ public:
 		ADD_METHOD(NoStretch);
 		ADD_METHOD(MuteOnError);
 
-		ADD_MULTICOL_METHOD(MoveX);
-		ADD_MULTICOL_METHOD(MoveY);
-		ADD_MULTICOL_METHOD(MoveZ);
-		ADD_MULTICOL_METHOD(ConfusionOffset);
-		ADD_MULTICOL_METHOD(ConfusionXOffset);
-		ADD_MULTICOL_METHOD(ConfusionYOffset);
-		ADD_MULTICOL_METHOD(Dark);
-		ADD_MULTICOL_METHOD(Stealth);
-		ADD_MULTICOL_METHOD(Tiny);
-		ADD_MULTICOL_METHOD(Bumpy);
-		ADD_MULTICOL_METHOD(Reverse);
-
 		ADD_METHOD(NoteSkin);
 		ADD_METHOD(FailSetting);
 		ADD_METHOD(MinTNSToHideNotes);
-		ADD_METHOD(VisualDelay);
-
-		ADD_METHOD(DisableTimingWindow);
-		ADD_METHOD(ResetDisabledTimingWindows);
-		ADD_METHOD(GetDisabledTimingWindows);
 
 		// Speed
 		ADD_METHOD( CMod );
@@ -2630,8 +1560,6 @@ public:
 		ADD_METHOD( UsingReverse );
 		ADD_METHOD( GetReversePercentForColumn );
 		ADD_METHOD( GetStepAttacks );
-
-		ADD_METHOD(FromString);
 	}
 };
 
@@ -2641,7 +1569,7 @@ LUA_REGISTER_CLASS( PlayerOptions )
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -2651,7 +1579,7 @@ LUA_REGISTER_CLASS( PlayerOptions )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

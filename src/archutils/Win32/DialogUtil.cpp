@@ -4,14 +4,12 @@
 #include "ThemeManager.h"
 #include "archutils/Win32/ErrorStrings.h"
 
-#include <cmath>
-
 // Create*Font copied from MFC's CFont
 
 // pLogFont->nHeight is interpreted as PointSize * 10
 static HFONT CreatePointFontIndirect(const LOGFONT* lpLogFont)
 {
-	HDC hDC = ::GetDC(nullptr);
+	HDC hDC = ::GetDC(NULL);
 
 	// convert nPointSize to logical units based on pDC
 	LOGFONT logFont = *lpLogFont;
@@ -22,9 +20,9 @@ static HFONT CreatePointFontIndirect(const LOGFONT* lpLogFont)
 	::DPtoLP(hDC, &pt, 1);
 	POINT ptOrg = { 0, 0 };
 	::DPtoLP(hDC, &ptOrg, 1);
-	logFont.lfHeight = -std::abs(pt.y - ptOrg.y);
+	logFont.lfHeight = -abs(pt.y - ptOrg.y);
 
-	ReleaseDC(nullptr, hDC);
+	ReleaseDC(NULL, hDC);
 
 	return ::CreateFontIndirect(&logFont);
 }
@@ -32,7 +30,7 @@ static HFONT CreatePointFontIndirect(const LOGFONT* lpLogFont)
 // nPointSize is actually scaled 10x
 static HFONT CreatePointFont(int nPointSize, LPCTSTR lpszFaceName)
 {
-	ASSERT(lpszFaceName != nullptr);
+	ASSERT(lpszFaceName != NULL);
 
 	LOGFONT logFont;
 	memset(&logFont, 0, sizeof(LOGFONT));
@@ -45,10 +43,10 @@ static HFONT CreatePointFont(int nPointSize, LPCTSTR lpszFaceName)
 
 void DialogUtil::SetHeaderFont( HWND hdlg, int nID )
 {
-	ASSERT( hdlg != nullptr );
+	ASSERT( hdlg != NULL );
 
 	HWND hControl = ::GetDlgItem( hdlg, nID );
-	ASSERT( hControl != nullptr );
+	ASSERT( hControl != NULL );
 
 	// TODO: Fix font leak
 	const int FONT_POINTS = 16;
@@ -58,7 +56,7 @@ void DialogUtil::SetHeaderFont( HWND hdlg, int nID )
 
 void DialogUtil::LocalizeDialogAndContents( HWND hdlg )
 {
-	ASSERT( THEME != nullptr );
+	ASSERT( THEME != NULL );
 
 	const int LARGE_STRING = 256;
 	char szTemp[LARGE_STRING] = "";
@@ -72,7 +70,7 @@ void DialogUtil::LocalizeDialogAndContents( HWND hdlg )
 		::SetWindowText( hdlg, ConvertUTF8ToACP(s).c_str() );
 	}
 
-	for( HWND hwndChild = ::GetTopWindow(hdlg); hwndChild != nullptr; hwndChild = ::GetNextWindow(hwndChild,GW_HWNDNEXT) )
+	for( HWND hwndChild = ::GetTopWindow(hdlg); hwndChild != NULL; hwndChild = ::GetNextWindow(hwndChild,GW_HWNDNEXT) )
 	{
 		::GetWindowText( hwndChild, szTemp, ARRAYLEN(szTemp) );
 		RString s = szTemp;
@@ -86,7 +84,7 @@ void DialogUtil::LocalizeDialogAndContents( HWND hdlg )
 /*
  * (c) 2002-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -96,7 +94,7 @@ void DialogUtil::LocalizeDialogAndContents( HWND hdlg )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

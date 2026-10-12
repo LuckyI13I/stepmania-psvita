@@ -11,7 +11,7 @@
 
 namespace
 {
-	std::map<GLenum, RString> g_Strings;
+	map<GLenum, RString> g_Strings;
 	void InitStringMap()
 	{
 		static bool bInitialized = false;
@@ -44,11 +44,11 @@ RString RageDisplay_Legacy_Helpers::GLToString( GLenum e )
 	return ssprintf( "%i", int(e) );
 }
 /*
-static void GetGLExtensions( std::set<string> &ext )
+static void GetGLExtensions( set<string> &ext )
 {
 	const char *szBuf = (const char *) glGetString( GL_EXTENSIONS );
 
-	std::vector<RString> asList;
+	vector<RString> asList;
 	split( szBuf, " ", asList );
 
 	for( unsigned i = 0; i < asList.size(); ++i )

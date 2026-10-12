@@ -11,9 +11,6 @@
 #include "CodeSet.h"
 #include "ThemeMetric.h"
 
-#include <vector>
-
-
 class OptionsList;
 class OptionListRow: public ActorFrame
 {
@@ -21,7 +18,7 @@ public:
 	void Load( OptionsList *pOptions, const RString &sType );
 	void SetFromHandler( const OptionRowHandler *pHandler );
 	void SetTextFromHandler( const OptionRowHandler *pHandler );
-	void SetUnderlines( const std::vector<bool> &aSelections, const OptionRowHandler *pHandler );
+	void SetUnderlines( const vector<bool> &aSelections, const OptionRowHandler *pHandler );
 
 	void PositionCursor( Actor *pCursor, int iSelection );
 
@@ -30,9 +27,9 @@ public:
 private:
 	OptionsList *m_pOptions;
 
-	std::vector<BitmapText> m_Text;
+	vector<BitmapText> m_Text;
 	// underline for each ("self or child has selection")
-	std::vector<AutoActor> m_Underlines;
+	vector<AutoActor> m_Underlines;
 
 	bool	m_bItemsInTwoRows;
 
@@ -73,7 +70,7 @@ private:
 	void SelectionsChanged( const RString &sRowName );
 	void UpdateMenuFromSelections();
 	RString GetCurrentRow() const;
-	OptionRowHandler *GetCurrentHandler();
+	const OptionRowHandler *GetCurrentHandler();
 	int GetOneSelection( RString sRow, bool bAllowFail=false ) const;
 	void SwitchToCurrentRow();
 	void TweenOnCurrentRow( bool bForward );
@@ -91,22 +88,19 @@ private:
 	bool			m_bStartIsDown;
 	bool			m_bAcceptStartRelease;
 
-	std::vector<RString> m_asLoadedRows;
-	std::map<RString, OptionRowHandler *> m_Rows;
-	std::map<RString, std::vector<bool> > m_bSelections;
-	std::set<RString> m_setDirectRows;
-	std::set<RString> m_setTopMenus; // list of top-level menus, pointing to submenus
+	vector<RString> m_asLoadedRows;
+	map<RString, OptionRowHandler *> m_Rows;
+	map<RString, vector<bool> > m_bSelections;
+	set<RString> m_setDirectRows;
+	set<RString> m_setTopMenus; // list of top-level menus, pointing to submenus
 
 	PlayerNumber m_pn;
 	AutoActor m_Cursor;
 	OptionListRow m_Row[2];
 	int m_iCurrentRow;
 
-	std::vector<RString> m_asMenuStack;
+	vector<RString> m_asMenuStack;
 	int m_iMenuStackSelection;
-protected:
-	GameButton m_GameButtonPreviousItem;
-	GameButton m_GameButtonNextItem;
 };
 
 

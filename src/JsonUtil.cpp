@@ -4,10 +4,8 @@
 #include "RageUtil.h"
 #include "RageLog.h"
 #include "arch/Dialog/Dialog.h"
-#include "json/json.h"
-
-#include <vector>
-
+#include "json/reader.h"
+#include "json/writer.h"
 
 bool JsonUtil::LoadFromString(Json::Value &root, RString sData, RString &sErrorOut)
 {
@@ -15,7 +13,7 @@ bool JsonUtil::LoadFromString(Json::Value &root, RString sData, RString &sErrorO
 	bool parsingSuccessful = reader.parse(sData, root);
 	if (!parsingSuccessful)
 	{
-		RString err = reader.getFormattedErrorMessages();
+		RString err = reader.getFormatedErrorMessages();
 		LOG->Warn("JSON: LoadFromFileShowErrors failed: %s", err.c_str());
 		return false;
 	}
@@ -61,7 +59,7 @@ bool JsonUtil::WriteFile(const Json::Value &root, const RString &sFile, bool bMi
 		Json::StyledWriter writer;
 		s = writer.write(root);
 	}
-	else
+	else 
 	{
 		Json::FastWriter writer;
 		s = writer.write(root);
@@ -77,23 +75,10 @@ bool JsonUtil::WriteFile(const Json::Value &root, const RString &sFile, bool bMi
 	return true;
 }
 
-std::vector<RString> JsonUtil::DeserializeArrayStrings(const Json::Value &value)
-{
-	std::vector<RString> values;
-	for(auto &&inner_value : value)
-	{
-		if(inner_value.isConvertibleTo(Json::stringValue))
-		{
-			values.push_back(inner_value.asString());
-		}
-	}
-	return values;
-}
-
 /*
  * (c) 2001-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -103,7 +88,7 @@ std::vector<RString> JsonUtil::DeserializeArrayStrings(const Json::Value &value)
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

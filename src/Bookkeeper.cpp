@@ -4,15 +4,13 @@
 #include "RageLog.h"
 #include "IniFile.h"
 #include "GameConstantsAndTypes.h"
-#include "GameState.h"
 #include "SongManager.h"
 #include "RageFile.h"
 #include "XmlFile.h"
 #include "XmlFileUtil.h"
-#include "SpecialFiles.h"
 #include <ctime>
 
-Bookkeeper*	BOOKKEEPER = nullptr;	// global and accessible from anywhere in our program
+Bookkeeper*	BOOKKEEPER = NULL;	// global and accessible from anywhere in our program
 
 static const RString COINS_DAT = "Save/Coins.xml";
 
@@ -67,7 +65,7 @@ void Bookkeeper::LoadFromNode( const XNode *pNode )
 	}
 
 	const XNode *pData = pNode->GetChild( "Data" );
-	if( pData == nullptr )
+	if( pData == NULL )
 	{
 		LOG->Warn( "Error loading bookkeeping: Data node missing" );
 		return;
@@ -98,7 +96,7 @@ XNode* Bookkeeper::CreateNode() const
 	{
 		XNode* pData = xml->AppendChild("Data");
 
-		for( std::map<Date,int>::const_iterator it = m_mapCoinsForHour.begin(); it != m_mapCoinsForHour.end(); ++it )
+		for( map<Date,int>::const_iterator it = m_mapCoinsForHour.begin(); it != m_mapCoinsForHour.end(); ++it )
 		{
 			int iCoins = it->second;
 			XNode *pDay = pData->AppendChild( "Coins", iCoins );
@@ -122,17 +120,6 @@ void Bookkeeper::ReadFromDisk()
 	if( !XmlFileUtil::LoadFromFileShowErrors(xml, COINS_DAT) )
 		return;
 
-    int numCoins = 0;
-    ReadCoinsFile(numCoins);
-
-	if ( numCoins < 0 )
-		numCoins = 0;
-	else if ( numCoins / PREFSMAN->m_iCoinsPerCredit > PREFSMAN->m_iMaxNumCredits )
-		numCoins = 0;
-
-    LOG->Trace("Number of Coins to Load on boot: %i", numCoins);
-    GAMESTATE->m_iCoins.Set(numCoins);
-
 	LoadFromNode( &xml );
 }
 
@@ -146,34 +133,20 @@ void Bookkeeper::WriteToDisk()
 		return;
 	}
 
-	std::unique_ptr<XNode> xml( CreateNode() );
+	auto_ptr<XNode> xml( CreateNode() );
 	XmlFileUtil::SaveToFile( xml.get(), f );
 }
 
 void Bookkeeper::CoinInserted()
 {
  	Date d;
-	d.Set( time(nullptr) );
+	d.Set( time(NULL) );
 
 	++m_mapCoinsForHour[d];
 }
 
-void Bookkeeper::WriteCoinsFile( int coins )
-{
-    IniFile ini;
-    ini.SetValue( "Bookkeeping", "Coins", coins);
-    ini.WriteFile( SpecialFiles::COINS_INI );
-}
-
-void Bookkeeper::ReadCoinsFile( int &coins )
-{
-    IniFile ini;
-    ini.ReadFile( SpecialFiles::COINS_INI );
-    ini.GetValue( "Bookkeeping", "Coins", coins);
-}
-
 // Return the number of coins between [beginning,ending).
-int Bookkeeper::GetNumCoinsInRange( std::map<Date,int>::const_iterator begin, std::map<Date,int>::const_iterator end ) const
+int Bookkeeper::GetNumCoinsInRange( map<Date,int>::const_iterator begin, map<Date,int>::const_iterator end ) const
 {
 	int iCoins = 0;
 
@@ -199,7 +172,7 @@ int Bookkeeper::GetCoinsTotal() const
 
 void Bookkeeper::GetCoinsLastDays( int coins[NUM_LAST_DAYS] ) const
 {
-	time_t lOldTime = time(nullptr);
+	time_t lOldTime = time(NULL);
 	tm time;
 	localtime_r( &lOldTime, &time );
 
@@ -215,7 +188,7 @@ void Bookkeeper::GetCoinsLastDays( int coins[NUM_LAST_DAYS] ) const
 
 void Bookkeeper::GetCoinsLastWeeks( int coins[NUM_LAST_WEEKS] ) const
 {
-	time_t lOldTime = time(nullptr);
+	time_t lOldTime = time(NULL);
 	tm time;
 	localtime_r( &lOldTime, &time );
 
@@ -237,7 +210,7 @@ void Bookkeeper::GetCoinsByDayOfWeek( int coins[DAYS_IN_WEEK] ) const
 	for( int i=0; i<DAYS_IN_WEEK; i++ )
 		coins[i] = 0;
 
-	for( std::map<Date,int>::const_iterator it = m_mapCoinsForHour.begin(); it != m_mapCoinsForHour.end(); ++it )
+	for( map<Date,int>::const_iterator it = m_mapCoinsForHour.begin(); it != m_mapCoinsForHour.end(); ++it )
 	{
 		const Date &d = it->first;
 		int iDayOfWeek = GetDayInYearAndYear( d.m_iDayOfYear, d.m_iYear ).tm_wday;
@@ -248,7 +221,7 @@ void Bookkeeper::GetCoinsByDayOfWeek( int coins[DAYS_IN_WEEK] ) const
 void Bookkeeper::GetCoinsByHour( int coins[HOURS_IN_DAY] ) const
 {
 	memset( coins, 0, sizeof(int) * HOURS_IN_DAY );
-	for( std::map<Date,int>::const_iterator it = m_mapCoinsForHour.begin(); it != m_mapCoinsForHour.end(); ++it )
+	for( map<Date,int>::const_iterator it = m_mapCoinsForHour.begin(); it != m_mapCoinsForHour.end(); ++it )
 	{
 		const Date &d = it->first;
 

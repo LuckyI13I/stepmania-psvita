@@ -10,14 +10,10 @@
 #include "PrefsManager.h"
 #include "Actor.h"
 #include "Preference.h"
+#include "Foreach.h"
 #include "GameManager.h"
 #include "CommonMetrics.h"
 #include "Style.h"
-
-#include <cmath>
-#include <cstddef>
-#include <vector>
-
 
 const RString DEFAULT_LIGHTS_DRIVER = "SystemMessage,Export";
 static Preference<RString> g_sLightsDriver( "LightsDriver", "" ); // "" == DEFAULT_LIGHTS_DRIVER
@@ -53,17 +49,17 @@ static const char *LightsModeNames[] = {
 XToString( LightsMode );
 LuaXType( LightsMode );
 
-static void GetUsedGameInputs( std::vector<GameInput> &vGameInputsOut )
+static void GetUsedGameInputs( vector<GameInput> &vGameInputsOut )
 {
 	vGameInputsOut.clear();
 
-	std::vector<RString> asGameButtons;
+	vector<RString> asGameButtons;
 	split( GAME_BUTTONS_TO_SHOW.GetValue(), ",", asGameButtons );
 	FOREACH_ENUM( GameController,  gc )
 	{
-		for (RString const &button : asGameButtons)
+		FOREACH_CONST( RString, asGameButtons, button )
 		{
-			GameButton gb = StringToGameButton( INPUTMAPPER->GetInputScheme(), button );
+			GameButton gb = StringToGameButton( INPUTMAPPER->GetInputScheme(), *button );
 			if( gb != GameButton_Invalid )
 			{
 				GameInput gi = GameInput( gc, gb );
@@ -72,22 +68,21 @@ static void GetUsedGameInputs( std::vector<GameInput> &vGameInputsOut )
 		}
 	}
 
-	std::set<GameInput> vGIs;
-	std::vector<const Style*> vStyles;
+	set<GameInput> vGIs;
+	vector<const Style*> vStyles;
 	GAMEMAN->GetStylesForGame( GAMESTATE->m_pCurGame, vStyles );
-	auto const &value = CommonMetrics::STEPS_TYPES_TO_SHOW.GetValue();
-	for (Style const *style : vStyles)
+	FOREACH( const Style*, vStyles, style )
 	{
-		bool bFound = find( value.begin(), value.end(), style->m_StepsType ) != value.end();
+		bool bFound = find( CommonMetrics::STEPS_TYPES_TO_SHOW.GetValue().begin(), CommonMetrics::STEPS_TYPES_TO_SHOW.GetValue().end(), (*style)->m_StepsType ) != CommonMetrics::STEPS_TYPES_TO_SHOW.GetValue().end();
 		if( !bFound )
 			continue;
 		FOREACH_PlayerNumber( pn )
 		{
-			for( int iCol=0; iCol < style->m_iColsPerPlayer; ++iCol )
+			for( int iCol=0; iCol<(*style)->m_iColsPerPlayer; ++iCol )
 			{
-				std::vector<GameInput> gi;
-				style->StyleInputToGameInput( iCol, pn, gi );
-				for(std::size_t i= 0; i < gi.size(); ++i)
+				vector<GameInput> gi;
+				(*style)->StyleInputToGameInput( iCol, pn, gi );
+				for(size_t i= 0; i < gi.size(); ++i)
 				{
 					if(gi[i].IsValid())
 					{
@@ -98,11 +93,11 @@ static void GetUsedGameInputs( std::vector<GameInput> &vGameInputsOut )
 		}
 	}
 
-	for (GameInput const &input : vGIs)
-		vGameInputsOut.push_back( input );
+	FOREACHS_CONST( GameInput, vGIs, gi )
+		vGameInputsOut.push_back( *gi );
 }
 
-LightsManager*	LIGHTSMAN = nullptr;	// global and accessible from anywhere in our program
+LightsManager*	LIGHTSMAN = NULL;	// global and accessible from anywhere in our program
 
 LightsManager::LightsManager()
 {
@@ -124,17 +119,15 @@ LightsManager::LightsManager()
 
 LightsManager::~LightsManager()
 {
-	for (LightsDriver *iter : m_vpDrivers)
-	{
-		SAFE_DELETE( iter );
-	}
+	FOREACH( LightsDriver*, m_vpDrivers, iter )
+		SAFE_DELETE( *iter );
 	m_vpDrivers.clear();
 }
 
 // XXX: Allow themer to change these. (rewritten; who wrote original? -aj)
 static const float g_fLightEffectRiseSeconds = 0.075f;
 static const float g_fLightEffectFalloffSeconds = 0.35f;
-static const float g_fCoinPulseTime = 0.100f;
+static const float g_fCoinPulseTime = 0.100f; 
 void LightsManager::BlinkActorLight( CabinetLight cl )
 {
 	m_fSecsLeftInActorLightBlink[cl] = g_fLightEffectRiseSeconds;
@@ -155,7 +148,7 @@ void LightsManager::Update( float fDeltaTime )
 		if( fDuration > 0 )
 		{
 			// The light has power left.  Brighten it.
-			float fSeconds = std::min( fDuration, fTime );
+			float fSeconds = min( fDuration, fTime );
 			fDuration -= fSeconds;
 			fTime -= fSeconds;
 			fapproach( m_fActorLights[cl], 1, fSeconds / g_fLightEffectRiseSeconds );
@@ -208,7 +201,7 @@ void LightsManager::Update( float fDeltaTime )
 	if( m_LightsMode == LIGHTSMODE_TEST_AUTO_CYCLE )
 	{
 		m_fTestAutoCycleCurrentIndex += fDeltaTime;
-		m_fTestAutoCycleCurrentIndex = std::fmod( m_fTestAutoCycleCurrentIndex, NUM_CabinetLight*100 );
+		m_fTestAutoCycleCurrentIndex = fmodf( m_fTestAutoCycleCurrentIndex, NUM_CabinetLight*100 );
 	}
 
 	switch( m_LightsMode )
@@ -354,20 +347,11 @@ void LightsManager::Update( float fDeltaTime )
 					{
 						m_LightsState.m_bGameButtonLights[pn][GAME_BUTTON_MENULEFT] = true;
 						m_LightsState.m_bGameButtonLights[pn][GAME_BUTTON_MENURIGHT] = true;
-						m_LightsState.m_bGameButtonLights[pn][GAME_BUTTON_MENUUP] = true;
-						m_LightsState.m_bGameButtonLights[pn][GAME_BUTTON_MENUDOWN] = true;
-					}
-					else
-					{
-						//flash select during evaluation screen to indicate
-						//that the button can be used for screenshots etc.
-						m_LightsState.m_bGameButtonLights[pn][GAME_BUTTON_SELECT] = true;
 					}
 				}
 			}
 
 			// fall through to blink on button presses
-			[[fallthrough]];
 		}
 
 		case LIGHTSMODE_DEMONSTRATION:
@@ -389,7 +373,6 @@ void LightsManager::Update( float fDeltaTime )
 			}
 
 			// fall through to blink on button presses
-			[[fallthrough]];
 		}
 
 		case LIGHTSMODE_ATTRACT:
@@ -411,7 +394,7 @@ void LightsManager::Update( float fDeltaTime )
 		{
 			int index = GetTestAutoCycleCurrentIndex();
 
-			std::vector<GameInput> vGI;
+			vector<GameInput> vGI;
 			GetUsedGameInputs( vGI );
 			wrap( index, vGI.size() );
 
@@ -428,7 +411,7 @@ void LightsManager::Update( float fDeltaTime )
 		{
 			ZERO( m_LightsState.m_bGameButtonLights );
 
-			std::vector<GameInput> vGI;
+			vector<GameInput> vGI;
 			GetUsedGameInputs( vGI );
 
 			if( m_iControllerTestManualCycleCurrent != -1 )
@@ -455,8 +438,8 @@ void LightsManager::Update( float fDeltaTime )
 	}
 
 	// apply new light values we set above
-	for (LightsDriver *iter : m_vpDrivers)
-		iter->Set( &m_LightsState );
+	FOREACH( LightsDriver*, m_vpDrivers, iter )
+		(*iter)->Set( &m_LightsState );
 }
 
 void LightsManager::BlinkCabinetLight( CabinetLight cl )
@@ -494,7 +477,7 @@ void LightsManager::ChangeTestGameButtonLight( int iDir )
 {
 	m_clTestManualCycleCurrent = CabinetLight_Invalid;
 
-	std::vector<GameInput> vGI;
+	vector<GameInput> vGI;
 	GetUsedGameInputs( vGI );
 
 	m_iControllerTestManualCycleCurrent += iDir;
@@ -529,16 +512,10 @@ bool LightsManager::IsEnabled() const
 	return m_vpDrivers.size() >= 1 || PREFSMAN->m_bDebugLights;
 }
 
-void LightsManager::TurnOffAllLights()
-{
-	for(LightsDriver *iter : m_vpDrivers)
-		iter->Reset();
-}
-
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -548,7 +525,7 @@ void LightsManager::TurnOffAllLights()
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

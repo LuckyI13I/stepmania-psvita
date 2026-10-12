@@ -3,9 +3,7 @@
 #include "RageUtil.h"
 #include "RageFile.h"
 #include "RageLog.h"
-
-#include <vector>
-
+#include "Foreach.h"
 
 CsvFile::CsvFile()
 {
@@ -47,7 +45,7 @@ bool CsvFile::ReadFile( RageFileBasic &f )
 
 		utf8_remove_bom( line );
 
-		std::vector<RString> vs;
+		vector<RString> vs;
 
 		while( !line.empty() )
 		{
@@ -116,15 +114,15 @@ bool CsvFile::WriteFile( const RString &sPath ) const
 
 bool CsvFile::WriteFile( RageFileBasic &f ) const
 {
-	for (StringVector const &line : m_vvs)
+	FOREACH_CONST( StringVector, m_vvs, line ) 
 	{
 		RString sLine;
-		for (auto value = line.begin(); value != line.end(); ++value)
+		FOREACH_CONST( RString, *line, value ) 
 		{
 			RString sVal = *value;
 			sVal.Replace( "\"", "\"\"" );	// escape quotes to double-quotes
 			sLine += "\"" + sVal + "\"";
-			if( value != line.end()-1 )
+			if( value != line->end()-1 )
 				sLine += ",";
 		}
 		if( f.PutLine(sLine) == -1 )
@@ -140,7 +138,7 @@ bool CsvFile::WriteFile( RageFileBasic &f ) const
 /*
  * (c) 2001-2004 Adam Clauss, Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -150,7 +148,7 @@ bool CsvFile::WriteFile( RageFileBasic &f ) const
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

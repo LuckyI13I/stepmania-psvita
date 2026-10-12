@@ -7,7 +7,6 @@
 #import <Cocoa/Cocoa.h>
 #include "ProductInfo.h"
 #include "arch/ArchHooks/ArchHooks.h"
-#include "StepMania.h"
 
 @interface NSApplication (PrivateShutUpWarning)
 - (void) setAppleMenu:(NSMenu *)menu;
@@ -24,13 +23,12 @@
 @implementation SMApplication
 - (void)fullscreen:(id)sender
 {
-	// don't use ArchHooks::SetToggleWindowed(), it makes the screen black
-	[[self mainWindow] toggleFullScreen:nil];
+	ArchHooks::SetToggleWindowed();
 }
 
 - (void)sendEvent:(NSEvent *)event
 {
-	if( [event type] == NSEventTypeKeyDown )
+	if( [event type] == NSKeyDown )
 		[[self mainMenu] performKeyEquivalent:event];
 	else
 		[super sendEvent:event];
@@ -56,7 +54,7 @@
 
 - (id) initWithArgc:(int)argc argv:(char **)argv
 {
-	self = [super init];
+	[super init];
 	if( argc == 2 && !strncmp(argv[1], "-psn_", 5) )
 		argc = 1;
 	m_iArgc = argc;
@@ -172,7 +170,7 @@ static void SetupMenus( void )
 	NSMenu *windowMenu = [[[NSMenu alloc] initWithTitle:sWindow] autorelease];
 	NSMenuItem *hideOthers = MenuItem( sHideOthers, @selector(hideOtherApplications:), @"h" );
 
-	[hideOthers setKeyEquivalentModifierMask:NSEventModifierFlagOption | NSEventModifierFlagCommand ];
+	[hideOthers setKeyEquivalentModifierMask:NSAlternateKeyMask | NSCommandKeyMask ];
 
 	[appMenu addItem:MenuItem( sAbout, @selector(orderFrontStandardAboutPanel:), @"" )];
 	[appMenu addItem:[NSMenuItem separatorItem]];
@@ -188,11 +186,11 @@ static void SetupMenus( void )
 	// Add a Full Screen item.
 	NSMenuItem *item = MenuItem( sEnterFullScreen, @selector(fullscreen:), @"\n" );
 
-	[item setKeyEquivalentModifierMask:NSEventModifierFlagOption]; // opt-enter
+	[item setKeyEquivalentModifierMask:NSAlternateKeyMask]; // opt-enter
 	[windowMenu addItem:item];
 
-	[[mainMenu addItemWithTitle:[appMenu title] action:nil keyEquivalent:@""] setSubmenu:appMenu];
-	[[mainMenu addItemWithTitle:[windowMenu title] action:nil keyEquivalent:@""] setSubmenu:windowMenu];
+	[[mainMenu addItemWithTitle:[appMenu title] action:NULL keyEquivalent:@""] setSubmenu:appMenu];
+	[[mainMenu addItemWithTitle:[windowMenu title] action:NULL keyEquivalent:@""] setSubmenu:windowMenu];
 
 	[NSApp setMainMenu:mainMenu];
 	[NSApp setAppleMenu:appMenu]; // This isn't the apple menu, but it doesn't work without this.
@@ -218,7 +216,7 @@ int main( int argc, char **argv )
 
 	// Create SMMain and make it the app delegate.
 	sm = [[SMMain alloc] initWithArgc:argc argv:argv];
-	[NSApp setDelegate:static_cast<id<NSApplicationDelegate>>(sm)];
+	[NSApp setDelegate:sm];
 
 	[pool release];
 	// Start the main event loop.

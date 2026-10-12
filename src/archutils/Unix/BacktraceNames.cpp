@@ -3,16 +3,14 @@
 #include "global.h"
 #include "BacktraceNames.h"
 
-#include <cerrno>
-#include <cstdarg>
-#include <cstddef>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
+#include <cstdarg>
 #if defined(HAVE_UNISTD_H)
 #include <unistd.h>
 #endif
+#include <cstring>
+#include <cerrno>
 
 #include "RageUtil.h"
 
@@ -46,7 +44,7 @@ void BacktraceNames::Demangle()
 		return;
 
 	int status = 0;
-	char *name = abi::__cxa_demangle( Symbol, nullptr, nullptr, &status );
+	char *name = abi::__cxa_demangle( Symbol, NULL, NULL, &status );
 	if( name )
 	{
 		Symbol = name;
@@ -81,7 +79,7 @@ RString BacktraceNames::Format() const
 	if( ShortenedPath != "" )
 	{
 		/* Abbreviate the module name. */
-		std::size_t slash = ShortenedPath.rfind('/');
+		size_t slash = ShortenedPath.rfind('/');
 		if( slash != ShortenedPath.npos )
 			ShortenedPath = ShortenedPath.substr(slash+1);
 		ShortenedPath = RString("(") + ShortenedPath + ")";
@@ -101,7 +99,7 @@ RString BacktraceNames::Format() const
 #include <dlfcn.h>
 void BacktraceNames::FromAddr( void * const p )
 {
-    Address = (std::intptr_t) p;
+    Address = (intptr_t) p;
 
     /*
      * When calling a function that doesn't return, gcc will truncate a function.
@@ -123,7 +121,7 @@ void BacktraceNames::FromAddr( void * const p )
      * between one function and the next, because the first lookup will succeed.
      */
     Dl_info di;
-    if( !dladdr((void *) p, &di) || di.dli_sname == nullptr )
+    if( !dladdr((void *) p, &di) || di.dli_sname == NULL )
     {
 		if( !dladdr( ((char *) p) - 8, &di) )
 			return;
@@ -179,7 +177,7 @@ static int osx_find_image( const void *p )
 	for( unsigned i = 0; i < image_count; i++ )
 	{
 		const struct mach_header *header = _dyld_get_image_header(i);
-		if( header == nullptr )
+		if( header == NULL )
 			continue;
 
 		/* The load commands directly follow the mach_header. */
@@ -221,12 +219,12 @@ static const char *osx_find_link_edit( const struct mach_header *header )
 			return (char *) ( scmd->vmaddr - scmd->fileoff );
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 void BacktraceNames::FromAddr( void * const p )
 {
-	Address = (std::intptr_t) p;
+	Address = (intptr_t) p;
 
 	/* Find the image with the given pointer. */
 	int index = osx_find_image( p );
@@ -237,7 +235,7 @@ void BacktraceNames::FromAddr( void * const p )
 
 	/* Find the link-edit pointer. */
 	const char *link_edit = osx_find_link_edit( _dyld_get_image_header(index) );
-	if( link_edit == nullptr )
+	if( link_edit == NULL )
 		return;
 	link_edit += _dyld_get_image_vmaddr_slide( index );
 
@@ -246,8 +244,8 @@ void BacktraceNames::FromAddr( void * const p )
 	const struct load_command *cmd = (struct load_command *) &header[1];
 	unsigned long diff = 0xffffffff;
 
-	const char *dli_sname = nullptr;
-	void *dli_saddr = nullptr;
+	const char *dli_sname = NULL;
+	void *dli_saddr = NULL;
 
 	for( unsigned long i = 0; i < header->ncmds; i++, cmd = next_load_command(cmd) )
 	{
@@ -298,10 +296,10 @@ void BacktraceNames::FromAddr( void * const p )
 #include <execinfo.h>
 void BacktraceNames::FromAddr( void * const p )
 {
-    Address = (std::intptr_t) p;
+    Address = (intptr_t) p;
 
     char **foo = backtrace_symbols(&p, 1);
-    if( foo == nullptr )
+    if( foo == NULL )
         return;
     FromString( foo[0] );
     free(foo);
@@ -326,7 +324,7 @@ void BacktraceNames::FromString( RString s )
 
     if( MangledAndOffset != "" )
     {
-        std::size_t plus = MangledAndOffset.rfind('+');
+        size_t plus = MangledAndOffset.rfind('+');
 
         if(plus == MangledAndOffset.npos)
         {
@@ -346,7 +344,7 @@ void BacktraceNames::FromString( RString s )
 #warning Undefined BACKTRACE_LOOKUP_METHOD_*
 void BacktraceNames::FromAddr( void * const p )
 {
-    Address = std::intptr_t(p);
+    Address = intptr_t(p);
     Offset = 0;
     Symbol = "";
     File = "";

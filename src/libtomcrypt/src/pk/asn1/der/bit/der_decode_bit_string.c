@@ -5,6 +5,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -43,8 +45,8 @@ int der_decode_bit_string(const unsigned char *in,  unsigned long inlen,
       return CRYPT_INVALID_PACKET;
    }
 
-   /* offset in the data */
-   x = 1;
+    /* offset in the data */
+    x = 1;
 
    /* get the length of the data */
    if (in[x] & 0x80) {
@@ -65,7 +67,7 @@ int der_decode_bit_string(const unsigned char *in,  unsigned long inlen,
       /* short format */
       dlen = in[x++] & 0x7F;
    }
-
+  
    /* is the data len too long or too short? */
    if ((dlen == 0) || (dlen + x > inlen)) {
        return CRYPT_INVALID_PACKET;
@@ -95,6 +97,6 @@ int der_decode_bit_string(const unsigned char *in,  unsigned long inlen,
 
 #endif
 
-/* ref:         HEAD -> master, tag: v1.18.2 */
-/* git commit:  7e7eb695d581782f04b24dc444cbfde86af59853 */
-/* commit time: 2018-07-01 22:49:01 +0200 */
+/* $Source$ */
+/* $Revision: 24838 $ */
+/* $Date: 2007-01-23 23:16:57 -0600 (Tue, 23 Jan 2007) $ */

@@ -28,16 +28,10 @@
 #include "NotesLoaderDWI.h"
 #include "NotesLoaderKSF.h"
 #include "NotesLoaderBMS.h"
-
 #include <algorithm>
-#include <cstddef>
-#include <vector>
 
 /* register DisplayBPM with StringConversion */
 #include "EnumHelper.h"
-
-// For hashing hart keys - Mina
-#include "CryptManager.h"
 
 static const char *DisplayBPMNames[] =
 {
@@ -49,10 +43,10 @@ XToString( DisplayBPM );
 LuaXType( DisplayBPM );
 
 Steps::Steps(Song *song): m_StepsType(StepsType_Invalid), m_pSong(song),
-	parent(nullptr), m_pNoteData(new NoteData), m_bNoteDataIsFilled(false),
-	m_sNoteDataCompressed(""), m_sFilename(""), m_bSavedToDisk(false),
+	parent(NULL), m_pNoteData(new NoteData), m_bNoteDataIsFilled(false), 
+	m_sNoteDataCompressed(""), m_sFilename(""), m_bSavedToDisk(false), 
 	m_LoadedFromProfile(ProfileSlot_Invalid), m_iHash(0),
-	m_sDescription(""), m_sChartStyle(""),
+	m_sDescription(""), m_sChartStyle(""), 
 	m_Difficulty(Difficulty_Invalid), m_iMeter(0),
 	m_bAreCachedRadarValuesJustLoaded(false),
 	m_sCredit(""), displayBPMType(DISPLAY_BPM_ACTUAL),
@@ -120,16 +114,16 @@ bool Steps::GetNoteDataFromSimfile()
 			/*
 			HACK: 7/20/12 -- see bugzilla #740
 			users who edit songs using the ever popular .sm file
-			that remove or tamper with the .ssc file later on
+			that remove or tamper with the .ssc file later on 
 			complain of blank steps in the editor after reloading.
-			Despite the blank steps being well justified since
+			Despite the blank steps being well justified since 
 			the cache files contain only the SSC step file,
 			give the user some leeway and search for a .sm replacement
 			*/
 			SMLoader backup_loader;
 			RString transformedStepFile = stepFile;
 			transformedStepFile.Replace(".ssc", ".sm");
-
+			
 			return backup_loader.LoadNoteDataFromSimfile(transformedStepFile, *this);
 		}
 		else
@@ -181,7 +175,7 @@ void Steps::SetNoteData( const NoteData& noteDataNew )
 
 	*m_pNoteData = noteDataNew;
 	m_bNoteDataIsFilled = true;
-
+	
 	m_sNoteDataCompressed = RString();
 	m_iHash = 0;
 }
@@ -222,7 +216,7 @@ void Steps::GetSMNoteData( RString &notes_comp_out ) const
 {
 	if( m_sNoteDataCompressed.empty() )
 	{
-		if( !m_bNoteDataIsFilled )
+		if( !m_bNoteDataIsFilled ) 
 		{
 			/* no data is no data */
 			notes_comp_out = "";
@@ -298,7 +292,7 @@ void Steps::TidyUpData()
 void Steps::CalculateRadarValues( float fMusicLengthSeconds )
 {
 	// If we're autogen, don't calculate values.  GetRadarValues will take from our parent.
-	if( parent != nullptr )
+	if( parent != NULL )
 		return;
 
 	if( m_bAreCachedRadarValuesJustLoaded )
@@ -324,10 +318,10 @@ void Steps::CalculateRadarValues( float fMusicLengthSeconds )
 	GAMESTATE->SetProcessedTimingData(this->GetTimingData());
 	if( tempNoteData.IsComposite() )
 	{
-		std::vector<NoteData> vParts;
+		vector<NoteData> vParts;
 
 		NoteDataUtil::SplitCompositeNoteData( tempNoteData, vParts );
-		for( std::size_t pn = 0; pn < std::min(vParts.size(), std::size_t(NUM_PLAYERS)); ++pn )
+		for( size_t pn = 0; pn < min(vParts.size(), size_t(NUM_PLAYERS)); ++pn )
 			NoteDataUtil::CalculateRadarValues( vParts[pn], fMusicLengthSeconds, m_CachedRadarValues[pn] );
 	}
 	else if (GAMEMAN->GetStepsTypeInfo(this->m_StepsType).m_StepsTypeCategory == StepsTypeCategory_Couple)
@@ -349,18 +343,9 @@ void Steps::CalculateRadarValues( float fMusicLengthSeconds )
 	else
 	{
 		NoteDataUtil::CalculateRadarValues( tempNoteData, fMusicLengthSeconds, m_CachedRadarValues[0] );
-		std::fill_n( m_CachedRadarValues + 1, NUM_PLAYERS-1, m_CachedRadarValues[0] );
+		fill_n( m_CachedRadarValues + 1, NUM_PLAYERS-1, m_CachedRadarValues[0] );
 	}
-	GAMESTATE->SetProcessedTimingData(nullptr);
-}
-
-void Steps::ChangeFilenamesForCustomSong()
-{
-	m_sFilename= custom_songify_path(m_sFilename);
-	if(!m_MusicFile.empty())
-	{
-		m_MusicFile= custom_songify_path(m_MusicFile);
-	}
+	GAMESTATE->SetProcessedTimingData(NULL);
 }
 
 void Steps::Decompress() const
@@ -453,7 +438,7 @@ void Steps::Compress() const
 		m_sNoteDataCompressed = RString();
 		return;
 	}
-
+	
 	// Don't compress data in the editor: it's still in use.
 	if (GAMESTATE->m_bInStepEditor)
 	{
@@ -502,9 +487,9 @@ void Steps::DeAutogen( bool bCopyNoteData )
 	m_sChartStyle		= Real()->m_sChartStyle;
 	m_Difficulty		= Real()->m_Difficulty;
 	m_iMeter		= Real()->m_iMeter;
-	std::copy( Real()->m_CachedRadarValues, Real()->m_CachedRadarValues + NUM_PLAYERS, m_CachedRadarValues );
+	copy( Real()->m_CachedRadarValues, Real()->m_CachedRadarValues + NUM_PLAYERS, m_CachedRadarValues );
 	m_sCredit		= Real()->m_sCredit;
-	parent = nullptr;
+	parent = NULL;
 
 	if( bCopyNoteData )
 		Compress();
@@ -525,7 +510,7 @@ void Steps::CopyFrom( Steps* pSource, StepsType ntTo, float fMusicLengthSeconds 
 	NoteData noteData;
 	pSource->GetNoteData( noteData );
 	noteData.SetNumTracks( GAMEMAN->GetStepsTypeInfo(ntTo).iNumTracks );
-	parent = nullptr;
+	parent = NULL;
 	m_Timing = pSource->m_Timing;
 	this->m_pSong = pSource->m_pSong;
 	this->m_Attacks = pSource->m_Attacks;
@@ -598,9 +583,7 @@ bool Steps::HasSignificantTimingChanges() const
 	if( timing->HasBpmChanges() )
 	{
 		// check to see if these changes are significant.
-		DisplayBpms bpms;
-		m_pSong->GetDisplayBpms(bpms);
-		if (bpms.GetMax() - bpms.GetMin() > 3.000f)
+		if( (GetMaxBPM() - GetMinBPM()) > 3.000f )
 			return true;
 	}
 
@@ -627,94 +610,9 @@ void Steps::SetMusicFile(const RString& file)
 void Steps::SetCachedRadarValues( const RadarValues v[NUM_PLAYERS] )
 {
 	DeAutogen();
-	std::copy( v, v + NUM_PLAYERS, m_CachedRadarValues );
+	copy( v, v + NUM_PLAYERS, m_CachedRadarValues );
 	m_bAreCachedRadarValuesJustLoaded = true;
 }
-
-RString Steps::GenerateChartKey()
-{
-	ChartKey = this->GenerateChartKey(*m_pNoteData, this->GetTimingData());
-	return ChartKey;
-}
-RString Steps::GetChartKey()
-{
-	if (ChartKey.empty()) {
-		this->Decompress();
-		ChartKey = this->GenerateChartKey(*m_pNoteData, this->GetTimingData());
-		this->Compress();
-	}
-	return ChartKey;
-}
-RString Steps::GenerateChartKey(NoteData &nd, TimingData *td)
-{
-	RString k = "";
-	RString o = "";
-	float bpm;
-	nd.LogNonEmptyRows();
-	std::vector<int>& nerv = nd.GetNonEmptyRowVector();
-
-
-	RString firstHalf = "";
-	RString secondHalf = "";
-
-#pragma omp parallel sections
-	{
-#pragma omp section
-		{
-			for (std::size_t r = 0; r < nerv.size() / 2; r++) {
-				int row = nerv[r];
-				for (int t = 0; t < nd.GetNumTracks(); ++t) {
-					const TapNote &tn = nd.GetTapNote(t, row);
-					std::ostringstream os;
-					os << tn.type;
-					firstHalf.append(os.str());
-				}
-				bpm = td->GetBPMAtRow(row);
-				std::ostringstream os;
-				os << static_cast<int>(bpm + 0.374643f);
-				firstHalf.append(os.str());
-			}
-		}
-
-#pragma omp section
-		{
-			for (std::size_t r = nerv.size() / 2; r < nerv.size(); r++) {
-				int row = nerv[r];
-				for (int t = 0; t < nd.GetNumTracks(); ++t) {
-					const TapNote &tn = nd.GetTapNote(t, row);
-					std::ostringstream os;
-					os << tn.type;
-					secondHalf.append(os.str());
-				}
-				bpm = td->GetBPMAtRow(row);
-				std::ostringstream os;
-				os << static_cast<int>(bpm + 0.374643f);
-				firstHalf.append(os.str());
-			}
-		}
-	}
-	k = firstHalf + secondHalf;
-
-	//ChartKeyRecord = k;
-	o.append("X");	// I was thinking of using "C" to indicate chart.. however.. X is cooler... - Mina
-	o.append(BinaryToHex(CryptManager::GetSHA1ForString(k)));
-	return o;
-}
-
-std::vector<ColumnCue> Steps::GetColumnCues(float minDuration)
-{
-	// TODO: Should we worry about getting the right steps per player?
-	// It seems like this is only necessary when dealing with Couples charts
-
-	std::vector<ColumnCue> cues;
-	NoteData noteData;
-	this->GetNoteData( noteData );
-	GAMESTATE->SetProcessedTimingData(this->GetTimingData());
-	ColumnCue::CalculateColumnCues(noteData, cues, minDuration);
-	GAMESTATE->SetProcessedTimingData(nullptr);
-	return cues;
-}
-
 
 // lua start
 #include "LuaBinding.h"
@@ -735,13 +633,13 @@ public:
 
 	static int HasSignificantTimingChanges( T* p, lua_State *L )
 	{
-		lua_pushboolean(L, p->HasSignificantTimingChanges());
-		return 1;
+		lua_pushboolean(L, p->HasSignificantTimingChanges()); 
+		return 1; 
 	}
 	static int HasAttacks( T* p, lua_State *L )
-	{
-		lua_pushboolean(L, p->HasAttacks());
-		return 1;
+	{ 
+		lua_pushboolean(L, p->HasAttacks()); 
+		return 1; 
 	}
 	static int GetRadarValues( T* p, lua_State *L )
 	{
@@ -749,7 +647,7 @@ public:
 		if (!lua_isnil(L, 1)) {
 			pn = Enum::Check<PlayerNumber>(L, 1);
 		}
-
+		
 		RadarValues &rv = const_cast<RadarValues &>(p->GetRadarValues(pn));
 		rv.PushSelf(L);
 		return 1;
@@ -781,7 +679,7 @@ public:
 		p->GetDisplayBpms(temp);
 		float fMin = temp.GetMin();
 		float fMax = temp.GetMax();
-		std::vector<float> fBPMs;
+		vector<float> fBPMs;
 		fBPMs.push_back( fMin );
 		fBPMs.push_back( fMax );
 		LuaHelpers::CreateTableFromArray(fBPMs, L);
@@ -813,50 +711,6 @@ public:
 		return 1;
 	}
 
-	static int GetColumnCues(T *p, lua_State*L)
-	{
-		float minDuration = 1.5;
-		if (lua_isnumber(L, 1))
-		{
-			minDuration = lua_tonumber(L, 1);
-		}
-		std::vector<ColumnCue> cues = p->GetColumnCues(minDuration);
-		lua_createtable(L, cues.size(), 0);
-
-		for (unsigned i = 0; i < cues.size(); i++)
-		{
-			lua_newtable(L);
-			lua_pushstring(L, "startTime");
-			lua_pushnumber(L, cues[i].startTime);
-			lua_settable(L, -3);
-
-			lua_pushstring(L, "duration");
-			lua_pushnumber(L, cues[i].duration);
-			lua_settable(L, -3);
-
-			lua_pushstring(L, "columns");
-			lua_createtable(L, cues[i].columns.size(), 0);
-
-			for (unsigned c = 0; c < cues[i].columns.size(); c++)
-			{
-				lua_newtable(L);
-				lua_pushstring(L, "colNum");
-				lua_pushinteger(L, cues[i].columns[c].colNum);
-				lua_settable(L, -3);
-
-				lua_pushstring(L, "noteType");
-				lua_pushinteger(L, cues[i].columns[c].noteType);
-				lua_settable(L, -3);
-
-				lua_rawseti(L, -2, c + 1);
-			}
-
-			lua_settable(L, -3);
-			lua_rawseti(L, -2, i + 1);
-		}
-		return 1;
-	}
-	
 	LunaSteps()
 	{
 		ADD_METHOD( GetAuthorCredit );
@@ -882,7 +736,6 @@ public:
 		ADD_METHOD( IsDisplayBpmRandom );
 		ADD_METHOD( PredictMeter );
 		ADD_METHOD( GetDisplayBPMType );
-		ADD_METHOD( GetColumnCues );
 	}
 };
 
@@ -893,7 +746,7 @@ LUA_REGISTER_CLASS( Steps )
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard, David Wilson
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -903,7 +756,7 @@ LUA_REGISTER_CLASS( Steps )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

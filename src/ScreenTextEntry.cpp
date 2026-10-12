@@ -15,8 +15,6 @@
 #include "LuaBinding.h"
 #include "arch/ArchHooks/ArchHooks.h" // HOOKS->GetClipboard()
 
-#include <cmath>
-
 static const char* g_szKeys[NUM_KeyboardRow][KEYS_PER_ROW] =
 {
 	{"A","B","C","D","E","F","G","H","I","J","K","L","M"},
@@ -52,18 +50,18 @@ namespace
 	LuaReference g_FormatAnswerForDisplayFunc;
 };
 
-void ScreenTextEntry::SetTextEntrySettings(
-	RString sQuestion,
-	RString sInitialAnswer,
+void ScreenTextEntry::SetTextEntrySettings( 
+	RString sQuestion, 
+	RString sInitialAnswer, 
 	int iMaxInputLength,
-	bool(*Validate)(const RString &sAnswer,RString &sErrorOut),
-	void(*OnOK)(const RString &sAnswer),
+	bool(*Validate)(const RString &sAnswer,RString &sErrorOut), 
+	void(*OnOK)(const RString &sAnswer), 
 	void(*OnCancel)(),
 	bool bPassword,
 	bool (*ValidateAppend)(const RString &sAnswerBeforeChar, RString &sAppend),
 	RString (*FormatAnswerForDisplay)(const RString &sAnswer)
 	)
-{
+{	
 	g_sQuestion = sQuestion;
 	g_sInitialAnswer = sInitialAnswer;
 	g_iMaxInputLength = iMaxInputLength;
@@ -74,13 +72,13 @@ void ScreenTextEntry::SetTextEntrySettings(
 	g_pFormatAnswerForDisplay = FormatAnswerForDisplay;
 }
 
-void ScreenTextEntry::TextEntry(
-	ScreenMessage smSendOnPop,
-	RString sQuestion,
-	RString sInitialAnswer,
+void ScreenTextEntry::TextEntry( 
+	ScreenMessage smSendOnPop, 
+	RString sQuestion, 
+	RString sInitialAnswer, 
 	int iMaxInputLength,
-	bool(*Validate)(const RString &sAnswer,RString &sErrorOut),
-	void(*OnOK)(const RString &sAnswer),
+	bool(*Validate)(const RString &sAnswer,RString &sErrorOut), 
+	void(*OnOK)(const RString &sAnswer), 
 	void(*OnCancel)(),
 	bool bPassword,
 	bool (*ValidateAppend)(const RString &sAnswerBeforeChar, RString &sAppend),
@@ -226,7 +224,7 @@ bool ScreenTextEntry::Input( const InputEventPlus &input )
 				break;
 		}
 	}
-
+	
 	if( input.DeviceI == DeviceInput(DEVICE_KEYBOARD, KEY_RCTRL) )
 	{
 		switch( input.type )
@@ -241,7 +239,7 @@ bool ScreenTextEntry::Input( const InputEventPlus &input )
 				break;
 		}
 	}
-
+	
 	bool bHandled = false;
 	if( input.DeviceI == DeviceInput(DEVICE_KEYBOARD, KEY_BACK) )
 	{
@@ -262,14 +260,14 @@ bool ScreenTextEntry::Input( const InputEventPlus &input )
 		if( ( c == L'v' || c == L'V' ) && ( bLCtrl || bRCtrl ) )
 		{
 			TryAppendToAnswer( HOOKS->GetClipboard() );
-
+			
 			TextEnteredDirectly(); // XXX: This doesn't seem appropriate but there's no TextPasted()
 			bHandled = true;
 		}
-		else if( c >= L' ' )
+		else if( c >= L' ' ) 
 		{
 			// todo: handle caps lock -aj
-			TryAppendToAnswer( WStringToRString(std::wstring()+c) );
+			TryAppendToAnswer( WStringToRString(wstring()+c) );
 
 			TextEnteredDirectly();
 			bHandled = true;
@@ -282,7 +280,7 @@ bool ScreenTextEntry::Input( const InputEventPlus &input )
 void ScreenTextEntry::TryAppendToAnswer( RString s )
 {
 	{
-		std::wstring sNewAnswer = m_sAnswer+RStringToWstring(s);
+		wstring sNewAnswer = m_sAnswer+RStringToWstring(s);
 		if( (int)sNewAnswer.length() > g_iMaxInputLength )
 		{
 			SCREENMAN->PlayInvalidSound();
@@ -296,7 +294,7 @@ void ScreenTextEntry::TryAppendToAnswer( RString s )
 		return;
 	}
 
-	std::wstring sNewAnswer = m_sAnswer+RStringToWstring(s);
+	wstring sNewAnswer = m_sAnswer+RStringToWstring(s);
 	m_sAnswer = sNewAnswer;
 	m_sndType.Play(true);
 	UpdateAnswerText();
@@ -329,7 +327,7 @@ void ScreenTextEntry::End( bool bCancelled )
 {
 	if( bCancelled )
 	{
-		if( g_pOnCancel )
+		if( g_pOnCancel ) 
 			g_pOnCancel();
 
 		Cancel( SM_GoToNextScreen );
@@ -339,7 +337,7 @@ void ScreenTextEntry::End( bool bCancelled )
 	{
 		RString sAnswer = WStringToRString(m_sAnswer);
 		RString sError;
-		if( g_pValidate != nullptr )
+		if( g_pValidate != NULL )
 		{
 			bool bValidAnswer = g_pValidate( sAnswer, sError );
 			if( !bValidAnswer )
@@ -386,7 +384,7 @@ void ScreenTextEntry::TextEntrySettings::FromStack( lua_State *L )
 	// Get ScreenMessage
 	lua_getfield( L, iTab, "SendOnPop" );
 	const char *pStr = lua_tostring( L, -1 );
-	if( pStr == nullptr )
+	if( pStr == NULL )
 		smSendOnPop = SM_None;
 	else
 		smSendOnPop = ScreenMessageHelpers::ToScreenMessage( pStr );
@@ -395,7 +393,7 @@ void ScreenTextEntry::TextEntrySettings::FromStack( lua_State *L )
 	// Get Question
 	lua_getfield( L, iTab, "Question" );
 	pStr = lua_tostring( L, -1 );
-	if( pStr == nullptr )
+	if( pStr == NULL )
 	{
 		LuaHelpers::ReportScriptError("ScreenTextEntry \"Question\" entry is not a string.");
 		pStr= "";
@@ -406,7 +404,7 @@ void ScreenTextEntry::TextEntrySettings::FromStack( lua_State *L )
 	// Get Initial Answer
 	lua_getfield( L, iTab, "InitialAnswer" );
 	pStr = lua_tostring( L, -1 );
-	if( pStr == nullptr )
+	if( pStr == NULL )
 		pStr = "";
 	sInitialAnswer = pStr;
 	lua_settop( L, iTab );
@@ -686,8 +684,8 @@ void ScreenTextEntryVisual::BeginScreen()
 		for( int x=0; x<KEYS_PER_ROW; ++x )
 		{
 			BitmapText &bt = *m_ptextKeys[r][x];
-			float fX = std::round( SCALE( x, 0, KEYS_PER_ROW-1, ROW_START_X, ROW_END_X ) );
-			float fY = std::round( SCALE( r, 0, NUM_KeyboardRow-1, ROW_START_Y, ROW_END_Y ) );
+			float fX = roundf( SCALE( x, 0, KEYS_PER_ROW-1, ROW_START_X, ROW_END_X ) );
+			float fY = roundf( SCALE( r, 0, NUM_KeyboardRow-1, ROW_START_Y, ROW_END_Y ) );
 			bt.SetXY( fX, fY );
 		}
 	}
@@ -719,7 +717,7 @@ void ScreenTextEntryVisual::MoveX( int iDir )
 		m_iFocusX += iDir;
 		wrap( m_iFocusX, KEYS_PER_ROW );
 
-		sKey = g_szKeys[m_iFocusY][m_iFocusX];
+		sKey = g_szKeys[m_iFocusY][m_iFocusX]; 
 	}
 	while( sKey == "" );
 
@@ -735,13 +733,13 @@ void ScreenTextEntryVisual::MoveY( int iDir )
 		m_iFocusY = enum_add2( m_iFocusY,  +iDir );
 		wrap( *ConvertValue<int>(&m_iFocusY), NUM_KeyboardRow );
 
-		// HACK: Round to nearest option so that we always stop
+		// HACK: Round to nearest option so that we always stop 
 		// on KEYBOARD_ROW_SPECIAL.
 		if( m_iFocusY == KEYBOARD_ROW_SPECIAL )
 		{
 			for( int i=0; true; i++ )
 			{
-				sKey = g_szKeys[m_iFocusY][m_iFocusX];
+				sKey = g_szKeys[m_iFocusY][m_iFocusX]; 
 				if( sKey != "" )
 					break;
 
@@ -751,7 +749,7 @@ void ScreenTextEntryVisual::MoveY( int iDir )
 			}
 		}
 
-		sKey = g_szKeys[m_iFocusY][m_iFocusX];
+		sKey = g_szKeys[m_iFocusY][m_iFocusX]; 
 	}
 	while( sKey == "" );
 
@@ -822,7 +820,7 @@ bool ScreenTextEntryVisual::MenuStart( const InputEventPlus &input )
 /*
  * (c) 2001-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -832,7 +830,7 @@ bool ScreenTextEntryVisual::MenuStart( const InputEventPlus &input )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

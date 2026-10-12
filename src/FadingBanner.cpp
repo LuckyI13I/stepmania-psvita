@@ -1,7 +1,7 @@
 #include "global.h"
 #include "FadingBanner.h"
 #include "RageTextureManager.h"
-#include "ImageCache.h"
+#include "BannerCache.h"
 #include "Song.h"
 #include "RageLog.h"
 #include "Course.h"
@@ -129,7 +129,7 @@ bool FadingBanner::LoadFromCachedBanner( const RString &path )
 	 * which will cause the fade-in to be further delayed. */
 
 	RageTextureID ID;
-	bool bLowRes = (PREFSMAN->m_ImageCache != IMGCACHE_FULL);
+	bool bLowRes = (PREFSMAN->m_BannerCache != BNCACHE_FULL);
 	if( !bLowRes )
 	{
 		ID = Sprite::SongBannerTexture( path );
@@ -137,7 +137,7 @@ bool FadingBanner::LoadFromCachedBanner( const RString &path )
 	else
 	{
 		// Try to load the low quality version.
-		ID = IMAGECACHE->LoadCachedImage( "Banner", path );
+		ID = BANNERCACHE->LoadCachedBanner( path );
 	}
 
 	if( !TEXTUREMAN->IsTextureRegistered(ID) )
@@ -166,7 +166,7 @@ bool FadingBanner::LoadFromCachedBanner( const RString &path )
 
 void FadingBanner::LoadFromSong( const Song* pSong )
 {
-	if( pSong == nullptr )
+	if( pSong == NULL )
 	{
 		LoadFallback();
 		return;
@@ -195,7 +195,7 @@ void FadingBanner::LoadFromSongGroup( RString sSongGroup )
 
 void FadingBanner::LoadFromCourse( const Course* pCourse )
 {
-	if( pCourse == nullptr )
+	if( pCourse == NULL )
 	{
 		LoadFallback();
 		return;
@@ -272,25 +272,25 @@ public:
 	static int ScaleToClipped( T* p, lua_State *L )			{ p->ScaleToClipped(FArg(1),FArg(2)); COMMON_RETURN_SELF; }
 	static int LoadFromSong( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadFromSong(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadFromSong( NULL ); }
 		else { Song *pS = Luna<Song>::check(L,1); p->LoadFromSong( pS ); }
 		COMMON_RETURN_SELF;
 	}
 	static int LoadFromCourse( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadFromCourse(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadFromCourse( NULL ); }
 		else { Course *pC = Luna<Course>::check(L,1); p->LoadFromCourse( pC ); }
 		COMMON_RETURN_SELF;
 	}
 	static int LoadIconFromCharacter( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadIconFromCharacter(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadIconFromCharacter( NULL ); }
 		else { Character *pC = Luna<Character>::check(L,1); p->LoadIconFromCharacter( pC ); }
 		COMMON_RETURN_SELF;
 	}
 	static int LoadCardFromCharacter( T* p, lua_State *L )
 	{ 
-		if( lua_isnil(L,1) ) { p->LoadIconFromCharacter(nullptr); }
+		if( lua_isnil(L,1) ) { p->LoadIconFromCharacter( NULL ); }
 		else { Character *pC = Luna<Character>::check(L,1); p->LoadIconFromCharacter( pC ); }
 		COMMON_RETURN_SELF;
 	}

@@ -17,10 +17,8 @@ AutoScreenMessage( SM_RoomInfoDeploy );
 
 RoomWheel::~RoomWheel()
 {
-	for (WheelItemBaseData *i : m_CurWheelItemData)
-	{	
-		SAFE_DELETE( i );
-	}
+	FOREACH( WheelItemBaseData*, m_CurWheelItemData, i )
+		SAFE_DELETE( *i );
 	m_CurWheelItemData.clear();
 }
 
@@ -129,9 +127,9 @@ void RoomWheel::RemoveItem( int index )
 	vector<WheelItemBaseData *>::iterator i = m_CurWheelItemData.begin();
 	i += index;
 
-	// If this item's data happened to be last selected, make it nullptr.
+	// If this item's data happened to be last selected, make it NULL.
 	if( m_LastSelection == *i )
-		m_LastSelection = nullptr;
+		m_LastSelection = NULL;
 
 	SAFE_DELETE( *i );
 	m_CurWheelItemData.erase( i );
@@ -154,8 +152,8 @@ bool RoomWheel::Select()
 		return WheelBase::Select();
 	if( m_iSelection == 0 )
 	{
-		// Since this is not actually an option outside of this wheel, nullptr is a good idea.
-		m_LastSelection = nullptr;
+		// Since this is not actually an option outside of this wheel, NULL is a good idea.
+		m_LastSelection = NULL;
 		ScreenTextEntry::TextEntry( SM_BackFromRoomName, ENTER_ROOM_NAME, "", 255 );
 	}
 	return false;
@@ -180,7 +178,7 @@ void RoomWheel::Move( int n )
 	if( n == 0 && m_iSelection >= m_offset )
 	{
 		const RoomWheelItemData* data = GetItem( m_iSelection-m_offset );
-		if( data != nullptr )
+		if( data != NULL )
 			SCREENMAN->PostMessageToTopScreen( SM_RoomInfoDeploy, 0 );
 	}
 	else
@@ -195,32 +193,6 @@ unsigned int RoomWheel::GetNumItems() const
 {
 	return m_CurWheelItemData.size() - m_offset;
 }
-
-// lua start
-#include "LuaBinding.h"
-
-class LunaRoomWheel : public Luna<RoomWheel>
-{
-public:
-	static int Move(T* p, lua_State *L)
-	{
-		if (lua_isnil(L, 1)) { p->Move(0); }
-		else
-		{
-			p->Move(IArg(1));
-		}
-		return 1;
-	}
-
-	LunaRoomWheel()
-	{
-		ADD_METHOD(Move);
-	}
-};
-
-LUA_REGISTER_DERIVED_CLASS(RoomWheel, WheelBase)
-// lua end
-
 
 /*
  * (c) 2004 Josh Allen

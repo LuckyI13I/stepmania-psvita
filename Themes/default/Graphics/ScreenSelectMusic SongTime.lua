@@ -1,2 +1,2 @@
-return LoadFont("Common normal") .. {
+return LoadFont("Common Normal") .. {
 };

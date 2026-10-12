@@ -8,9 +8,7 @@
 #include "RageTextureManager.h"
 #include "RageLog.h"
 #include "RageDisplay.h"
-
-#include <cmath>
-#include <numeric>
+#include "Foreach.h"
 
 #define MS_MAX_NAME	32
 
@@ -29,27 +27,10 @@ AnimatedTexture::~AnimatedTexture()
 	Unload();
 }
 
-RageVector3 RadianToDegree(RageVector3 radian)
-{
-	// This is more accurate than the original SM5 implementation,
-	// but that raises a double-to-float mismatch warning, so this
-	// prevents that issue from occurring.
-	//
-	// A way to implement the original code exactly would be:
-	//
-	// RageVector3 radian = { radian.x * (180.0f / PI) };
-
-	return RageVector3(
-		static_cast<float>(radian.x * (180.0f / PI)),
-		static_cast<float>(radian.y * (180.0f / PI)),
-		static_cast<float>(radian.z * (180.0f / PI))
-	);
-}
-
 void AnimatedTexture::LoadBlank()
 {
 	AnimatedTextureState state(
-		nullptr,
+		NULL,
 		1,
 		RageVector2(0,0)
 		);
@@ -61,7 +42,7 @@ void AnimatedTexture::Load( const RString &sTexOrIniPath )
 	ASSERT( vFrames.empty() );	// don't load more than once
 
 	m_bSphereMapped = sTexOrIniPath.find("sphere") != RString::npos;
-	if( sTexOrIniPath.find("add") != std::string::npos )
+	if( sTexOrIniPath.find("add") != string::npos )
 		m_BlendMode = BLEND_ADD;
 	else
 		m_BlendMode = BLEND_NORMAL;
@@ -73,7 +54,7 @@ void AnimatedTexture::Load( const RString &sTexOrIniPath )
 			RageException::Throw( "Error reading \"%s\": %s", sTexOrIniPath.c_str(), ini.GetError().c_str() );
 
 		const XNode* pAnimatedTexture = ini.GetChild("AnimatedTexture");
-		if( pAnimatedTexture == nullptr )
+		if( pAnimatedTexture == NULL )
 			RageException::Throw( "The animated texture file \"%s\" doesn't contain a section called \"AnimatedTexture\".", sTexOrIniPath.c_str() );
 
 		pAnimatedTexture->GetAttrValue( "TexVelocityX", m_vTexVelocity.x );
@@ -89,7 +70,7 @@ void AnimatedTexture::Load( const RString &sTexOrIniPath )
 			RString sFileName;
 			float fDelay = 0;
 			if( pAnimatedTexture->GetAttrValue( sFileKey, sFileName ) &&
-				pAnimatedTexture->GetAttrValue( sDelayKey, fDelay ) )
+				pAnimatedTexture->GetAttrValue( sDelayKey, fDelay ) ) 
 			{
 				RString sTranslateXKey = ssprintf( "TranslateX%04d", i );
 				RString sTranslateYKey = ssprintf( "TranslateY%04d", i );
@@ -103,7 +84,7 @@ void AnimatedTexture::Load( const RString &sTexOrIniPath )
 				ID.bStretch = true;
 				ID.bHotPinkColorKey = true;
 				ID.bMipMaps = true;	// use mipmaps in Models
-				AnimatedTextureState state(
+				AnimatedTextureState state( 
 					TEXTUREMAN->LoadTexture( ID ),
 					fDelay,
 					vOffset
@@ -149,7 +130,7 @@ void AnimatedTexture::Update( float fDelta )
 RageTexture* AnimatedTexture::GetCurrentTexture()
 {
 	if( vFrames.empty() )
-		return nullptr;
+		return NULL;
 	ASSERT( m_iCurState < (int)vFrames.size() );
 	return vFrames[m_iCurState].pTexture;
 }
@@ -167,13 +148,15 @@ void AnimatedTexture::SetState( int iState )
 
 float AnimatedTexture::GetAnimationLengthSeconds() const
 {
-	return std::accumulate(vFrames.begin(), vFrames.end(), 0.f,
-		[](float total, AnimatedTextureState const &state) { return total + state.fDelaySecs; });
+	float fTotalSeconds = 0;
+	FOREACH_CONST( AnimatedTextureState, vFrames, ats )
+		fTotalSeconds += ats->fDelaySecs;
+	return fTotalSeconds;
 }
 
 void AnimatedTexture::SetSecondsIntoAnimation( float fSeconds )
 {
-	fSeconds = std::fmod( fSeconds, GetAnimationLengthSeconds() );
+	fSeconds = fmodf( fSeconds, GetAnimationLengthSeconds() );
 
 	m_iCurState = 0;
 	for( unsigned i=0; i<vFrames.size(); i++ )
@@ -320,7 +303,7 @@ bool msAnimation::LoadMilkshapeAsciiBones( RString sAniName, RString sPath )
 				if (sscanf (sLine, "%f %f %f %f", &fTime, &Position[0], &Position[1], &Position[2]) != 4)
 					THROW;
 
-				msPositionKey key = {};
+				msPositionKey key;
 				key.fTime = fTime;
 				key.Position = RageVector3( Position[0], Position[1], Position[2] );
 				Bone.PositionKeys[j] = key;
@@ -345,7 +328,7 @@ bool msAnimation::LoadMilkshapeAsciiBones( RString sAniName, RString sPath )
 					THROW;
 				Rotation = RadianToDegree(Rotation);
 
-				msRotationKey key = {};
+				msRotationKey key;
 				key.fTime = fTime;
 				Rotation = RageVector3( Rotation[0], Rotation[1], Rotation[2] );
 				RageQuatFromHPR( &key.Rotation, Rotation );
@@ -359,9 +342,9 @@ bool msAnimation::LoadMilkshapeAsciiBones( RString sAniName, RString sPath )
 		{
 			msBone& Bone = Animation.Bones[i];
 			for( unsigned j = 0; j < Bone.PositionKeys.size(); ++j )
-				Animation.nTotalFrames = std::max( Animation.nTotalFrames, (int)Bone.PositionKeys[j].fTime );
+				Animation.nTotalFrames = max( Animation.nTotalFrames, (int)Bone.PositionKeys[j].fTime );
 			for( unsigned j = 0; j < Bone.RotationKeys.size(); ++j )
-				Animation.nTotalFrames = std::max( Animation.nTotalFrames, (int)Bone.RotationKeys[j].fTime );
+				Animation.nTotalFrames = max( Animation.nTotalFrames, (int)Bone.RotationKeys[j].fTime );
 		}
 	}
 
@@ -371,7 +354,7 @@ bool msAnimation::LoadMilkshapeAsciiBones( RString sAniName, RString sPath )
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -381,7 +364,7 @@ bool msAnimation::LoadMilkshapeAsciiBones( RString sAniName, RString sPath )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

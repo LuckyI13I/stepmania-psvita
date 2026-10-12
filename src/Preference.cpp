@@ -5,14 +5,13 @@
 #include "LuaManager.h"
 #include "MessageManager.h"
 #include "SubscriptionManager.h"
-
+#include "Foreach.h"
 
 static SubscriptionManager<IPreference> m_Subscribers;
 
-IPreference::IPreference( const RString& sName, PreferenceType type ):
+IPreference::IPreference( const RString& sName ):
 	m_sName( sName ),
-	m_bDoNotWrite( type == PreferenceType::Deprecated ),
-	m_bImmutable( type == PreferenceType::Immutable )
+	m_bIsStatic( false )
 {
 	m_Subscribers.Subscribe( this );
 }
@@ -24,40 +23,40 @@ IPreference::~IPreference()
 
 IPreference *IPreference::GetPreferenceByName( const RString &sName )
 {
-	for (IPreference *p : *m_Subscribers.m_pSubscribers)
+	FOREACHS( IPreference*, *m_Subscribers.m_pSubscribers, p )
 	{
-		if( !p->GetName().CompareNoCase( sName ) )
-			return p;
+		if( !(*p)->GetName().CompareNoCase( sName ) )
+			return *p;
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 void IPreference::LoadAllDefaults()
 {
-	for (IPreference *p : *m_Subscribers.m_pSubscribers)
-		p->LoadDefault();
+	FOREACHS_CONST( IPreference*, *m_Subscribers.m_pSubscribers, p )
+		(*p)->LoadDefault();
 }
 
 void IPreference::ReadAllPrefsFromNode( const XNode* pNode, bool bIsStatic )
 {
-	ASSERT( pNode != nullptr );
-	for (IPreference *p : *m_Subscribers.m_pSubscribers)
-		p->ReadFrom( pNode, bIsStatic );
+	ASSERT( pNode != NULL );
+	FOREACHS_CONST( IPreference*, *m_Subscribers.m_pSubscribers, p )
+		(*p)->ReadFrom( pNode, bIsStatic );
 }
 
 void IPreference::SavePrefsToNode( XNode* pNode )
 {
-	for (IPreference *p : *m_Subscribers.m_pSubscribers)
-		p->WriteTo( pNode );
+	FOREACHS_CONST( IPreference*, *m_Subscribers.m_pSubscribers, p )
+		(*p)->WriteTo( pNode );
 }
 
 void IPreference::ReadAllDefaultsFromNode( const XNode* pNode )
 {
-	if( pNode == nullptr )
+	if( pNode == NULL )
 		return;
-	for (IPreference *p : *m_Subscribers.m_pSubscribers)
-		p->ReadDefaultFrom( pNode );
+	FOREACHS_CONST( IPreference*, *m_Subscribers.m_pSubscribers, p )
+		(*p)->ReadDefaultFrom( pNode );
 }
 
 void IPreference::PushValue( lua_State *L ) const
@@ -82,17 +81,14 @@ void IPreference::ReadFrom( const XNode* pNode, bool bIsStatic )
 	if( pNode->GetAttrValue(m_sName, sVal) )
 	{
 		FromString( sVal );
-		if (bIsStatic)
-			m_bDoNotWrite = true;
+		m_bIsStatic = bIsStatic;
 	}
 }
 
 void IPreference::WriteTo( XNode* pNode ) const
 {
-	if (m_bDoNotWrite)
-		return;
-
-	pNode->AppendAttr( m_sName, ToString() );
+	if( !m_bIsStatic )
+		pNode->AppendAttr( m_sName, ToString() );
 }
 
 /* Load our value from the node, and make it the new default. */

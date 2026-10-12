@@ -1,19 +1,18 @@
 #include "global.h"
 
 #include <dlfcn.h>
-#include <sys/stat.h>
 
 #define ALSA_PCM_NEW_HW_PARAMS_API
 #define ALSA_PCM_NEW_SW_PARAMS_API
 #include <alsa/asoundlib.h>
 
-static void *Handle = nullptr;
+static void *Handle = NULL;
 
 #include "RageUtil.h"
 #include "ALSA9Dynamic.h"
 
-/* foo_f dfoo = nullptr */
-#define FUNC(ret, name, proto) name##_f d##name = nullptr
+/* foo_f dfoo = NULL */
+#define FUNC(ret, name, proto) name##_f d##name = NULL
 #include "ALSA9Functions.h"
 #undef FUNC
 
@@ -29,14 +28,13 @@ RString LoadALSA()
 	 * on use, and this would prevent that from happening.  I don't know if anyone actually
 	 * does that, though: they're often configured to load snd (the core module) if ALSA
 	 * devices are accessed, but hardware drivers are typically loaded on boot. */
-	struct stat st;
-	if (stat("/proc/asound/", &st) == -1 || !(st.st_mode & S_IFDIR))
+	if( !IsADirectory("/rootfs/proc/asound/") )
 		return "/proc/asound/ does not exist";
 
-	ASSERT( Handle == nullptr );
+	ASSERT( Handle == NULL );
 
 	Handle = dlopen( lib, RTLD_NOW );
-	if( Handle == nullptr )
+	if( Handle == NULL )
 		return ssprintf("dlopen(%s): %s", lib.c_str(), dlerror());
 
 	RString error;
@@ -64,8 +62,8 @@ void UnloadALSA()
 {
 	if( Handle )
 		dlclose( Handle );
-	Handle = nullptr;
-#define FUNC(ret, name, proto) d##name = nullptr;
+	Handle = NULL;
+#define FUNC(ret, name, proto) d##name = NULL;
 #include "ALSA9Functions.h"
 #undef FUNC
 }

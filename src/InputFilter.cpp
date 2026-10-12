@@ -6,6 +6,7 @@
 #include "RageUtil.h"
 #include "RageThreads.h"
 #include "Preference.h"
+#include "Foreach.h"
 #include "GameInput.h"
 #include "InputMapper.h"
 // for mouse stuff: -aj
@@ -13,8 +14,6 @@
 #include "ScreenDimensions.h"
 
 #include <set>
-#include <vector>
-
 
 static const char *InputEventTypeNames[] = {
 	"FirstPress",
@@ -82,7 +81,7 @@ namespace
 	 * optimize InputFilter::Update, so we don't have to process every button
 	 * we know about when most of them aren't in use. This set is protected
 	 * by queuemutex. */
-	typedef std::map<DeviceButtonPair, ButtonState> ButtonStateMap;
+	typedef map<DeviceButtonPair, ButtonState> ButtonStateMap;
 	ButtonStateMap g_ButtonStates;
 	ButtonState &GetButtonState( const DeviceInput &di )
 	{
@@ -94,7 +93,7 @@ namespace
 	}
 
 	DeviceInputList g_CurrentState;
-	std::set<DeviceInput> g_DisableRepeat;
+	set<DeviceInput> g_DisableRepeat;
 }
 
 /* Some input devices require debouncing. Do this on both press and release.
@@ -112,7 +111,7 @@ namespace
  * this won't cause timing problems, because the event timestamp is preserved. */
 static Preference<float> g_fInputDebounceTime( "InputDebounceTime", 0 );
 
-InputFilter*	INPUTFILTER = nullptr;	// global and accessible from anywhere in our program
+InputFilter*	INPUTFILTER = NULL;	// global and accessible from anywhere in our program
 
 static const float TIME_BEFORE_REPEATS = 0.375f;
 
@@ -183,17 +182,6 @@ ButtonState::ButtonState():
 
 void InputFilter::ButtonPressed( const DeviceInput &di )
 {
-#if defined(VITA)
-	// Temporary bring-up logging. TODO(Vita): remove once input is verified.
-	{
-		static int s_nCount = 0;
-		if( s_nCount < 20 )
-		{
-			++s_nCount;
-			LOG->Info( "VitaFilter: dev=%d btn=%d level=%.1f", (int)di.device, (int)di.button, di.level );
-		}
-	}
-#endif
 	LockMut(*queuemutex);
 
 	if( di.ts.IsZero() )
@@ -245,9 +233,9 @@ void InputFilter::ResetDevice( InputDevice device )
 	RageTimer now;
 
 	const ButtonStateMap ButtonStates( g_ButtonStates );
-	for (std::pair<DeviceButtonPair const, ButtonState> const &b : ButtonStates)
+	FOREACHM_CONST( DeviceButtonPair, ButtonState, ButtonStates, b )
 	{
-		const DeviceButtonPair &db = b.first;
+		const DeviceButtonPair &db = b->first;
 		if( db.device == device )
 			ButtonPressed( DeviceInput(device, db.button, 0, now) );
 	}
@@ -258,7 +246,7 @@ void InputFilter::CheckButtonChange( ButtonState &bs, DeviceInput di, const Rage
 {
 	if( bs.m_BeingHeld == bs.m_bLastReportedHeld )
 		return;
-
+	
 	GameInput gi;
 
 	/* Possibly apply debounce,
@@ -277,7 +265,7 @@ void InputFilter::CheckButtonChange( ButtonState &bs, DeviceInput di, const Rage
 			return;
 		}
 	}
-
+	
 	bs.m_LastReportTime = now;
 	bs.m_bLastReportedHeld = bs.m_BeingHeld;
 	bs.m_fSecsHeld = 0;
@@ -309,7 +297,7 @@ void InputFilter::ReportButtonChange( const DeviceInput &di, InputEventType t )
 	ie.m_ButtonState = g_CurrentState;
 }
 
-void InputFilter::MakeButtonStateList( std::vector<DeviceInput> &aInputOut ) const
+void InputFilter::MakeButtonStateList( vector<DeviceInput> &aInputOut ) const
 {
 	aInputOut.clear();
 	aInputOut.reserve( g_ButtonStates.size() );
@@ -336,9 +324,9 @@ void InputFilter::Update( float fDeltaTime )
 
 	MakeButtonStateList( g_CurrentState );
 
-	std::vector<ButtonStateMap::iterator> ButtonsToErase;
+	vector<ButtonStateMap::iterator> ButtonsToErase;
 
-	for( std::map<DeviceButtonPair, ButtonState>::iterator b = g_ButtonStates.begin(); b != g_ButtonStates.end(); ++b )
+	FOREACHM( DeviceButtonPair, ButtonState, g_ButtonStates, b )
 	{
 		di.device = b->first.device;
 		di.button = b->first.button;
@@ -391,8 +379,8 @@ void InputFilter::Update( float fDeltaTime )
 		ReportButtonChange( di, IET_REPEAT );
 	}
 
-	for (ButtonStateMap::iterator &it : ButtonsToErase)
-		g_ButtonStates.erase( it );
+	FOREACH( ButtonStateMap::iterator, ButtonsToErase, it )
+		g_ButtonStates.erase( *it );
 }
 
 template<typename T, typename IT>
@@ -400,7 +388,7 @@ const T *FindItemBinarySearch( IT begin, IT end, const T &i )
 {
 	IT it = lower_bound( begin, end, i );
 	if( it == end || *it != i )
-		return nullptr;
+		return NULL;
 
 	return &*it;
 }
@@ -408,19 +396,19 @@ const T *FindItemBinarySearch( IT begin, IT end, const T &i )
 bool InputFilter::IsBeingPressed( const DeviceInput &di, const DeviceInputList *pButtonState ) const
 {
 	LockMut(*queuemutex);
-	if( pButtonState == nullptr )
+	if( pButtonState == NULL )
 		pButtonState = &g_CurrentState;
 	const DeviceInput *pDI = FindItemBinarySearch( pButtonState->begin(), pButtonState->end(), di );
-	return pDI != nullptr && pDI->bDown;
+	return pDI != NULL && pDI->bDown;
 }
 
 float InputFilter::GetSecsHeld( const DeviceInput &di, const DeviceInputList *pButtonState ) const
 {
 	LockMut(*queuemutex);
-	if( pButtonState == nullptr )
+	if( pButtonState == NULL )
 		pButtonState = &g_CurrentState;
 	const DeviceInput *pDI = FindItemBinarySearch( pButtonState->begin(), pButtonState->end(), di );
-	if( pDI == nullptr )
+	if( pDI == NULL )
 		return 0;
 	return pDI->ts.Ago();
 }
@@ -428,10 +416,10 @@ float InputFilter::GetSecsHeld( const DeviceInput &di, const DeviceInputList *pB
 float InputFilter::GetLevel( const DeviceInput &di, const DeviceInputList *pButtonState ) const
 {
 	LockMut(*queuemutex);
-	if( pButtonState == nullptr )
+	if( pButtonState == NULL )
 		pButtonState = &g_CurrentState;
 	const DeviceInput *pDI = FindItemBinarySearch( pButtonState->begin(), pButtonState->end(), di );
-	if( pDI == nullptr )
+	if( pDI == NULL )
 		return 0.0f;
 	return pDI->level;
 }
@@ -461,14 +449,14 @@ void InputFilter::RepeatStopKey( const DeviceInput &di )
 	g_DisableRepeat.insert( di );
 }
 
-void InputFilter::GetInputEvents( std::vector<InputEvent> &array )
+void InputFilter::GetInputEvents( vector<InputEvent> &array )
 {
 	array.clear();
 	LockMut(*queuemutex);
 	array.swap( queue );
 }
 
-void InputFilter::GetPressedButtons( std::vector<DeviceInput> &array ) const
+void InputFilter::GetPressedButtons( vector<DeviceInput> &array ) const
 {
 	LockMut(*queuemutex);
 	array = g_CurrentState;
@@ -488,7 +476,7 @@ void InputFilter::UpdateMouseWheel(float _fZ)
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to InputFilter. */
+/** @brief Allow Lua to have access to InputFilter. */ 
 class LunaInputFilter: public Luna<InputFilter>
 {
 public:
@@ -528,7 +516,7 @@ LUA_REGISTER_CLASS( InputFilter )
 /*
  * (c) 2001-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -538,7 +526,7 @@ LUA_REGISTER_CLASS( InputFilter )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -22,12 +22,6 @@
 #include <netdb.h>
 #endif
 
-#if defined(_WINDOWS)
-#include <winsock2.h>
-#else
-#include <netinet/in.h>
-#endif
-
 #if !defined(SOCKET_ERROR)
 #define SOCKET_ERROR -1
 #endif
@@ -50,131 +44,62 @@ inline timeval timevalFromMs(unsigned int ms)
 	return tv;
 }
 
-namespace
-{
-	struct ezs_internal
-	{
-		// Only necessary for Windows
-#if defined(_WINDOWS)
-		WSADATA wsda;
-#endif
-
-		int MAXCON;
-		uintptr_t sock;
-		struct sockaddr_in addr;
-
-		struct sockaddr_in fromAddr;
-		unsigned long fromAddr_len;
-
-		// Used for Select() command
-		fd_set  *scks;
-		timeval *times;
-
-		ezs_internal()
-		{
-			MAXCON = 5;
-			memset (&addr,0,sizeof(addr)); //Clear the sockaddr_in structure
-
-#if defined(_WINDOWS) // Windows REQUIRES WinSock Startup
-			WSAStartup( MAKEWORD(1,1), &wsda );
-#endif
-
-			scks = new fd_set;
-			times = new timeval;
-		}
-		~ezs_internal()
-		{
-			delete scks;
-			delete times;
-		}
-	};
-}
-
-uint32_t EzSockets::sm_ntohl(uint32_t in)
-{
-	return ntohl(in);
-}
-
-uint16_t EzSockets::sm_ntohs(uint16_t in)
-{
-	return ntohs(in);
-}
-
-uint32_t EzSockets::sm_htonl(uint32_t in)
-{
-	return htonl(in);
-}
-
-uint16_t EzSockets::sm_htons(uint16_t in) {
-	return htons(in);
-}
 
 EzSockets::EzSockets()
 {
-	ezs_internal *data = new ezs_internal();
-	this->opaque = (void*)data;
+	MAXCON = 5;
+	memset (&addr,0,sizeof(addr)); //Clear the sockaddr_in structure
 
+#if defined(_WINDOWS) // Windows REQUIRES WinSock Startup
+	WSAStartup( MAKEWORD(1,1), &wsda );
+#endif
+
+	sock = INVALID_SOCKET;
 	blocking = true;
-	data->sock = INVALID_SOCKET;
-	data->times->tv_sec = 0;
-	data->times->tv_usec = 0;
+	scks = new fd_set;
+	times = new timeval;
+	times->tv_sec = 0;
+	times->tv_usec = 0;
 	state = skDISCONNECTED;
 }
 
 EzSockets::~EzSockets()
 {
 	close();
-
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	delete data;
+	delete scks;
+	delete times;
 }
 
 //Check to see if the socket has been created
 bool EzSockets::check()
 {
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	return data->sock > SOCKET_NONE;
+	return sock > SOCKET_NONE;
 }
 
 bool EzSockets::create()
 {
-	return create(EZS_TCP, SOCK_STREAM);
+	return create(IPPROTO_TCP, SOCK_STREAM);
 }
 
-bool EzSockets::create(EzSockets_Proto Protocol)
+bool EzSockets::create(int Protocol)
 {
 	switch(Protocol)
 	{
-	case EZS_TCP:
-		return create(EZS_TCP, SOCK_STREAM);
-	case EZS_UDP:
-		return create(EZS_UDP, SOCK_DGRAM);
+	case IPPROTO_TCP:
+		return create(IPPROTO_TCP, SOCK_STREAM);
+	case IPPROTO_UDP:
+		return create(IPPROTO_UDP, SOCK_DGRAM);
 	default:
 		return create(Protocol, SOCK_RAW);
 	}
 }
 
-bool EzSockets::create(EzSockets_Proto Protocol, int Type)
+bool EzSockets::create(int Protocol, int Type)
 {
-	ezs_internal *data = (ezs_internal*)(this->opaque);
 	state = skDISCONNECTED;
-
-	int realproto = 0;
-	switch (Protocol) {
-		case EZS_TCP:
-			realproto = IPPROTO_TCP;
-			break;
-		case EZS_UDP:
-			realproto = IPPROTO_UDP;
-			break;
-		case EZS_NONE:
-			realproto = IPPROTO_IP;
-			break;
-	}
-
-	data->sock = socket(AF_INET, Type, realproto);
-	lastCode = data->sock;
-	return data->sock > SOCKET_NONE;	// Socket must be Greater than 0
+	sock = socket(AF_INET, Type, Protocol);
+	lastCode = sock;
+	return sock > SOCKET_NONE;	// Socket must be Greater than 0
 }
 
 bool EzSockets::bind(unsigned short port)
@@ -182,18 +107,16 @@ bool EzSockets::bind(unsigned short port)
 	if(!check())
 		return false;
 
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	data->addr.sin_family      = AF_INET;
-	data->addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	data->addr.sin_port        = htons(port);
-	lastCode = ::bind(data->sock,(struct sockaddr*)&data->addr, sizeof(data->addr));
+	addr.sin_family      = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port        = htons(port);
+	lastCode = ::bind(sock,(struct sockaddr*)&addr, sizeof(addr));
 	return !lastCode;
 }
 
 bool EzSockets::listen()
 {
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	lastCode = ::listen(data->sock, data->MAXCON);
+	lastCode = ::listen(sock, MAXCON);
 	if (lastCode == SOCKET_ERROR)
 		return false;
 
@@ -222,14 +145,12 @@ bool EzSockets::accept(EzSockets& socket)
 
 	int length = sizeof(socket);
 	
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	ezs_internal *sdata = (ezs_internal*)(socket.opaque);
-	sdata->sock = ::accept(data->sock,(struct sockaddr*) &sdata->addr,
+	socket.sock = ::accept(sock,(struct sockaddr*) &socket.addr, 
 						   (socklen_t*) &length);
 
-	lastCode = sdata->sock;
+	lastCode = socket.sock;
 
-	if ( sdata->sock == SOCKET_ERROR )
+	if ( socket.sock == SOCKET_ERROR )
 		return false;
 
 	socket.state = skCONNECTED;
@@ -242,44 +163,35 @@ void EzSockets::close()
 	inBuffer = "";
 	outBuffer = "";
 
-	ezs_internal *data = (ezs_internal*)(this->opaque);
 #if defined(WIN32) // The close socket command is different in Windows
-	::closesocket(data->sock);
+	::closesocket(sock);
 #else
-	::close(data->sock);
+	::close(sock);
 #endif
 }
 
 long EzSockets::uAddr()
 {
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	return data->addr.sin_addr.s_addr;
+	return addr.sin_addr.s_addr;
 }
+
 
 bool EzSockets::connect(const std::string& host, unsigned short port)
 {
-	if (!check())
-	{
+	if(!check())
 		return false;
-	}
 
 	struct hostent* phe;
 	phe = gethostbyname(host.c_str());
-	if (phe == nullptr)
-	{
+	if (phe == NULL)
 		return false;
-	}
+	memcpy(&addr.sin_addr, phe->h_addr, sizeof(struct in_addr));
 
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	memcpy(&data->addr.sin_addr, phe->h_addr, sizeof(struct in_addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port   = htons(port);
 
-	data->addr.sin_family = AF_INET;
-	data->addr.sin_port   = htons(port);
-
-	if(::connect(data->sock, (struct sockaddr*)&data->addr, sizeof(data->addr)) == SOCKET_ERROR)
-	{
+	if(::connect(sock, (struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR)
 		return false;
-	}
 
 	state = skCONNECTED;
 	return true;
@@ -291,20 +203,18 @@ inline bool checkCanRead(int sock, timeval& timeout)
 	FD_ZERO(&fds);
 	FD_SET((unsigned)sock, &fds);
 
-	return select(sock+1, &fds, nullptr, nullptr, &timeout) > 0;
+	return select(sock+1, &fds, NULL, NULL, &timeout) > 0;
 }
 
 bool EzSockets::CanRead()
 {
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	return checkCanRead(data->sock, *data->times);
+	return checkCanRead(sock, *times);
 }
 
 bool EzSockets::CanRead(unsigned int msTimeout)
 {
-	ezs_internal *data = (ezs_internal*)(this->opaque);
 	timeval tv = timevalFromMs(msTimeout);
-	return checkCanRead(data->sock, tv);
+	return checkCanRead(sock, tv);
 }
 
 bool EzSockets::IsError()
@@ -312,11 +222,10 @@ bool EzSockets::IsError()
 	if (state == skERROR)
 		return true;
 
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	FD_ZERO(data->scks);
-	FD_SET((unsigned)data->sock, data->scks);
+	FD_ZERO(scks);
+	FD_SET((unsigned)sock, scks);
 
-	if (select(data->sock+1, nullptr, nullptr, data->scks, data->times) >=0 )
+	if (select(sock+1, NULL, NULL, scks, times) >=0 )
 		return false;
 
 	state = skERROR;
@@ -329,20 +238,18 @@ inline bool checkCanWrite(int sock, timeval& timeout)
 	FD_ZERO(&fds);
 	FD_SET((unsigned)sock, &fds);
 
-	return select(sock+1, nullptr, &fds, nullptr, &timeout) > 0;
+	return select(sock+1, NULL, &fds, NULL, &timeout) > 0;
 }
 
 bool EzSockets::CanWrite()
 {
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	return checkCanWrite(data->sock, *data->times);
+	return checkCanWrite(sock, *times);
 }
 
 bool EzSockets::CanWrite(unsigned int msTimeout)
 {
-	ezs_internal *data = (ezs_internal*)(this->opaque);
 	timeval tv = timevalFromMs(msTimeout);
-	return checkCanWrite(data->sock, tv);
+	return checkCanWrite(sock, tv);
 }
 
 void EzSockets::update()
@@ -358,11 +265,8 @@ void EzSockets::update()
 		pUpdateWrite();
 }
 
-uint32_t EzSockets::getAddress()
+unsigned long EzSockets::LongFromAddrIn( const sockaddr_in & s )
 {
-	ezs_internal *data = (ezs_internal*)(this->opaque);
-	sockaddr_in &s = data->fromAddr;
-
 #if defined(_WINDOWS)
 	return ntohl(s.sin_addr.S_un.S_addr);
 #else
@@ -435,7 +339,7 @@ int EzSockets::ReadPack(char *data, unsigned int max)
 	int size = PeekPack(data, max);
 
 	if (size != -1)
-		inBuffer = inBuffer.substr(static_cast<size_t>(size) + 4);
+		inBuffer = inBuffer.substr(size+4);
 
 	return size;
 }
@@ -462,10 +366,10 @@ int EzSockets::PeekPack(char *data, unsigned int max)
 	size = ntohl(size);
 
 	if (blocking)
-		while (inBuffer.length()<(static_cast<size_t>(size) + 4) && !IsError())
+		while (inBuffer.length()<(size+4) && !IsError())
 			pUpdateRead();
 	else
-		if (inBuffer.length()<(static_cast<size_t>(size) + 4) || inBuffer.length()<=4)
+		if (inBuffer.length()<(size+4) || inBuffer.length()<=4)
 			return -1;
 
 	if (IsError())
@@ -571,19 +475,17 @@ int EzSockets::pUpdateWrite()
 
 int EzSockets::pReadData(char* data)
 {
-	ezs_internal *sdata = (ezs_internal*)(this->opaque);
-	if (state == skCONNECTED || state == skLISTENING)
-		return recv(sdata->sock, data, 1024, 0);
+	if(state == skCONNECTED || state == skLISTENING)
+		return recv(sock, data, 1024, 0);
 
-	sdata->fromAddr_len = sizeof(sockaddr_in);
-	return recvfrom(sdata->sock, data, 1024, 0, (sockaddr*)&sdata->fromAddr,
-					(socklen_t*)&sdata->fromAddr_len);
+	fromAddr_len = sizeof(sockaddr_in);
+	return recvfrom(sock, data, 1024, 0, (sockaddr*)&fromAddr,
+					(socklen_t*)&fromAddr_len);
 }
 
 int EzSockets::pWriteData(const char* data, int dataSize)
 {
-	ezs_internal *sdata = (ezs_internal*)(this->opaque);
-	return send(sdata->sock, data, dataSize, 0);
+	return send(sock, data, dataSize, 0);
 }
 
 /* 

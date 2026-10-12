@@ -42,17 +42,17 @@ void AttackDisplay::Init( const PlayerState* pPlayerState )
 		GAMESTATE->m_PlayMode != PLAY_MODE_RAVE )
 		return;
 
-	std::set<RString> attacks;
+	set<RString> attacks;
 	for( int al=0; al<NUM_ATTACK_LEVELS; al++ )
 	{
 		const Character *ch = GAMESTATE->m_pCurCharacters[pn];
-		ASSERT( ch != nullptr );
+		ASSERT( ch != NULL );
 		const RString* asAttacks = ch->m_sAttacks[al];
 		for( int att = 0; att < NUM_ATTACKS_PER_LEVEL; ++att )
 			attacks.insert( asAttacks[att] );
 	}
 
-	for( std::set<RString>::const_iterator it = attacks.begin(); it != attacks.end(); ++it )
+	for( set<RString>::const_iterator it = attacks.begin(); it != attacks.end(); ++it )
 	{
 		const RString path = THEME->GetPathG( "AttackDisplay", GetAttackPieceName( *it ), true );
 		if( path == "" )

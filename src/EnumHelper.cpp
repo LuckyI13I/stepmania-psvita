@@ -80,18 +80,18 @@ int CheckEnum( lua_State *L, LuaReference &table, int iPos, int iInvalid, const 
 }
 
 // szNameArray is of size iMax; pNameCache is of size iMax+2.
-const RString &EnumToString( int iVal, int iMax, const char **szNameArray, std::unique_ptr<RString> *pNameCache )
+const RString &EnumToString( int iVal, int iMax, const char **szNameArray, auto_ptr<RString> *pNameCache )
 {
-	if( unlikely(pNameCache[0].get() == nullptr) )
+	if( unlikely(pNameCache[0].get() == NULL) )
 	{
 		for( int i = 0; i < iMax; ++i )
 		{
-			std::unique_ptr<RString> ap( new RString( szNameArray[i] ) );
-			pNameCache[i] = std::move(ap);
+			auto_ptr<RString> ap( new RString( szNameArray[i] ) );
+			pNameCache[i] = ap;
 		}
 
-		std::unique_ptr<RString> ap( new RString );
-		pNameCache[iMax+1] = std::move(ap);
+		auto_ptr<RString> ap( new RString );
+		pNameCache[iMax+1] = ap;
 	}
 
 	// iMax+1 is "Invalid".  iMax+0 is the NUM_ size value, which can not be converted
@@ -140,7 +140,7 @@ namespace
 static const luaL_Reg EnumLib[] = {
 	{ "GetName", GetName },
 	{ "Reverse", Reverse },
-	{ nullptr, nullptr }
+	{ NULL, NULL }
 };
 
 static void PushEnumMethodTable( lua_State *L )

@@ -1,33 +1,29 @@
 #include "global.h"
 
-#include <cstdlib>
-
 #if defined(HAVE_UNISTD_H)
-    #include <unistd.h>
+#include <unistd.h>
 #endif
 
-#if defined(_WIN32)
-    #if defined(CRASH_HANDLER)
-        #define WIN32_LEAN_AND_MEAN
-        #include "windows.h"
-        #include "archutils/Win32/Crash.h"
-    #endif
-    #if defined(_MSC_VER)
-        #include <intrin.h>
-    #endif
+#if defined(_WINDOWS)
+#  if defined(CRASH_HANDLER)
+#    define _WIN32_WINDOWS 0x0410 // include Win98 stuff
+#    include "windows.h"
+#    include "archutils/Win32/Crash.h"
+#  endif
 #elif defined(MACOSX)
-    #include "archutils/Darwin/Crash.h"
-    using CrashHandler::IsDebuggerPresent;
-    using CrashHandler::DebugBreak;
+#  include "archutils/Darwin/Crash.h"
+#  include <stdlib.h>
+using CrashHandler::IsDebuggerPresent;
+using CrashHandler::DebugBreak;
 #endif
 
 #if defined(CRASH_HANDLER) && (defined(UNIX) || defined(MACOSX))
-    #include "archutils/Unix/CrashHandler.h"
+#include "archutils/Unix/CrashHandler.h"
 #endif
 
-void sm_crash( const char *reason )
+void NORETURN sm_crash( const char *reason )
 {
-#if ( defined(_WIN32) && defined(CRASH_HANDLER) ) || defined(MACOSX) || defined(_XDBG)
+#if ( defined(_WINDOWS) && defined(CRASH_HANDLER) ) || defined(MACOSX) || defined(_XDBG)
 	/* If we're being debugged, throw a debug break so it'll suspend the process. */
 	if( IsDebuggerPresent() )
 	{
@@ -39,18 +35,20 @@ void sm_crash( const char *reason )
 #if defined(CRASH_HANDLER)
 	CrashHandler::ForceCrash( reason );
 #else
-	std::abort();
+	*(char*)0=0;
 
 	/* This isn't actually reached.  We just do this to convince the compiler that the
 	 * function really doesn't return. */
 	for(;;);
 #endif
 
-#if defined(_WIN32)
+#if defined(_WINDOWS)
 	/* Do something after the above, so the call/return isn't optimized to a jmp; that
 	 * way, this function will appear in backtrace stack traces. */
 #if defined(_MSC_VER)
-	__nop();
+	_asm nop;
+#elif defined(__GNUC__) // MinGW or similar
+	asm("nop");
 #endif
 #else
 	_exit( 1 );
@@ -60,7 +58,7 @@ void sm_crash( const char *reason )
 /*
  * (c) 2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -70,7 +68,7 @@ void sm_crash( const char *reason )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

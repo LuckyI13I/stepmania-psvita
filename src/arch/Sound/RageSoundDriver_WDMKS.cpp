@@ -1,14 +1,10 @@
 #include "global.h"
 #include "RageSoundDriver_WDMKS.h"
-
+#include "Foreach.h"
 #include "RageLog.h"
 #include "RageUtil.h"
 #include "PrefsManager.h"
 #include "archutils/Win32/ErrorStrings.h"
-
-#include <cstddef>
-#include <cstdint>
-#include <vector>
 
 #define _INC_MMREG
 #define _NTRTL_ /* Turn off default definition of DEFINE_GUIDEX */
@@ -16,7 +12,6 @@
 #define DEFINE_WAVEFORMATEX_GUID(x) (USHORT)(x), 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71
 #endif
 
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winioctl.h>
 #include <ks.h>
@@ -43,7 +38,7 @@ struct WinWdmPin
 {
 	WinWdmPin( WinWdmFilter *pParentFilter, int iPinId )
 	{
-		m_hHandle = nullptr;
+		m_hHandle = NULL;
 		m_pParentFilter = pParentFilter;
 		m_iPinId = iPinId;
 	}
@@ -63,7 +58,7 @@ struct WinWdmPin
 	HANDLE				m_hHandle;
 	WinWdmFilter			*m_pParentFilter;
 	int				m_iPinId;
-	std::vector<KSDATARANGE_AUDIO>	m_dataRangesItem;
+	vector<KSDATARANGE_AUDIO>	m_dataRangesItem;
 };
 
 enum DeviceSampleFormat
@@ -97,18 +92,19 @@ struct WinWdmFilter
 
 	WinWdmFilter()
 	{
-		m_hHandle = nullptr;
+		m_hHandle = NULL;
 		m_iUsageCount = 0;
 	}
 
 	~WinWdmFilter()
 	{
-		m_apPins.clear();
+		for( size_t i = 0; i < m_apPins.size(); ++i )
+			delete m_apPins[i];
 		if( m_hHandle )
 			CloseHandle( m_hHandle );
 	}
 
-	std::unique_ptr<WinWdmPin> CreatePin( unsigned long iPinId, RString &sError );
+	WinWdmPin *CreatePin( unsigned long iPinId, RString &sError );
 	WinWdmPin *InstantiateRenderPin(
 			DeviceSampleFormat &PreferredOutputSampleFormat,
 			int &iPreferredOutputChannels,
@@ -119,14 +115,22 @@ struct WinWdmFilter
 	void Release();
 
 	HANDLE			m_hHandle;
-	std::vector<std::unique_ptr<WinWdmPin>>	m_apPins;
+	vector<WinWdmPin *>	m_apPins;
 	RString			m_sFilterName;
 	RString			m_sFriendlyName;
 	int			m_iUsageCount;
 };
 
-static HMODULE      DllKsUser = nullptr;
-static KSCREATEPIN *FunctionKsCreatePin = nullptr;
+static RString GUIDToString( const GUID *pGuid )
+{
+	return ssprintf("%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		pGuid->Data1, pGuid->Data2, pGuid->Data3,
+		pGuid->Data4[0], pGuid->Data4[1], pGuid->Data4[2], pGuid->Data4[3],
+		pGuid->Data4[4], pGuid->Data4[5], pGuid->Data4[6], pGuid->Data4[7] );
+}
+
+static HMODULE      DllKsUser = NULL;
+static KSCREATEPIN *FunctionKsCreatePin = NULL;
 
 /* Low level pin/filter access functions */
 static bool WdmSyncIoctl(
@@ -134,12 +138,12 @@ static bool WdmSyncIoctl(
 	void *pOut, unsigned long iOutSize, unsigned long *pBytesReturned, RString &sError )
 {
 	unsigned long iDummyBytesReturned;
-	if( pBytesReturned == nullptr )
+	if( pBytesReturned == NULL )
 		pBytesReturned = &iDummyBytesReturned;
 
 	OVERLAPPED overlapped;
 	memset( &overlapped, 0, sizeof(overlapped) );
-	overlapped.hEvent = CreateEvent( nullptr, FALSE, FALSE, nullptr );
+	overlapped.hEvent = CreateEvent( NULL, FALSE, FALSE, NULL );
 	if( !overlapped.hEvent )
 	{
 		sError = werr_ssprintf( GetLastError(), "CreateEvent" );
@@ -185,7 +189,7 @@ static bool WdmGetPropertySimple( HANDLE hHandle, const GUID *pGuidPropertySet, 
 	void *pValue, unsigned long iValueSize, void *pInstance, unsigned long iInstanceSize, RString &sError )
 {
 	unsigned long iPropertySize = sizeof(KSPROPERTY) + iInstanceSize;
-	std::vector<char> buf;
+	vector<char> buf;
 	buf.resize( iPropertySize );
 	KSPROPERTY *ksProperty = (KSPROPERTY*) &buf[0];
 
@@ -197,7 +201,7 @@ static bool WdmGetPropertySimple( HANDLE hHandle, const GUID *pGuidPropertySet, 
 	if( pInstance )
 		memcpy( &ksProperty[1], pInstance, iInstanceSize );
 
-	return WdmSyncIoctl( hHandle, IOCTL_KS_PROPERTY, ksProperty, iPropertySize, pValue, iValueSize, nullptr, sError );
+	return WdmSyncIoctl( hHandle, IOCTL_KS_PROPERTY, ksProperty, iPropertySize, pValue, iValueSize, NULL, sError );
 }
 
 static bool WdmSetPropertySimple(
@@ -205,7 +209,7 @@ static bool WdmSetPropertySimple(
 	void *pValue, unsigned long iValueSize,
 	void *instance, unsigned long iInstanceSize, RString &sError )
 {
-	std::vector<char> buf;
+	vector<char> buf;
 	unsigned long iPropertySize = sizeof(KSPROPERTY) + iInstanceSize;
 	buf.resize( iPropertySize );
 	KSPROPERTY *ksProperty = (KSPROPERTY *) &buf[0];
@@ -218,7 +222,7 @@ static bool WdmSetPropertySimple(
 	if( instance )
 		memcpy( ((char*)ksProperty + sizeof(KSPROPERTY)), instance, iInstanceSize );
 
-	return WdmSyncIoctl( hHandle, IOCTL_KS_PROPERTY, ksProperty, iPropertySize, pValue, iValueSize, nullptr, sError );
+	return WdmSyncIoctl( hHandle, IOCTL_KS_PROPERTY, ksProperty, iPropertySize, pValue, iValueSize, NULL, sError );
 }
 
 static bool WdmGetPinPropertySimple( HANDLE hHandle, unsigned long iPinId, const GUID *pGuidPropertySet, unsigned long iProperty,
@@ -231,7 +235,7 @@ static bool WdmGetPinPropertySimple( HANDLE hHandle, unsigned long iPinId, const
 	ksPProp.PinId = iPinId;
 	ksPProp.Reserved = 0;
 
-	return WdmSyncIoctl( hHandle, IOCTL_KS_PROPERTY, &ksPProp, sizeof(KSP_PIN), pValue, iInstanceSize, nullptr, sError );
+	return WdmSyncIoctl( hHandle, IOCTL_KS_PROPERTY, &ksPProp, sizeof(KSP_PIN), pValue, iInstanceSize, NULL, sError );
 }
 
 static bool WdmGetPinPropertyMulti(
@@ -251,13 +255,13 @@ static bool WdmGetPinPropertyMulti(
 	ksPProp.Reserved = 0;
 
 	unsigned long multipleItemSize = 0;
-	if( !WdmSyncIoctl(hHandle, IOCTL_KS_PROPERTY, &ksPProp.Property, sizeof(KSP_PIN), nullptr, 0, &multipleItemSize, sError) )
+	if( !WdmSyncIoctl(hHandle, IOCTL_KS_PROPERTY, &ksPProp.Property, sizeof(KSP_PIN), NULL, 0, &multipleItemSize, sError) )
 		return false;
 
 	*ksMultipleItem = (KSMULTIPLE_ITEM*) malloc( multipleItemSize );
-	ASSERT( *ksMultipleItem != nullptr );
+	ASSERT( *ksMultipleItem != NULL );
 
-	if( !WdmSyncIoctl( hHandle, IOCTL_KS_PROPERTY, &ksPProp, sizeof(KSP_PIN), (void*)*ksMultipleItem, multipleItemSize, nullptr, sError) )
+	if( !WdmSyncIoctl( hHandle, IOCTL_KS_PROPERTY, &ksPProp, sizeof(KSP_PIN), (void*)*ksMultipleItem, multipleItemSize, NULL, sError) )
 	{
 		free( ksMultipleItem );
 		return false;
@@ -271,7 +275,7 @@ static bool WdmGetPinPropertyMulti(
  * The pin object holds all the configuration information about the pin
  * before it is opened, and then the handle of the pin after is opened
  */
-std::unique_ptr<WinWdmPin> WinWdmFilter::CreatePin( unsigned long iPinId, RString &sError )
+WinWdmPin *WinWdmFilter::CreatePin( unsigned long iPinId, RString &sError )
 {
 	{
 		/* Get the COMMUNICATION property */
@@ -280,13 +284,13 @@ std::unique_ptr<WinWdmPin> WinWdmFilter::CreatePin( unsigned long iPinId, RStrin
 			&communication, sizeof(KSPIN_COMMUNICATION), sError) )
 		{
 			sError = "KSPROPERTY_PIN_COMMUNICATION: " + sError;
-			return nullptr;
+			return NULL;
 		}
 
 		if( communication != KSPIN_COMMUNICATION_SINK && communication != KSPIN_COMMUNICATION_BOTH )
 		{
 			sError = "Not an audio output device";
-			return nullptr;
+			return NULL;
 		}
 	}
 
@@ -297,23 +301,23 @@ std::unique_ptr<WinWdmPin> WinWdmFilter::CreatePin( unsigned long iPinId, RStrin
 			&dataFlow, sizeof(KSPIN_DATAFLOW), sError) )
 		{
 			sError = "KSPROPERTY_PIN_DATAFLOW: " + sError;
-			return nullptr;
+			return NULL;
 		}
 
 		if( dataFlow != KSPIN_DATAFLOW_IN )
 		{
 			sError = "Not KSPIN_DATAFLOW_IN";
-			return nullptr;
+			return NULL;
 		}
 	}
 
 	/* Get the INTERFACE property list */
 	{
-		KSMULTIPLE_ITEM *pItem = nullptr;
+		KSMULTIPLE_ITEM *pItem = NULL;
 		if( !WdmGetPinPropertyMulti(m_hHandle, iPinId, &KSPROPSETID_Pin, KSPROPERTY_PIN_INTERFACES, &pItem, sError) )
 		{
 			sError = "KSPROPERTY_PIN_INTERFACES: " + sError;
-			return nullptr;
+			return NULL;
 		}
 
 		KSIDENTIFIER *identifier = (KSIDENTIFIER *) &pItem[1];
@@ -333,16 +337,16 @@ std::unique_ptr<WinWdmPin> WinWdmFilter::CreatePin( unsigned long iPinId, RStrin
 		free( pItem );
 
 		if( sError != "" )
-			return nullptr;
+			return NULL;
 	}
 
 	/* Get the MEDIUM properties list */
 	{
-		KSMULTIPLE_ITEM *pItem = nullptr;
+		KSMULTIPLE_ITEM *pItem = NULL;
 		if( !WdmGetPinPropertyMulti( m_hHandle, iPinId, &KSPROPSETID_Pin, KSPROPERTY_PIN_MEDIUMS, &pItem, sError) )
 		{
 			sError = "KSPROPERTY_PIN_MEDIUMS: " + sError;
-			return nullptr;
+			return NULL;
 		}
 
 		const KSIDENTIFIER *identifier = (KSIDENTIFIER *) &pItem[1];
@@ -362,21 +366,21 @@ std::unique_ptr<WinWdmPin> WinWdmFilter::CreatePin( unsigned long iPinId, RStrin
 		free( pItem );
 
 		if( sError != "" )
-			return nullptr;
+			return NULL;
 	}
 
 	/* Allocate the new PIN object */
-	auto pPin = std::make_unique<WinWdmPin>( this, iPinId );
+	WinWdmPin *pPin = new WinWdmPin( this, iPinId );
 
 	/* Get DATARANGEs */
 	KSMULTIPLE_ITEM *pDataRangesItem;
 	if( !WdmGetPinPropertyMulti(m_hHandle, iPinId, &KSPROPSETID_Pin, KSPROPERTY_PIN_DATARANGES, &pDataRangesItem, sError) )
 	{
 		sError = "KSPROPERTY_PIN_DATARANGES: " + sError;
-		return nullptr;
+		goto error;
 	}
 
-	KSDATARANGE* pDataRanges = (KSDATARANGE*) (pDataRangesItem + 1);
+	KSDATARANGE *pDataRanges = (KSDATARANGE*) (pDataRangesItem + 1);
 
 	/* Find audio DATARANGEs */
 	{
@@ -401,39 +405,44 @@ std::unique_ptr<WinWdmPin> WinWdmFilter::CreatePin( unsigned long iPinId, RStrin
 		}
 	}
 	free( pDataRangesItem );
-	pDataRangesItem = nullptr;
+	pDataRangesItem = NULL;
 
 	if( pPin->m_dataRangesItem.size() == 0 )
 	{
 		sError = "Pin has no supported audio data ranges";
-		return nullptr;
+		goto error;
 	}
 
 	/* Success */
 	sError = "";
 	CHECKPOINT_M( "Pin created successfully" );
 	return pPin;
+
+error:
+	/* Error cleanup */
+	delete pPin;
+	return NULL;
 }
 
 /* If the pin handle is open, close it */
 void WinWdmPin::Close()
 {
-	if( m_hHandle == nullptr )
+	if( m_hHandle == NULL )
 		return;
 	RString sError;
 	SetState( KSSTATE_PAUSE, sError );
 	SetState( KSSTATE_STOP, sError );
 	CloseHandle( m_hHandle );
-	m_hHandle = nullptr;
+	m_hHandle = NULL;
 	m_pParentFilter->Release();
 }
 
 /* Set the state of this (instantiated) pin */
 bool WinWdmPin::SetState( KSSTATE state, RString &sError )
 {
-	ASSERT( m_hHandle != nullptr );
+	ASSERT( m_hHandle != NULL );
 	return WdmSetPropertySimple( m_hHandle, &KSPROPSETID_Connection, KSPROPERTY_CONNECTION_STATE,
-		&state, sizeof(state), nullptr, 0, sError );
+		&state, sizeof(state), NULL, 0, sError );
 }
 
 bool WinWdmPin::Instantiate( const WAVEFORMATEX *pFormat, RString &sError )
@@ -456,20 +465,20 @@ bool WinWdmPin::Instantiate( const WAVEFORMATEX *pFormat, RString &sError )
 
 	sError = werr_ssprintf( iRet, "FunctionKsCreatePin" );
 	m_pParentFilter->Release();
-	m_hHandle = nullptr;
+	m_hHandle = NULL;
 	return false;
 }
 
 KSPIN_CONNECT *WinWdmPin::MakeFormat( const WAVEFORMATEX *pFormat ) const
 {
-	ASSERT( pFormat != nullptr );
+	ASSERT( pFormat != NULL );
 
 	unsigned long iWfexSize = sizeof(WAVEFORMATEX) + pFormat->cbSize;
 	unsigned long iDataFormatSize = sizeof(KSDATAFORMAT) + iWfexSize;
 	unsigned long iSize = sizeof(KSPIN_CONNECT) + iDataFormatSize;
 
 	KSPIN_CONNECT *pPinConnect = (KSPIN_CONNECT *) malloc( iSize );
-	ASSERT( pPinConnect != nullptr );
+	ASSERT( pPinConnect != NULL );
 
 	memset( pPinConnect, 0, iSize );
 	pPinConnect->PinId				= m_iPinId;
@@ -479,7 +488,7 @@ KSPIN_CONNECT *WinWdmPin::MakeFormat( const WAVEFORMATEX *pFormat ) const
 	pPinConnect->Medium.Set			= KSMEDIUMSETID_Standard;
 	pPinConnect->Medium.Id			= KSMEDIUM_TYPE_ANYINSTANCE;
 	pPinConnect->Medium.Flags			= 0;
-	pPinConnect->PinToHandle			= nullptr;
+	pPinConnect->PinToHandle			= NULL;
 	pPinConnect->Priority.PriorityClass		= KSPRIORITY_NORMAL;
 	pPinConnect->Priority.PrioritySubClass	= 1;
 
@@ -503,7 +512,7 @@ bool WinWdmPin::IsFormatSupported( const WAVEFORMATEX *pFormat ) const
 	if( pFormat->wFormatTag == WAVE_FORMAT_EXTENSIBLE )
 		guid = ((WAVEFORMATEXTENSIBLE*) pFormat)->SubFormat;
 
-	for( std::size_t i = 0; i < m_dataRangesItem.size(); i++ )
+	for( size_t i = 0; i < m_dataRangesItem.size(); i++ )
 	{
 		const KSDATARANGE_AUDIO *pDataRangeAudio = &m_dataRangesItem[i];
 		/* This is an audio or wildcard datarange... */
@@ -546,9 +555,9 @@ WinWdmFilter *WinWdmFilter::Create( const RString &sFilterName, const RString &s
 	for( int iPinId = 0; iPinId < iNumPins; iPinId++ )
 	{
 		/* Create the pin with this Id */
-		auto pNewPin = pFilter->CreatePin( iPinId, sError );
-		if( pNewPin )
-			pFilter->m_apPins.push_back( std::move(pNewPin) );
+		WinWdmPin *pNewPin = pFilter->CreatePin( iPinId, sError );
+		if( pNewPin != NULL )
+			pFilter->m_apPins.push_back( pNewPin );
 	}
 
 	if( pFilter->m_apPins.empty() )
@@ -566,7 +575,7 @@ WinWdmFilter *WinWdmFilter::Create( const RString &sFilterName, const RString &s
 error:
 	/* Error cleanup */
 	delete pFilter;
-	return nullptr;
+	return NULL;
 }
 
 /*
@@ -574,13 +583,13 @@ error:
  */
 bool WinWdmFilter::Use( RString &sError )
 {
-	if( m_hHandle == nullptr )
+	if( m_hHandle == NULL )
 	{
 		/* Open the filter */
 		m_hHandle = CreateFile( m_sFilterName, GENERIC_READ | GENERIC_WRITE, 0,
-			nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr );
+			NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL );
 
-		if( m_hHandle == nullptr )
+		if( m_hHandle == NULL )
 		{
 			sError = werr_ssprintf( GetLastError(), "CreateFile(%s)", m_sFilterName.c_str() );
 			return false;
@@ -601,10 +610,10 @@ void WinWdmFilter::Release()
 	--m_iUsageCount;
 	if( m_iUsageCount == 0 )
 	{
-		if( m_hHandle != nullptr )
+		if( m_hHandle != NULL )
 		{
 			CloseHandle( m_hHandle );
-			m_hHandle = nullptr;
+			m_hHandle = NULL;
 		}
 	}
 }
@@ -614,26 +623,27 @@ void WinWdmFilter::Release()
  */
 WinWdmPin *WinWdmFilter::InstantiateRenderPin( const WAVEFORMATEX *wfex, RString &sError )
 {
-	for (const auto& pPin : m_apPins)
+	for( size_t i = 0; i < m_apPins.size(); ++i )
 	{
+		WinWdmPin *pPin = m_apPins[i];
 		if( pPin->Instantiate(wfex, sError) )
 		{
 			sError = "";
-			return pPin.get();
+			return pPin;
 		}
 	}
 
 	sError = "No pin supports format";
-	return nullptr;
+	return NULL;
 }
 
 template<typename T, typename U>
-void MoveToBeginning( std::vector<T> &v, const U &item )
+void MoveToBeginning( vector<T> &v, const U &item )
 {
-	auto it = find( v.begin(), v.end(), item );
+	vector<T>::iterator it = find( v.begin(), v.end(), item );
 	if( it == v.end() )
 		return;
-	auto next = it;
+	vector<T>::iterator next = it;
 	++next;
 	copy_backward( v.begin(), it, next );
 	*v.begin() = item;
@@ -685,7 +695,7 @@ WinWdmPin *WinWdmFilter::InstantiateRenderPin(
 	 * more channels, since some drivers won't send audio to rear speakers in stereo modes.  Sort
 	 * the preferred channel count first.
 	 */
-	std::vector<int> aChannels;
+	vector<int> aChannels;
 	aChannels.push_back( 8 );
 	aChannels.push_back( 6 );
 	aChannels.push_back( 4 );
@@ -694,7 +704,7 @@ WinWdmPin *WinWdmFilter::InstantiateRenderPin(
 	MoveToBeginning( aChannels, iPreferredOutputChannels );
 
 	/* Try all sample formats.  Try PreferredOutputSampleFormat first. */
-	std::vector<DeviceSampleFormat> SampleFormats;
+	vector<DeviceSampleFormat> SampleFormats;
 	SampleFormats.push_back( DeviceSampleFormat_Int16 );
 	SampleFormats.push_back( DeviceSampleFormat_Int24 );
 	SampleFormats.push_back( DeviceSampleFormat_Int32 );
@@ -709,14 +719,15 @@ WinWdmPin *WinWdmFilter::InstantiateRenderPin(
 	 * Try all samplerates listed in the device's DATARANGES.  Sort iSampleRate first,
 	 * then 48k, then 44.1k, then higher sample rates first.
 	 */
-	std::vector<int> aSampleRates;
+	vector<int> aSampleRates;
 	{
-		for (const auto& pPin : m_apPins)
+		for( size_t j = 0; j < m_apPins.size(); ++j )
 		{
-			for (KSDATARANGE_AUDIO const &range : pPin->m_dataRangesItem)
+			WinWdmPin *pPin = m_apPins[j];
+			FOREACH_CONST( KSDATARANGE_AUDIO, pPin->m_dataRangesItem, range )
 			{
-				aSampleRates.push_back( range.MinimumSampleFrequency );
-				aSampleRates.push_back( range.MaximumSampleFrequency );
+				aSampleRates.push_back( range->MinimumSampleFrequency );
+				aSampleRates.push_back( range->MaximumSampleFrequency );
 			}
 		}
 
@@ -736,21 +747,21 @@ WinWdmPin *WinWdmFilter::InstantiateRenderPin(
 	}
 
 	/* Try WAVE_FORMAT_EXTENSIBLE, then WAVE_FORMAT_PCM. */
-	std::vector<bool> aTryPCM;
+	vector<bool> aTryPCM;
 	aTryPCM.push_back( false );
 	aTryPCM.push_back( true );
 
-	for (auto bTryPCM = aTryPCM.begin(); bTryPCM != aTryPCM.end(); ++bTryPCM)
+	FOREACH( bool, aTryPCM, bTryPCM )
 	{
-		for (int const &iSampleRate : aSampleRates)
+		FOREACH( int, aSampleRates, iSampleRate )
 		{
-			for (int const &iChannels : aChannels)
+			FOREACH( int, aChannels, iChannels )
 			{
-				for (DeviceSampleFormat &fmt : SampleFormats)
+				FOREACH( DeviceSampleFormat, SampleFormats, fmt )
 				{
-					PreferredOutputSampleFormat = fmt;
-					iPreferredOutputChannels = iChannels;
-					iPreferredSampleRate = iSampleRate;
+					PreferredOutputSampleFormat = *fmt;
+					iPreferredOutputChannels = *iChannels;
+					iPreferredSampleRate = *iSampleRate;
 
 					WAVEFORMATEXTENSIBLE wfx;
 					FillWFEXT( &wfx, PreferredOutputSampleFormat, iPreferredSampleRate, iPreferredOutputChannels );
@@ -769,7 +780,7 @@ WinWdmPin *WinWdmFilter::InstantiateRenderPin(
 						iPreferredSampleRate, wfx.Format.wFormatTag );
 					WinWdmPin *pPlaybackPin = InstantiateRenderPin( (WAVEFORMATEX *) &wfx, sError );
 
-					if( pPlaybackPin != nullptr )
+					if( pPlaybackPin != NULL )
 					{
 						LOG->Trace( "KS: success" );
 						return pPlaybackPin;
@@ -780,7 +791,7 @@ WinWdmPin *WinWdmFilter::InstantiateRenderPin(
 	}
 
 	sError = "No compatible format found";
-	return nullptr;
+	return NULL;
 }
 
 static bool GetDevicePath( HANDLE hHandle, SP_DEVICE_INTERFACE_DATA *pInterfaceData, RString &sPath )
@@ -794,19 +805,19 @@ static bool GetDevicePath( HANDLE hHandle, SP_DEVICE_INTERFACE_DATA *pInterfaceD
 	devInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
 	devInfoData.Reserved = 0;
 
-	if( !SetupDiGetDeviceInterfaceDetail(hHandle, pInterfaceData, devInterfaceDetails, sizeInterface, nullptr, &devInfoData) )
+	if( !SetupDiGetDeviceInterfaceDetail(hHandle, pInterfaceData, devInterfaceDetails, sizeInterface, NULL, &devInfoData) )
 		return false;
 	sPath = devInterfaceDetails->DevicePath;
 	return true;
 }
 
 /* Build a list of available filters. */
-static bool BuildFilterList( std::vector<WinWdmFilter*> &aFilters, RString &sError )
+static bool BuildFilterList( vector<WinWdmFilter*> &aFilters, RString &sError )
 {
 	const GUID *pCategoryGuid = (GUID*) &KSCATEGORY_RENDER;
 
 	/* Open a handle to search for devices (filters) */
-	HDEVINFO hHandle = SetupDiGetClassDevs( pCategoryGuid, nullptr, nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE );
+	HDEVINFO hHandle = SetupDiGetClassDevs( pCategoryGuid, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE );
 	if( hHandle == INVALID_HANDLE_VALUE )
 	{
 		sError = werr_ssprintf( GetLastError(), "SetupDiGetClassDevs" );
@@ -821,7 +832,7 @@ static bool BuildFilterList( std::vector<WinWdmFilter*> &aFilters, RString &sErr
 		SP_DEVICE_INTERFACE_DATA interfaceData;
 		interfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
 		interfaceData.Reserved = 0;
-		if( !SetupDiEnumDeviceInterfaces(hHandle, nullptr, pCategoryGuid, device, &interfaceData) )
+		if( !SetupDiEnumDeviceInterfaces(hHandle, NULL, pCategoryGuid, device, &interfaceData) )
 			break; /* No more devices */
 		if( !interfaceData.Flags || (interfaceData.Flags & SPINT_REMOVED) )
 			continue;
@@ -843,7 +854,7 @@ static bool BuildFilterList( std::vector<WinWdmFilter*> &aFilters, RString &sErr
 		}
 
 		WinWdmFilter *pNewFilter = WinWdmFilter::Create( sDevicePath, szFriendlyName, sError );
-		if( pNewFilter == nullptr )
+		if( pNewFilter == NULL )
 		{
 			LOG->Trace( "Filter \"%s\" not created: %s", szFriendlyName, sError.c_str() );
 			continue;
@@ -852,7 +863,7 @@ static bool BuildFilterList( std::vector<WinWdmFilter*> &aFilters, RString &sErr
 		aFilters.push_back( pNewFilter );
 	}
 
-	if( hHandle != nullptr )
+	if( hHandle != NULL )
 		SetupDiDestroyDeviceInfoList( hHandle );
 
 	return true;
@@ -860,10 +871,10 @@ static bool BuildFilterList( std::vector<WinWdmFilter*> &aFilters, RString &sErr
 
 static bool PaWinWdm_Initialize( RString &sError )
 {
-	if( DllKsUser == nullptr )
+	if( DllKsUser == NULL )
 	{
 		DllKsUser = LoadLibrary( "ksuser.dll" );
-		if( DllKsUser == nullptr )
+		if( DllKsUser == NULL )
 		{
 			sError = werr_ssprintf( GetLastError(), "LoadLibrary(ksuser.dll)" );
 			return false;
@@ -871,11 +882,11 @@ static bool PaWinWdm_Initialize( RString &sError )
 	}
 
 	FunctionKsCreatePin = (KSCREATEPIN*) GetProcAddress( DllKsUser, "KsCreatePin" );
-	if( FunctionKsCreatePin == nullptr )
+	if( FunctionKsCreatePin == NULL )
 	{
 		sError = "no KsCreatePin in ksuser.dll";
 		FreeLibrary( DllKsUser );
-		DllKsUser = nullptr;
+		DllKsUser = NULL;
 		return false;
 	}
 
@@ -889,8 +900,8 @@ struct WinWdmStream
 	{
 		memset( this, 0, sizeof(*this) );
 		for( int i = 0; i < MAX_CHUNKS; ++i )
-			m_Signal[i].hEvent = CreateEvent( nullptr, FALSE, FALSE, nullptr );
-		m_pPlaybackPin = nullptr;
+			m_Signal[i].hEvent = CreateEvent( NULL, FALSE, FALSE, NULL );
+		m_pPlaybackPin = NULL;
 	}
 
 	~WinWdmStream()
@@ -910,11 +921,11 @@ struct WinWdmStream
 	{
 		if( m_pPlaybackPin )
 			m_pPlaybackPin->Close();
-		m_pPlaybackPin = nullptr;
+		m_pPlaybackPin = NULL;
 		for( int i = 0; i < 2; ++i )
 		{
 			VirtualFree( m_Packets[i].Data, 0, MEM_RELEASE );
-			m_Packets[i].Data = nullptr;
+			m_Packets[i].Data = NULL;
 		}
 	}
 
@@ -946,10 +957,8 @@ bool WinWdmStream::Open( WinWdmFilter *pFilter,
 				iPreferredSampleRate,
 				sError );
 
-	if (m_pPlaybackPin == nullptr) {
-		Close();
-		return false;
-	}
+	if( m_pPlaybackPin == NULL )
+		goto error;
 
 	m_DeviceSampleFormat = PreferredOutputSampleFormat;
 	m_iDeviceOutputChannels = iPreferredOutputChannels;
@@ -961,12 +970,12 @@ bool WinWdmStream::Open( WinWdmFilter *pFilter,
 		KSALLOCATOR_FRAMING ksaf;
 		KSALLOCATOR_FRAMING_EX ksafex;
 		if( WdmGetPropertySimple(m_pPlaybackPin->m_hHandle, &KSPROPSETID_Connection, KSPROPERTY_CONNECTION_ALLOCATORFRAMING,
-			&ksaf, sizeof(ksaf), nullptr, 0, sError) )
+			&ksaf, sizeof(ksaf), NULL, 0, sError) )
 		{
 			iFrameSize = ksaf.FrameSize;
 		}
 		else if( WdmGetPropertySimple(m_pPlaybackPin->m_hHandle, &KSPROPSETID_Connection, KSPROPERTY_CONNECTION_ALLOCATORFRAMING_EX,
-				&ksafex, sizeof(ksafex), nullptr, 0, sError) )
+				&ksafex, sizeof(ksafex), NULL, 0, sError) )
 		{
 			iFrameSize = ksafex.FramingItem[0].FramingRange.Range.MinFrameSize;
 		}
@@ -981,7 +990,7 @@ bool WinWdmStream::Open( WinWdmFilter *pFilter,
 	if( m_iFramesPerChunk == 0 )
 	{
 		m_iFramesPerChunk = 512 / m_iWriteAheadChunks;
-		m_iFramesPerChunk = std::max( m_iFramesPerChunk, iFrameSize ); // iFrameSize may be 0
+		m_iFramesPerChunk = max( m_iFramesPerChunk, iFrameSize ); // iFrameSize may be 0
 	}
 
 	LOG->Info( "KS: chunk size: %i; allocator framing: %i (%ims)", m_iFramesPerChunk, iFrameSize, (iFrameSize * 1000) / m_iSampleRate );
@@ -994,8 +1003,8 @@ bool WinWdmStream::Open( WinWdmFilter *pFilter,
 		KSSTREAM_HEADER *p = &m_Packets[i];
 
 		/* Avoid any FileAlignment problems by using VirtualAlloc, which is always page aligned. */
-		p->Data = (char *) VirtualAlloc( nullptr, m_iFramesPerChunk*m_iBytesPerOutputSample*m_iDeviceOutputChannels, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE );
-		ASSERT( p->Data != nullptr );
+		p->Data = (char *) VirtualAlloc( NULL, m_iFramesPerChunk*m_iBytesPerOutputSample*m_iDeviceOutputChannels, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE );
+		ASSERT( p->Data != NULL );
 		p->FrameExtent = m_iFramesPerChunk*m_iBytesPerOutputSample*m_iDeviceOutputChannels;
 		p->DataUsed = m_iFramesPerChunk*m_iBytesPerOutputSample*m_iDeviceOutputChannels;
 		p->Size = sizeof(*p);
@@ -1004,13 +1013,17 @@ bool WinWdmStream::Open( WinWdmFilter *pFilter,
 	}
 
 	return true;
+
+error:
+	Close();
+	return false;
 }
 
 bool WinWdmStream::SubmitPacket( int iPacket, RString &sError )
 {
 	KSSTREAM_HEADER *p = &m_Packets[iPacket];
-	int iRet = DeviceIoControl( m_pPlaybackPin->m_hHandle, IOCTL_KS_WRITE_STREAM, nullptr, 0,
-		p, p->Size, nullptr, &m_Signal[iPacket] );
+	int iRet = DeviceIoControl( m_pPlaybackPin->m_hHandle, IOCTL_KS_WRITE_STREAM, NULL, 0,
+		p, p->Size, NULL, &m_Signal[iPacket] );
 	ASSERT_M( iRet == 0, "DeviceIoControl" );
 
 	DWORD iError = GetLastError();
@@ -1025,7 +1038,7 @@ bool WinWdmStream::SubmitPacket( int iPacket, RString &sError )
 #include <windows.h>
 namespace
 {
-	void MapChannels( const std::int16_t *pIn, std::int16_t *pOut, int iInChannels, int iOutChannels, int iFrames, const int *pChannelMap )
+	void MapChannels( const int16_t *pIn, int16_t *pOut, int iInChannels, int iOutChannels, int iFrames, const int *pChannelMap )
 	{
 		for( int i = 0; i < iFrames; ++i )
 		{
@@ -1049,7 +1062,7 @@ namespace
 		}
 	}
 
-	void MapChannels( const std::int16_t *pIn, std::int16_t *pOut, int iInChannels, int iOutChannels, int iFrames )
+	void MapChannels( const int16_t *pIn, int16_t *pOut, int iInChannels, int iOutChannels, int iFrames )
 	{
 		static const int i1ChannelMap[] = { -2 };
 		static const int i4ChannelMap[] = { 0, 1, 0, 1 };
@@ -1067,7 +1080,7 @@ namespace
 		MapChannels( pIn, pOut, iInChannels, iOutChannels, iFrames, pChannelMap );
 	}
 
-	void MapSampleFormatFromInt16( const std::int16_t *pIn, void *pOut, int iSamples, DeviceSampleFormat FromFormat )
+	void MapSampleFormatFromInt16( const int16_t *pIn, void *pOut, int iSamples, DeviceSampleFormat FromFormat )
 	{
 		switch( FromFormat )
 		{
@@ -1092,7 +1105,7 @@ namespace
 		}
 		case DeviceSampleFormat_Int32:
 		{
-			std::int16_t *pOutBuf = (std::int16_t *) pOut;
+			int16_t *pOutBuf = (int16_t *) pOut;
 			for( int i = 0; i < iSamples; ++i )
 			{
 				*pOutBuf++ = 0;
@@ -1112,29 +1125,29 @@ void RageSoundDriver_WDMKS::Read( void *pData, int iFrames, int iLastCursorPos, 
 	if( m_pStream->m_iDeviceOutputChannels == iChannels &&
 		m_pStream->m_DeviceSampleFormat == DeviceSampleFormat_Int16 )
 	{
-		std::int16_t *pBuf = (std::int16_t *) pData;
+		int16_t *pBuf = (int16_t *) pData;
 		this->Mix( pBuf, iFrames, iLastCursorPos, iCurrentFrame );
 		return;
 	}
 
-	std::int16_t *pBuf = (std::int16_t *) alloca( iFrames * iChannels * sizeof(std::int16_t) );
-	this->Mix( (std::int16_t *) pBuf, iFrames, iLastCursorPos, iCurrentFrame );
+	int16_t *pBuf = (int16_t *) alloca( iFrames * iChannels * sizeof(int16_t) );
+	this->Mix( (int16_t *) pBuf, iFrames, iLastCursorPos, iCurrentFrame );
 
 	/* If the device has other than 2 channels, convert. */
 	if( m_pStream->m_iDeviceOutputChannels != iChannels )
 	{
-		std::int16_t *pTempBuf = (std::int16_t *) alloca( iFrames * m_pStream->m_iBytesPerOutputSample * m_pStream->m_iDeviceOutputChannels );
-		MapChannels( (std::int16_t *) pBuf, pTempBuf, iChannels, m_pStream->m_iDeviceOutputChannels, iFrames );
+		int16_t *pTempBuf = (int16_t *) alloca( iFrames * m_pStream->m_iBytesPerOutputSample * m_pStream->m_iDeviceOutputChannels );
+		MapChannels( (int16_t *) pBuf, pTempBuf, iChannels, m_pStream->m_iDeviceOutputChannels, iFrames );
 		pBuf = pTempBuf;
 	}
 
-	/* If the device format isn't std::int16_t, convert. */
+	/* If the device format isn't int16_t, convert. */
 	if( m_pStream->m_DeviceSampleFormat != DeviceSampleFormat_Int16 )
 	{
 		int iSamples = iFrames * m_pStream->m_iDeviceOutputChannels;
 		void *pTempBuf = alloca( iSamples * m_pStream->m_iBytesPerOutputSample );
-		MapSampleFormatFromInt16( (std::int16_t *) pBuf, pTempBuf, iSamples, m_pStream->m_DeviceSampleFormat );
-		pBuf = (std::int16_t *) pTempBuf;
+		MapSampleFormatFromInt16( (int16_t *) pBuf, pTempBuf, iSamples, m_pStream->m_DeviceSampleFormat );
+		pBuf = (int16_t *) pTempBuf;
 	}
 
 	memcpy( pData, pBuf, iFrames * m_pStream->m_iDeviceOutputChannels * m_pStream->m_iBytesPerOutputSample );
@@ -1142,7 +1155,7 @@ void RageSoundDriver_WDMKS::Read( void *pData, int iFrames, int iLastCursorPos, 
 
 bool RageSoundDriver_WDMKS::Fill( int iPacket, RString &sError )
 {
-	std::uint64_t iCurrentFrame = GetPosition();
+	uint64_t iCurrentFrame = GetPosition();
 //	if( iCurrentFrame == m_iLastCursorPos )
 //		LOG->Trace( "underrun" );
 
@@ -1164,8 +1177,8 @@ void RageSoundDriver_WDMKS::MixerThread()
 
 	/* Enable priority boosting. */
 	SetThreadPriorityBoost( GetCurrentThread(), FALSE );
-
-	ASSERT( m_pStream->m_pPlaybackPin != nullptr );
+	
+	ASSERT( m_pStream->m_pPlaybackPin != NULL );
 
 	/* Some drivers (stock USB audio in XP) misbehave if we go from KSSTATE_STOP to
 	 * KSSTATE_RUN.  Always transition through KSSTATE_PAUSE. */
@@ -1236,13 +1249,13 @@ void RageSoundDriver_WDMKS::SetupDecodingThread()
 		LOG->Warn( werr_ssprintf(GetLastError(), "Failed to set sound thread priority") );
 }
 
-std::int64_t RageSoundDriver_WDMKS::GetPosition() const
+int64_t RageSoundDriver_WDMKS::GetPosition() const
 {
 	KSAUDIO_POSITION pos;
 
 	RString sError;
 	WdmGetPropertySimple( m_pStream->m_pPlaybackPin->m_hHandle, &KSPROPSETID_Audio, KSPROPERTY_AUDIO_POSITION,
-		&pos, sizeof(pos), nullptr, 0, sError );
+		&pos, sizeof(pos), NULL, 0, sError );
 	ASSERT_M( sError == "", sError );
 
 	pos.PlayOffset /= m_pStream->m_iBytesPerOutputSample * m_pStream->m_iDeviceOutputChannels;
@@ -1251,11 +1264,11 @@ std::int64_t RageSoundDriver_WDMKS::GetPosition() const
 
 RageSoundDriver_WDMKS::RageSoundDriver_WDMKS()
 {
-	m_pStream = nullptr;
-	m_pFilter = nullptr;
+	m_pStream = NULL;
+	m_pFilter = NULL;
 	m_bShutdown = false;
 	m_iLastCursorPos = 0;
-	m_hSignal = CreateEvent( nullptr, FALSE, FALSE, nullptr ); /* abort event */
+	m_hSignal = CreateEvent( NULL, FALSE, FALSE, NULL ); /* abort event */
 }
 
 RString RageSoundDriver_WDMKS::Init()
@@ -1264,37 +1277,36 @@ RString RageSoundDriver_WDMKS::Init()
 	if( !PaWinWdm_Initialize(sError) )
 		return sError;
 
-	std::vector<WinWdmFilter *> apFilters;
+	vector<WinWdmFilter *> apFilters;
 	if( !BuildFilterList(apFilters, sError) )
 		return "Error building filter list: " + sError;
 	if( apFilters.empty() )
 		return "No supported audio devices found";
 
-	for( std::size_t i = 0; i < apFilters.size(); ++i )
+	for( size_t i = 0; i < apFilters.size(); ++i )
 	{
 		const WinWdmFilter *pFilter = apFilters[i];
 		LOG->Trace( "Device #%i: %s", i, pFilter->m_sFriendlyName.c_str() );
-		int j = 0;
-		for (const auto& pPin : pFilter->m_apPins)
+		for( size_t j = 0; j < pFilter->m_apPins.size(); ++j )
 		{
-			LOG->Trace( "  Pin %i", j++ );
-			for (KSDATARANGE_AUDIO const &range : pPin->m_dataRangesItem)
+			WinWdmPin *pPin = pFilter->m_apPins[j];
+			LOG->Trace( "  Pin %i", j );
+			FOREACH_CONST( KSDATARANGE_AUDIO, pPin->m_dataRangesItem, range )
 			{
 				RString sSubFormat;
-				GUID const &rawSubFormat = range.DataRange.SubFormat;
-				if( !memcmp(&rawSubFormat, &KSDATAFORMAT_SUBTYPE_WILDCARD, sizeof(GUID)) )
+				if( !memcmp(&range->DataRange.SubFormat, &KSDATAFORMAT_SUBTYPE_WILDCARD, sizeof(GUID)) )
 					sSubFormat = "WILDCARD";
-				else if( !memcmp(&rawSubFormat, &KSDATAFORMAT_SUBTYPE_PCM, sizeof(GUID)) )
+				else if( !memcmp(&range->DataRange.SubFormat, &KSDATAFORMAT_SUBTYPE_PCM, sizeof(GUID)) )
 					sSubFormat = "PCM";
-				else if( !memcmp(&rawSubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, sizeof(GUID)) )
+				else if( !memcmp(&range->DataRange.SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, sizeof(GUID)) )
 					sSubFormat = "FLOAT";
 
-				LOG->Trace( "     Range: %i channels, sample %i-%i, %i-%ihz (%s)",
-					range.MaximumChannels,
-					range.MinimumBitsPerSample,
-					range.MaximumBitsPerSample,
-					range.MinimumSampleFrequency,
-					range.MaximumSampleFrequency,
+				LOG->Trace( "     Range: %i channels, sample %i-%i, %i-%ihz (%s)", 
+					range->MaximumChannels,
+					range->MinimumBitsPerSample,
+					range->MaximumBitsPerSample,
+					range->MinimumSampleFrequency,
+					range->MaximumSampleFrequency,
 					sSubFormat.c_str()
 				);
 			}
@@ -1302,7 +1314,7 @@ RString RageSoundDriver_WDMKS::Init()
 	}
 
 	m_pFilter = apFilters[0];
-	for( std::size_t i=0; i < apFilters.size(); ++i )
+	for( size_t i=0; i < apFilters.size(); ++i )
 	{
 		if( apFilters[i] != m_pFilter )
 			delete apFilters[i];
@@ -1386,12 +1398,12 @@ float RageSoundDriver_WDMKS::GetPlayLatency() const
  */
 
 /*
- * The text above constitutes the entire PortAudio license; however,
+ * The text above constitutes the entire PortAudio license; however, 
  * the PortAudio community also makes the following non-binding requests:
  *
  * Any person wishing to distribute modifications to the Software is
  * requested to send the modifications to the original developer so that
- * they can be incorporated into the canonical version. It is also
- * requested that these non-binding requests be included along with the
+ * they can be incorporated into the canonical version. It is also 
+ * requested that these non-binding requests be included along with the 
  * license above.
  */

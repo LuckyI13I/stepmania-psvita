@@ -1,20 +1,18 @@
 #include "global.h"
-
 #include "RageSurface_Load_PNG.h"
 #include "RageUtil.h"
 #include "RageLog.h"
 #include "RageFile.h"
 #include "RageSurface.h"
 
-#include <cstdint>
-
-#include <png.h>
-
 #if defined(_MSC_VER)
+#include "../extern/libpng/include/png.h"
 #if defined(_BINARY_PNG)
 #pragma comment(lib, "libpng.lib")
 #endif
 #pragma warning(disable: 4611) /* interaction between '_setjmp' and C++ object destruction is non-portable */
+#else
+#include <png.h>
 #endif // _MSC_VER
 
 namespace
@@ -57,6 +55,7 @@ void PNG_Error( png_struct *png, const char *error )
 
 void PNG_Warning( png_struct *png, const char *warning )
 {
+	// FIXME: Mismatched libpng headers vs. library causes a segfault here on MinGW
 	CHECKPOINT_M(ssprintf("PNG warning during processing: %s", warning));
 	error_info *info = (error_info *) png_get_io_ptr(png);
 	LOG->Trace( "loading \"%s\": warning: %s", info->fn, warning );
@@ -72,37 +71,37 @@ static RageSurface *RageSurface_Load_PNG( RageFile *f, const char *fn, char erro
 
 	png_struct *png = png_create_read_struct( PNG_LIBPNG_VER_STRING, &error, PNG_Error, PNG_Warning );
 
-	if( png == nullptr )
+	if( png == NULL )
 	{
 		sprintf( errorbuf, "creating png_create_read_struct failed");
-		return nullptr;
+		return NULL;
 	}
 
 	png_info *info_ptr = png_create_info_struct(png);
-	if( info_ptr == nullptr )
+	if( info_ptr == NULL )
 	{
-		png_destroy_read_struct( &png, nullptr, nullptr );
+		png_destroy_read_struct( &png, NULL, NULL );
 		sprintf( errorbuf, "creating png_create_info_struct failed");
-		return nullptr;
+		return NULL;
 	}
 
-	RageSurface *volatile img = nullptr;
+	RageSurface *volatile img = NULL;
 	CHECKPOINT_M("Potential issue with png jump about to be analyzed.");
 
-	png_byte** row_pointers= nullptr;
+	png_byte** row_pointers= NULL;
 
 	// Throwing an exception in the error callback would make the exception
 	// pass through C code, which is undefined behavior.  Works fine on Linux,
-	// and on macOS with C++11, but does not work on macOS without C++11. -Kyz
+	// and on OS X with C++11, but does not work on OS X without C++11. -Kyz
 	if(setjmp(png_jmpbuf(png)))
 	{
-		png_destroy_read_struct(&png, &info_ptr, nullptr);
+		png_destroy_read_struct(&png, &info_ptr, NULL);
 		delete img;
-		if(row_pointers != nullptr)
+		if(row_pointers != NULL)
 		{
 			delete[] row_pointers;
 		}
-		return nullptr;
+		return NULL;
 	}
 
 	png_set_read_fn( png, f, RageFile_png_read );
@@ -111,15 +110,16 @@ static RageSurface *RageSurface_Load_PNG( RageFile *f, const char *fn, char erro
 
 	png_uint_32 width, height;
 	int bit_depth, color_type;
-	png_get_IHDR( png, info_ptr, &width, &height, &bit_depth, &color_type, nullptr, nullptr, nullptr );
+	png_get_IHDR( png, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL );
 
 	/* If bHeaderOnly is true, don't allocate the pixel storage space or decompress
 	 * the image.  Just return an empty surface with only the width and height set. */
 	if( bHeaderOnly )
 	{
 		CHECKPOINT_M("Header only png about to be processed.");
-		img = CreateSurfaceFrom( width, height, 32, 0, 0, 0, 0, nullptr, width*4 );
-		png_destroy_read_struct( &png, &info_ptr, nullptr );
+		img = CreateSurfaceFrom( width, height, 32, 0, 0, 0, 0, NULL, width*4 );
+		png_destroy_read_struct( &png, &info_ptr, NULL );
+
 		return img;
 	}
 
@@ -144,14 +144,14 @@ static RageSurface *RageSurface_Load_PNG( RageFile *f, const char *fn, char erro
 		/* Fake PNG_COLOR_TYPE_GRAY. */
 		for( int i = 0; i < 256; ++i )
 		{
-			colors[i].r = colors[i].g = colors[i].b = (std::int8_t) i;
+			colors[i].r = colors[i].g = colors[i].b = (int8_t) i;
 			colors[i].a = 0xFF;
 		}
 
 		type = PALETTE;
 		break;
 
-	case PNG_COLOR_TYPE_GRAY_ALPHA:
+	case PNG_COLOR_TYPE_GRAY_ALPHA: 
 		type = RGBA;
 		png_set_gray_to_rgb( png );
 		break;
@@ -172,7 +172,7 @@ static RageSurface *RageSurface_Load_PNG( RageFile *f, const char *fn, char erro
 	if( color_type == PNG_COLOR_TYPE_GRAY )
 	{
 		png_color_16 *trans;
-		if( png_get_tRNS( png, info_ptr, nullptr, nullptr, &trans ) == PNG_INFO_tRNS )
+		if( png_get_tRNS( png, info_ptr, NULL, NULL, &trans ) == PNG_INFO_tRNS )
 			iColorKey = trans->gray;
 	}
 	else if( color_type == PNG_COLOR_TYPE_PALETTE )
@@ -182,9 +182,9 @@ static RageSurface *RageSurface_Load_PNG( RageFile *f, const char *fn, char erro
 		int ret = png_get_PLTE( png, info_ptr, &palette, &num_palette );
 		ASSERT( ret == PNG_INFO_PLTE );
 
-		png_byte *trans = nullptr;
+		png_byte *trans = NULL;
 		int num_trans = 0;
-		png_get_tRNS( png, info_ptr, &trans, &num_trans, nullptr );
+		png_get_tRNS( png, info_ptr, &trans, &num_trans, NULL );
 
 		for( int i = 0; i < num_palette; ++i )
 		{
@@ -235,10 +235,10 @@ static RageSurface *RageSurface_Load_PNG( RageFile *f, const char *fn, char erro
 	default:
 		FAIL_M(ssprintf( "%i", type) );
 	}
-	ASSERT( img != nullptr );
+	ASSERT( img != NULL );
 
 	row_pointers = new png_byte*[height];
-	CHECKPOINT_M( ssprintf("%p",static_cast<void*>(row_pointers)) );
+	CHECKPOINT_M( ssprintf("%p",row_pointers) );
 
 	for( unsigned y = 0; y < height; ++y )
 	{
@@ -249,12 +249,7 @@ static RageSurface *RageSurface_Load_PNG( RageFile *f, const char *fn, char erro
 	png_read_image( png, row_pointers );
 
 	png_read_end( png, info_ptr );
-	png_destroy_read_struct( &png, &info_ptr, nullptr );
-
-	if(row_pointers != nullptr)
-	{
-		delete[] row_pointers;
-	}
+	png_destroy_read_struct( &png, &info_ptr, NULL );
 
 	return img;
 }
@@ -272,7 +267,7 @@ RageSurfaceUtils::OpenResult RageSurface_Load_PNG( const RString &sPath, RageSur
 
 	char errorbuf[1024];
 	ret = RageSurface_Load_PNG( &f, sPath, errorbuf, bHeaderOnly );
-	if( ret == nullptr )
+	if( ret == NULL )
 	{
 		error = errorbuf;
 		return RageSurfaceUtils::OPEN_UNKNOWN_FILE_FORMAT; // XXX
@@ -284,7 +279,7 @@ RageSurfaceUtils::OpenResult RageSurface_Load_PNG( const RString &sPath, RageSur
 /*
  * (c) 2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -294,7 +289,7 @@ RageSurfaceUtils::OpenResult RageSurface_Load_PNG( const RString &sPath, RageSur
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

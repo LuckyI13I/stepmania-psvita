@@ -2,24 +2,22 @@
 #include "MemoryCardDriverThreaded_Linux.h"
 #include "RageLog.h"
 #include "RageUtil.h"
+#include "RageFile.h"
 #include "RageTimer.h"
 
 #include <cerrno>
-#include <climits>
-#include <cstddef>
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <sys/types.h>
-#include <sys/stat.h>
 #if defined(HAVE_FCNTL_H)
 #include <fcntl.h>
 #endif
+
 #if defined(HAVE_DIRENT_H)
 #include <dirent.h>
 #endif
+
+#include <limits.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 bool MemoryCardDriverThreaded_Linux::TestWrite( UsbStorageDevice* pDevice )
 {
@@ -59,7 +57,7 @@ static bool ReadFile( const RString &sPath, RString &sBuf )
 			LOG->Warn( "Error opening \"%s\": %s", sPath.c_str(), strerror(errno) );
 		return false;
 	}
-
+	
 	while(1)
 	{
 		char buf[1024];
@@ -75,17 +73,17 @@ static bool ReadFile( const RString &sPath, RString &sBuf )
 		if( iGot < (int) sizeof(buf) )
 			break;
 	}
-
+	
 	close(fd);
 	return true;
 }
 
-static void GetFileList( const RString &sPath, std::vector<RString> &out )
+static void GetFileList( const RString &sPath, vector<RString> &out )
 {
 	out.clear();
 
 	DIR *dp = opendir( sPath );
-	if( dp == nullptr )
+	if( dp == NULL )
 		return; // false; // XXX warn
 
 	while( const struct dirent *ent = readdir(dp) )
@@ -101,8 +99,8 @@ bool MemoryCardDriverThreaded_Linux::USBStorageDevicesChanged()
 	/* If a device is removed and reinserted, the inode of the /sys/block entry
 	 * will change. */
 	RString sDevicePath = "/sys/block/";
-
-	std::vector<RString> asDevices;
+	
+	vector<RString> asDevices;
 	GetFileList( sDevicePath, asDevices );
 
 	for( unsigned i = 0; i < asDevices.size(); ++i )
@@ -113,7 +111,7 @@ bool MemoryCardDriverThreaded_Linux::USBStorageDevicesChanged()
 
 		sThisDevices += ssprintf( "%i,", (int) buf.st_ino );
 	}
-
+	       
 	bool bChanged = sThisDevices != m_sLastDevices;
 	m_sLastDevices = sThisDevices;
 	if( bChanged )
@@ -121,14 +119,14 @@ bool MemoryCardDriverThreaded_Linux::USBStorageDevicesChanged()
 	return bChanged;
 }
 
-void MemoryCardDriverThreaded_Linux::GetUSBStorageDevices( std::vector<UsbStorageDevice>& vDevicesOut )
+void MemoryCardDriverThreaded_Linux::GetUSBStorageDevices( vector<UsbStorageDevice>& vDevicesOut )
 {
 	LOG->Trace( "GetUSBStorageDevices" );
-
+	
 	vDevicesOut.clear();
 
 	{
-		std::vector<RString> asDevices;
+		vector<RString> asDevices;
 		RString sBlockDevicePath = "/sys/block/";
 		GetFileList( sBlockDevicePath, asDevices );
 
@@ -205,7 +203,7 @@ void MemoryCardDriverThreaded_Linux::GetUSBStorageDevices( std::vector<UsbStorag
 			 * "2-1" is "bus-port".
 			 */
 			char szLink[256];
-			ssize_t iRet = readlink( sPath + "device", szLink, sizeof(szLink) );
+			int iRet = readlink( sPath + "device", szLink, sizeof(szLink) );
 			if( iRet == -1 )
 			{
 				LOG->Warn( "readlink(\"%s\"): %s", (sPath + "device").c_str(), strerror(errno) );
@@ -227,22 +225,22 @@ void MemoryCardDriverThreaded_Linux::GetUSBStorageDevices( std::vector<UsbStorag
 				 *   -2           port 1 on the host,
 				 *     .1         port 1 on an attached hub
 				 *       .2       ... port 2 on the next hub ...
-				 *
+				 * 
 				 * We want the bus number and the port of the last hop.  The level is
 				 * the number of hops.
 				 */
 				szLink[iRet] = 0;
-				std::vector<RString> asBits;
+				vector<RString> asBits;
 				split( szLink, "/", asBits );
 
 				RString sHostPort = asBits[asBits.size()-1];
 				if( !sHostPort.empty() )
 				{
 					/* Strip off the endpoint information after the colon. */
-					std::size_t pos = sHostPort.find(':');
-					if( pos != std::string::npos )
+					size_t pos = sHostPort.find(':');
+					if( pos != string::npos )
 						sHostPort.erase( pos );
-
+					
 					/* sHostPort is eg. 2-2.1. */
 					sHostPort.Replace( "-", "." );
 					asBits.clear();
@@ -284,35 +282,33 @@ void MemoryCardDriverThreaded_Linux::GetUSBStorageDevices( std::vector<UsbStorag
 
 	{
 		// Find where each device is mounted. Output looks like:
-
+		
 		// /dev/sda1               /mnt/flash1             auto    noauto,owner 0 0
 		// /dev/sdb1               /mnt/flash2             auto    noauto,owner 0 0
 		// /dev/sdc1               /mnt/flash3             auto    noauto,owner 0 0
-
-		std::ifstream f("/etc/fstab");
-		if (f.fail())
+		
+		RString fn = "/rootfs/etc/fstab";
+		RageFile f;
+		if( !f.Open(fn) )
 		{
-			LOG->Warn( "can't open '/etc/fstab': %s", strerror(errno) );
+			LOG->Warn( "can't open '%s': %s", fn.c_str(), f.GetError().c_str() );
 			return;
 		}
-
-		std::string line;
-		while( !f.eof() )
+		
+		RString sLine;
+		while( !f.AtEOF() )
 		{
-			std::getline(f, line);
-			if (f.eof())
+			switch( f.GetLine(sLine) )
 			{
-				continue;
-			}
-			else if (f.fail())
-			{
-				LOG->Warn( "error reading '/etc/fstab': %s", strerror(errno) );
+			case 0: continue; /* eof */
+			case -1:
+				LOG->Warn( "error reading '%s': %s", fn.c_str(), f.GetError().c_str() );
 				return;
 			}
 
 			char szScsiDevice[1024];
 			char szMountPoint[1024];
-			int iRet = sscanf( line.c_str(), "%s %s", szScsiDevice, szMountPoint );
+			int iRet = sscanf( sLine, "%s %s", szScsiDevice, szMountPoint );
 			if( iRet != 2 || szScsiDevice[0] == '#')
 				continue;	// don't process this line
 
@@ -321,7 +317,7 @@ void MemoryCardDriverThreaded_Linux::GetUSBStorageDevices( std::vector<UsbStorag
 			 * /dev.  This allows us to specify persistent names in
 			 * /etc/fstab using things like /dev/device/by-path. */
 			char szUnderlyingDevice[PATH_MAX];
-			if( realpath(szScsiDevice, szUnderlyingDevice) == nullptr )
+			if( realpath(szScsiDevice, szUnderlyingDevice) == NULL )
 			{
 				// "No such file or directory" is understandable
 				if (errno != ENOENT)
@@ -355,7 +351,7 @@ void MemoryCardDriverThreaded_Linux::GetUSBStorageDevices( std::vector<UsbStorag
 				usbd.sDevice.c_str(), usbd.iBus, usbd.iLevel, usbd.iPort, usbd.idVendor, usbd.idProduct, usbd.sVendor.c_str(),
 				usbd.sProduct.c_str(), usbd.sSerial.c_str(), usbd.sOsMountDir.c_str() );
 	}
-
+	
 	/* Remove any devices that we couldn't find a mountpoint for. */
 	for( unsigned i=0; i<vDevicesOut.size(); i++ )
 	{
@@ -363,12 +359,12 @@ void MemoryCardDriverThreaded_Linux::GetUSBStorageDevices( std::vector<UsbStorag
 		if( usbd.sOsMountDir.empty() )
 		{
 			LOG->Trace( "Ignoring %s (couldn't find in /etc/fstab)", usbd.sDevice.c_str() );
-
+			
 			vDevicesOut.erase( vDevicesOut.begin()+i );
 			--i;
 		}
 	}
-
+	
 	LOG->Trace( "Done with GetUSBStorageDevices" );
 }
 
@@ -376,7 +372,7 @@ void MemoryCardDriverThreaded_Linux::GetUSBStorageDevices( std::vector<UsbStorag
 bool MemoryCardDriverThreaded_Linux::Mount( UsbStorageDevice* pDevice )
 {
 	ASSERT( !pDevice->sDevice.empty() );
-
+	
         RString sCommand = "mount " + pDevice->sDevice;
         bool bMountedSuccessfully = ExecuteCommand( sCommand );
 
@@ -387,7 +383,7 @@ void MemoryCardDriverThreaded_Linux::Unmount( UsbStorageDevice* pDevice )
 {
 	if( pDevice->sDevice.empty() )
 		return;
-
+	
 	/* Use umount -l, so we unmount the device even if it's in use.  Open
 	 * files remain usable, and the device (eg. /dev/sda) won't be reused
 	 * by new devices until those are closed.  Without this, if something
@@ -400,7 +396,7 @@ void MemoryCardDriverThreaded_Linux::Unmount( UsbStorageDevice* pDevice )
 /*
  * (c) 2003-2005 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -410,7 +406,7 @@ void MemoryCardDriverThreaded_Linux::Unmount( UsbStorageDevice* pDevice )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -14,9 +14,9 @@ ComboGraph::ComboGraph()
 {
 	DeleteChildrenWhenDone( true );
 
-	m_pNormalCombo = nullptr;
-	m_pMaxCombo = nullptr;
-	m_pComboNumber = nullptr;
+	m_pNormalCombo = NULL;
+	m_pMaxCombo = NULL;
+	m_pComboNumber = NULL;
 }
 
 void ComboGraph::Load( RString sMetricsGroup )
@@ -28,10 +28,10 @@ void ComboGraph::Load( RString sMetricsGroup )
 	this->SetWidth(BODY_WIDTH);
 	this->SetHeight(BODY_HEIGHT);
 
-	Actor *pActor = nullptr;
+	Actor *pActor = NULL;
 
 	m_pBacking = ActorUtil::MakeActor( THEME->GetPathG(sMetricsGroup,"Backing") );
-	if( m_pBacking != nullptr )
+	if( m_pBacking != NULL )
 	{
 		m_pBacking->ZoomToWidth( BODY_WIDTH );
 		m_pBacking->ZoomToHeight( BODY_HEIGHT );
@@ -39,7 +39,7 @@ void ComboGraph::Load( RString sMetricsGroup )
 	}
 
 	m_pNormalCombo = ActorUtil::MakeActor( THEME->GetPathG(sMetricsGroup,"NormalCombo") );
-	if( m_pNormalCombo != nullptr )
+	if( m_pNormalCombo != NULL )
 	{
 		m_pNormalCombo->ZoomToWidth( BODY_WIDTH );
 		m_pNormalCombo->ZoomToHeight( BODY_HEIGHT );
@@ -47,7 +47,7 @@ void ComboGraph::Load( RString sMetricsGroup )
 	}
 
 	m_pMaxCombo = ActorUtil::MakeActor( THEME->GetPathG(sMetricsGroup,"MaxCombo") );
-	if( m_pMaxCombo != nullptr )
+	if( m_pMaxCombo != NULL )
 	{
 		m_pMaxCombo->ZoomToWidth( BODY_WIDTH );
 		m_pMaxCombo->ZoomToHeight( BODY_HEIGHT );
@@ -55,10 +55,10 @@ void ComboGraph::Load( RString sMetricsGroup )
 	}
 
 	pActor = ActorUtil::MakeActor( THEME->GetPathG(sMetricsGroup,"ComboNumber") );
-	if( pActor != nullptr )
+	if( pActor != NULL )
 	{
 		m_pComboNumber = dynamic_cast<BitmapText *>( pActor );
-		if( m_pComboNumber != nullptr )
+		if( m_pComboNumber != NULL )
 			this->AddChild( m_pComboNumber );
 		else
 			LuaHelpers::ReportScriptErrorFmt( "ComboGraph: \"sMetricsGroup\" \"ComboNumber\" must be a BitmapText" );
@@ -73,7 +73,7 @@ void ComboGraph::Set( const StageStats &s, const PlayerStageStats &pss )
 	// Find the largest combo.
 	int iMaxComboSize = 0;
 	for( unsigned i = 0; i < pss.m_ComboList.size(); ++i )
-		iMaxComboSize = std::max( iMaxComboSize, pss.m_ComboList[i].GetStageCnt() );
+		iMaxComboSize = max( iMaxComboSize, pss.m_ComboList[i].GetStageCnt() );
 
 	for( unsigned i = 0; i < pss.m_ComboList.size(); ++i )
 	{

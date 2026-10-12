@@ -1,5 +1,6 @@
 #include "global.h"
 #include "PrefsManager.h"
+#include "Foreach.h"
 #include "IniFile.h"
 #include "LuaManager.h"
 #include "Preference.h"
@@ -10,12 +11,16 @@
 #include "RageLog.h"
 #include "SpecialFiles.h"
 
+#if !defined(WITHOUT_NETWORKING)
+#include "ver.h"
+#endif
+
 //DEFAULTS_INI_PATH	= "Data/Defaults.ini";		// these can be overridden
 //PREFERENCES_INI_PATH	// overlay on Defaults.ini, contains the user's choices
 //STATIC_INI_PATH	= "Data/Static.ini";		// overlay on the 2 above, can't be overridden
 //TYPE_TXT_FILE	= "Data/Type.txt";
 
-PrefsManager*	PREFSMAN = nullptr;	// global and accessible from anywhere in our program
+PrefsManager*	PREFSMAN = NULL;	// global and accessible from anywhere in our program
 
 static const char *MusicWheelUsesSectionsNames[] = {
 	"Never",
@@ -72,16 +77,26 @@ XToString( ShowDancingCharacters );
 StringToX( ShowDancingCharacters );
 LuaXType( ShowDancingCharacters );
 
-static const char *ImageCacheModeNames[] = {
+static const char *BannerCacheModeNames[] = {
 	"Off",
 	"LowResPreload",
 	"LowResLoadOnDemand",
 	"Full"
 };
-XToString( ImageCacheMode );
-StringToX( ImageCacheMode );
-LuaXType( ImageCacheMode );
-
+XToString( BannerCacheMode );
+StringToX( BannerCacheMode );
+LuaXType( BannerCacheMode );
+/*
+static const char *BackgroundCacheModeNames[] = {
+	"Off",
+	"LowResPreload",
+	"LowResLoadOnDemand",
+	"Full"
+};
+XToString( BackgroundCacheMode );
+StringToX( BackgroundCacheMode );
+LuaXType( BackgroundCacheMode );
+*/
 static const char *HighResolutionTexturesNames[] = {
 	"Auto",
 	"ForceOff",
@@ -125,15 +140,6 @@ XToString( BackgroundFitMode );
 StringToX( BackgroundFitMode );
 LuaXType( BackgroundFitMode );
 
-static const char* ProfileSortOrderNames[] = {
-	"Priority",
-	"Recent",
-	"Alphabetical"
-};
-XToString(ProfileSortOrder);
-StringToX(ProfileSortOrder);
-LuaXType(ProfileSortOrder);
-
 bool g_bAutoRestart = false;
 #ifdef DEBUG
 # define TRUE_IF_DEBUG true
@@ -160,7 +166,6 @@ PrefsManager::PrefsManager() :
 	m_sDefaultModifiers		( "DefaultModifiers",		"" ),
 
 	m_bWindowed			( "Windowed",			true ),
-	m_sDisplayId			( "DisplayId", "" ),
 	m_iDisplayWidth			( "DisplayWidth",		854 ),
 	m_iDisplayHeight		( "DisplayHeight",		480 ),
 	m_fDisplayAspectRatio		( "DisplayAspectRatio",		16/9.f, ValidateDisplayAspectRatio ),
@@ -169,24 +174,39 @@ PrefsManager::PrefsManager() :
 	m_iMovieColorDepth		( "MovieColorDepth",		32 ),
 	m_bStretchBackgrounds		( "StretchBackgrounds",		false ),
 	m_BGFitMode			( "BackgroundFitMode",		BFM_CoverPreserve),
+#if defined(VITA)
+	/* PS Vita defaults (small screen, 112 MB CDRAM, weak CPU): cap texture
+	 * size, skip doubleres font pages, skip per-note Z clears. Texture color
+	 * depth stays 32-bit: the Vita renderer uploads RGBA8888 either way, so
+	 * 16-bit would only lose quality without saving VRAM. */
+	m_HighResolutionTextures	( "HighResolutionTextures",	HighResolutionTextures_ForceOff ),
+	m_iMaxTextureResolution		( "MaxTextureResolution",	512 ),
+#else
 	m_HighResolutionTextures	( "HighResolutionTextures",	HighResolutionTextures_Auto ),
 	m_iMaxTextureResolution		( "MaxTextureResolution",	2048 ),
+#endif
 	m_iRefreshRate			( "RefreshRate",		REFRESH_DEFAULT ),
 	m_bAllowMultitexture		( "AllowMultitexture",		true ),
-	m_bFullscreenIsBorderlessWindow( "FullscreenIsBorderlessWindow", true ),
 	m_bShowStats			( "ShowStats",			TRUE_IF_DEBUG),
 	m_bShowBanners			( "ShowBanners",		true ),
-	m_bShowMouseCursor		( "ShowMouseCursor",		false ),
+	m_bShowMouseCursor		( "ShowMouseCursor",		true ),
 
 	m_bHiddenSongs			( "HiddenSongs",		false ),
 	m_bVsync			( "Vsync",			true ),
+#if defined(VITA)
+	/* Skip the per-tap depth-buffer clear in gameplay (tile GPUs hate it). */
+	m_FastNoteRendering		( "FastNoteRendering",		true),
+#else
 	m_FastNoteRendering		( "FastNoteRendering",		false),
+#endif
 	m_bInterlaced			( "Interlaced",			false ),
 	m_bPAL				( "PAL",			false ),
 	m_bDelayedTextureDelete		( "DelayedTextureDelete",	false ),
 	m_bDelayedModelDelete		( "DelayedModelDelete",		false ),
-	m_ImageCache			( "ImageCache",			IMGCACHE_LOW_RES_PRELOAD ),
+	m_BannerCache			( "BannerCache",		BNCACHE_LOW_RES_PRELOAD ),
+	//m_BackgroundCache		( "BackgroundCache",		BGCACHE_LOW_RES_PRELOAD ),
 	m_bFastLoad			( "FastLoad",			true ),
+	m_bFastLoadAdditionalSongs      ( "FastLoadAdditionalSongs",    true ),
 	m_NeverCacheList		( "NeverCacheList", ""),
 
 	m_bOnlyDedicatedMenuButtons	( "OnlyDedicatedMenuButtons",	false ),
@@ -194,7 +214,6 @@ PrefsManager::PrefsManager() :
 
 	m_fLifeDifficultyScale		( "LifeDifficultyScale",	1.0f ),
 
-	m_bRateModsAffectTweens		( "RateModsAffectFGChanges",	false ),
 
 	m_iRegenComboAfterMiss		( "RegenComboAfterMiss",	5 ),
 	m_iMaxRegenComboAfterMiss	( "MaxRegenComboAfterMiss",	5 ), // this was 10 by default in SM3.95 -dguzek
@@ -206,7 +225,7 @@ PrefsManager::PrefsManager() :
 	m_bMercifulBeginner		( "MercifulBeginner",		false ),
 	m_bMercifulSuperMeter		( "MercifulSuperMeter",		true ),
 	m_bDelayedBack			( "DelayedBack",		true ),
-	m_AllowHoldForOptions		( "AllowHoldForOptions",	true ),
+	m_AllowHoldForOptions("AllowHoldForOptions", true),
 	m_bShowInstructions		( "ShowInstructions",		true ),
 	m_bShowCaution			( "ShowCaution",		true ),
 	m_bShowNativeLanguage		( "ShowNativeLanguage",		true ),
@@ -217,14 +236,14 @@ PrefsManager::PrefsManager() :
 	m_AllowW1			( "AllowW1",			ALLOW_W1_EVERYWHERE ),
 	m_bEventMode			( "EventMode",			true ),
 	m_iCoinsPerCredit		( "CoinsPerCredit",		1 ),
-	m_iMaxNumCredits		( "MaxNumCredits",		20 ),
 	m_iSongsPerPlay			( "SongsPerPlay",		3, ValidateSongsPerPlay ),
 	m_bDelayedCreditsReconcile	( "DelayedCreditsReconcile",	false ),
 	m_bComboContinuesBetweenSongs	( "ComboContinuesBetweenSongs",	false ),
-	m_AllowMultipleToasties		( "AllowMultipleToasties",	true ),
-	m_MinTNSToHideNotes		( "MinTNSToHideNotes",		TNS_W3 ),
+	m_AllowMultipleToasties		("AllowMultipleToasties",	true ),
+	m_MinTNSToHideNotes		("MinTNSToHideNotes",		TNS_W3 ),
 	m_ShowSongOptions		( "ShowSongOptions",		Maybe_NO ),
-	m_bPercentageScoring		( "PercentageScoring",		true ),
+	m_bDancePointsForOni		( "DancePointsForOni",		true ),
+	m_bPercentageScoring		( "PercentageScoring",		false ),
 	// Wow, these preference names are *seriously* long -Colby
 	m_fMinPercentageForMachineSongHighScore		( "MinPercentageForMachineSongHighScore",	0.0001f ), // This is for home, who cares how bad you do?
 	m_fMinPercentageForMachineCourseHighScore	( "MinPercentageForMachineCourseHighScore",	0.0001f ), // don't save course scores with 0 percentage
@@ -233,10 +252,10 @@ PrefsManager::PrefsManager() :
 	m_bAutogenGroupCourses		( "AutogenGroupCourses",		true ),
 	m_bOnlyPreferredDifficulties	( "OnlyPreferredDifficulties",		false ),
 	m_bBreakComboToGetItem		( "BreakComboToGetItem",		false ),
-	m_bLockCourseDifficulties	( "LockCourseDifficulties",		false ),
+	m_bLockCourseDifficulties	( "LockCourseDifficulties",		true ),
 	m_ShowDancingCharacters		( "ShowDancingCharacters",		SDC_Random ),
 	m_bUseUnlockSystem		( "UseUnlockSystem",			false ),
-	m_fGlobalOffsetSeconds		( "GlobalOffsetSeconds",		-0.008f ),
+	m_fGlobalOffsetSeconds		( "GlobalOffsetSeconds",		0 ),
 	m_iProgressiveLifebar		( "ProgressiveLifebar",			0 ),
 	m_iProgressiveStageLifebar	( "ProgressiveStageLifebar",		0 ),
 	m_iProgressiveNonstopLifebar	( "ProgressiveNonstopLifebar",		0 ),
@@ -250,7 +269,7 @@ PrefsManager::PrefsManager() :
 	m_fCenterImageAddWidth		( "CenterImageAddWidth",		0 ),
 	m_fCenterImageAddHeight		( "CenterImageAddHeight",		0 ),
 	m_AttractSoundFrequency		( "AttractSoundFrequency",		ASF_EVERY_TIME ),
-	m_bAllowExtraStage		( "AllowExtraStage",			false ),
+	m_bAllowExtraStage		( "AllowExtraStage",			true ),
 	m_iMaxHighScoresPerListForMachine	( "MaxHighScoresPerListForMachine",	10 ),
 	m_iMaxHighScoresPerListForPlayer	( "MaxHighScoresPerListForPlayer",	3 ),
 	m_bAllowMultipleHighScoreWithSameName	( "AllowMultipleHighScoreWithSameName",	true ),
@@ -267,28 +286,21 @@ PrefsManager::PrefsManager() :
 	m_bAnisotropicFiltering		( "AnisotropicFiltering",		false ),
 
 	m_bSignProfileData		( "SignProfileData",			false ),
-	m_ProfileSortOrder		( "ProfileSortOrder",			ProfileSortOrder_Priority ),
-	m_bProfileSortOrderAscending		( "ProfileSortOrderAscending",			true ),
 	m_CourseSortOrder		( "CourseSortOrder",			COURSE_SORT_SONGS ),
 	m_bSubSortByNumSteps		( "SubSortByNumSteps",			false ),
 	m_GetRankingName		( "GetRankingName",			RANKING_ON ),
-	m_sAdditionalSongFoldersReadOnly( "AdditionalSongFoldersReadOnly",	"", nullptr, PreferenceType::Immutable ),
-	m_sAdditionalSongFoldersWritable( "AdditionalSongFoldersWritable",	"", nullptr, PreferenceType::Immutable ),
-	m_sAdditionalCourseFoldersReadOnly( "AdditionalCourseFoldersReadOnly",	"", nullptr, PreferenceType::Immutable ),
-	m_sAdditionalCourseFoldersWritable( "AdditionalCourseFoldersWritable",	"", nullptr, PreferenceType::Immutable ),
-	m_sAdditionalFoldersReadOnly	( "AdditionalFoldersReadOnly",		"", nullptr, PreferenceType::Immutable ),
-	m_sAdditionalFoldersWritable	( "AdditionalFoldersWritable",		"", nullptr, PreferenceType::Immutable ),
+	m_sAdditionalSongFolders	( "AdditionalSongFolders",		"" ),
+	m_sAdditionalCourseFolders	( "AdditionalCourseFolders",		"" ),
+	m_sAdditionalFolders		( "AdditionalFolders",			"" ),
 	m_sDefaultTheme			( "DefaultTheme",			"default" ),
 	m_sLastSeenVideoDriver		( "LastSeenVideoDriver",		"" ),
 	m_sVideoRenderers		( "VideoRenderers",			"" ),	// StepMania.cpp sets these on first run:
-	m_bSmoothLines			( "SmoothLines",			true ),
+	m_bSmoothLines			( "SmoothLines",			false ),
 	m_iSoundWriteAhead		( "SoundWriteAhead",			0 ),
 	m_iSoundDevice			( "SoundDevice",			"" ),
-	m_iRageSoundSampleCountClamp	("RageSoundSampleCountClamp", 0), //some sound drivers mask the sample location number, the most popular number for this is 2^27, this causes lockup after ~50 minutes at 44.1khz sample rate
 	m_iSoundPreferredSampleRate	( "SoundPreferredSampleRate",		0 ),
-	m_sLightsStepsDifficulty	( "LightsStepsDifficulty",		"hard,medium" ),
-	m_bLightsSimplifyBass		( "LightsSimplifyBass",		false),
-	m_bAllowUnacceleratedRenderer	( "AllowUnacceleratedRenderer",		false ),
+	m_sLightsStepsDifficulty	( "LightsStepsDifficulty",		"medium" ),
+	m_bAllowUnacceleratedRenderer	( "AllowUnacceleratedRenderer",		false ), 
 	m_bThreadedInput		( "ThreadedInput",			true ),
 	m_bThreadedMovieDecode		( "ThreadedMovieDecode",		true ),
 	m_sTestInitialScreen		( "TestInitialScreen",			"" ),
@@ -300,12 +312,6 @@ PrefsManager::PrefsManager() :
 	m_bAllowSongDeletion		( "AllowSongDeletion",			false ),
 
 	m_bQuirksMode			( "QuirksMode",		false ),
-
-	m_custom_songs_enable("CustomSongsEnable", false),
-	m_custom_songs_max_count("CustomSongsMaxCount", 1000), // No limit. -- 2 Unlimited
-	m_custom_songs_load_timeout("CustomSongsLoadTimeout", 5.f),
-	m_custom_songs_max_seconds("CustomSongsMaxSeconds", 120.f),
-	m_custom_songs_max_megabytes("CustomSongsMaxMegabytes", 5.f),
 
 	/* Debug: */
 	m_bLogToDisk			( "LogToDisk",		true ),
@@ -320,10 +326,22 @@ PrefsManager::PrefsManager() :
 	m_bLogCheckpoints		( "LogCheckpoints",	false ),
 	m_bShowLoadingWindow		( "ShowLoadingWindow",	true ),
 	m_bPseudoLocalize		( "PseudoLocalize",	false ),
-	m_show_theme_errors		( "ShowThemeErrors",	false ),
-	m_sAdditionalSongFolders	( "AdditionalSongFolders",		"", nullptr, PreferenceType::Deprecated ),
-	m_sAdditionalCourseFolders	( "AdditionalCourseFolders",		"", nullptr, PreferenceType::Deprecated ),
-	m_sAdditionalFolders		( "AdditionalFolders",			"", nullptr, PreferenceType::Deprecated )
+	m_show_theme_errors("ShowThemeErrors", false)
+
+#if !defined(WITHOUT_NETWORKING)
+	,
+	m_bEnableScoreboard		( "EnableScoreboard",	true )
+	,
+	m_bUpdateCheckEnable			( "UpdateCheckEnable",				true )
+	// TODO - Aldo_MX: Use PREFSMAN->m_iUpdateCheckIntervalSeconds & PREFSMAN->m_iUpdateCheckLastCheckedSecond
+	//,
+	//m_iUpdateCheckIntervalSeconds	( "UpdateCheckIntervalSeconds",		86400 ),	// 24 hours
+	//m_iUpdateCheckLastCheckedSecond	( "UpdateCheckLastCheckSecond",		0 )
+	// TODO - Aldo_MX: Write helpers in LuaManager.cpp to treat unsigned int/long like LUA Numbers
+	//,
+	//m_uUpdateCheckLastCheckedBuild	( "UpdateCheckLastCheckedBuild",	version_num )
+#endif
+
 {
 	Init();
 	ReadPrefsFromDisk();
@@ -370,7 +388,7 @@ void PrefsManager::StoreGamePrefs()
 	ASSERT( !m_sCurrentGame.Get().empty() );
 
 	// save off old values
-	GamePrefs &gp = m_mapGameNameToGamePrefs[m_sCurrentGame.Get()];
+	GamePrefs &gp = m_mapGameNameToGamePrefs[m_sCurrentGame];
 	gp.m_sAnnouncer = m_sAnnouncer;
 	gp.m_sTheme = m_sTheme;
 	gp.m_sDefaultModifiers = m_sDefaultModifiers;
@@ -382,12 +400,12 @@ void PrefsManager::RestoreGamePrefs()
 
 	// load prefs
 	GamePrefs gp;
-	std::map<RString, GamePrefs>::const_iterator iter = m_mapGameNameToGamePrefs.find( m_sCurrentGame );
+	map<RString, GamePrefs>::const_iterator iter = m_mapGameNameToGamePrefs.find( m_sCurrentGame );
 	if( iter != m_mapGameNameToGamePrefs.end() )
 		gp = iter->second;
 
 	m_sAnnouncer		.Set( gp.m_sAnnouncer );
-	m_sTheme		.Set( gp.m_sTheme );
+	m_sTheme			.Set( gp.m_sTheme );
 	m_sDefaultModifiers	.Set( gp.m_sDefaultModifiers );
 
 	// give Static.ini a chance to clobber the saved game prefs
@@ -405,8 +423,6 @@ void PrefsManager::ReadPrefsFromDisk()
 	ReadGamePrefsFromIni( SpecialFiles::PREFERENCES_INI_PATH );
 	ReadPrefsFromFile( SpecialFiles::STATIC_INI_PATH, GetPreferencesSection(), true );
 
-	TranslateDeprecatedFlags();
-
 	if( !m_sCurrentGame.Get().empty() )
 		RestoreGamePrefs();
 }
@@ -417,8 +433,6 @@ void PrefsManager::ResetToFactoryDefaults()
 	Init();
 	IPreference::LoadAllDefaults();
 	ReadPrefsFromFile( SpecialFiles::STATIC_INI_PATH, GetPreferencesSection(), true );
-
-	TranslateDeprecatedFlags();
 
 	SavePrefsToDisk();
 }
@@ -449,7 +463,7 @@ void PrefsManager::ReadPrefsFromIni( const IniFile &ini, const RString &sSection
 
 	/*
 	IPreference *pPref = PREFSMAN->GetPreferenceByName( *sName );
-	if( pPref == nullptr )
+	if( pPref == NULL )
 	{
 		LOG->Warn( "Unknown preference in [%s]: %s", sClassName.c_str(), sName->c_str() );
 		continue;
@@ -479,7 +493,7 @@ void PrefsManager::ReadGamePrefsFromIni( const RString &sIni )
 
 		// todo: read more prefs here? -aj
 		ini.GetValue(section_name, "Announcer",		gp.m_sAnnouncer);
-		ini.GetValue(section_name, "Theme",		gp.m_sTheme);
+		ini.GetValue(section_name, "Theme",			gp.m_sTheme);
 		ini.GetValue(section_name, "DefaultModifiers",	gp.m_sDefaultModifiers);
 	}
 }
@@ -504,16 +518,6 @@ void PrefsManager::ReadDefaultsFromIni( const IniFile &ini, const RString &sSect
 	IPreference::ReadAllDefaultsFromNode( ini.GetChild(sSection) );
 }
 
-void PrefsManager::TranslateDeprecatedFlags()
-{
-	if(!m_sAdditionalFolders.Get().empty())
-		m_sAdditionalFoldersWritable.Set(m_sAdditionalFolders.Get());
-	if(!m_sAdditionalSongFolders.Get().empty())
-		m_sAdditionalSongFoldersWritable.Set(m_sAdditionalSongFolders.Get());
-	if(!m_sAdditionalCourseFolders.Get().empty())
-		m_sAdditionalCourseFoldersWritable.Set(m_sAdditionalCourseFolders.Get());
-}
-
 void PrefsManager::SavePrefsToDisk()
 {
 	IniFile ini;
@@ -527,18 +531,18 @@ void PrefsManager::SavePrefsToIni( IniFile &ini )
 		StoreGamePrefs();
 
 	XNode* pNode = ini.GetChild( "Options" );
-	if( pNode == nullptr )
+	if( pNode == NULL )
 		pNode = ini.AppendChild( "Options" );
 	IPreference::SavePrefsToNode( pNode );
 
-	for (auto const &iter : m_mapGameNameToGamePrefs)
+	FOREACHM_CONST( RString, GamePrefs, m_mapGameNameToGamePrefs, iter )
 	{
-		RString sSection = "Game-" + RString( iter.first );
+		RString sSection = "Game-" + RString( iter->first );
 
 		// todo: write more values here? -aj
-		ini.SetValue( sSection, "Announcer",		iter.second.m_sAnnouncer );
-		ini.SetValue( sSection, "Theme",		iter.second.m_sTheme );
-		ini.SetValue( sSection, "DefaultModifiers",	iter.second.m_sDefaultModifiers );
+		ini.SetValue( sSection, "Announcer",		iter->second.m_sAnnouncer );
+		ini.SetValue( sSection, "Theme",		iter->second.m_sTheme );
+		ini.SetValue( sSection, "DefaultModifiers",	iter->second.m_sDefaultModifiers );
 	}
 }
 
@@ -560,7 +564,7 @@ RString PrefsManager::GetPreferencesSection() const
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the PrefsManager. */
+/** @brief Allow Lua to have access to the PrefsManager. */ 
 class LunaPrefsManager: public Luna<PrefsManager>
 {
 public:
@@ -568,7 +572,7 @@ public:
 	{
 		RString sName = SArg(1);
 		IPreference *pPref = IPreference::GetPreferenceByName( sName );
-		if( pPref == nullptr )
+		if( pPref == NULL )
 		{
 			LuaHelpers::ReportScriptErrorFmt( "GetPreference: unknown preference \"%s\"", sName.c_str() );
 			lua_pushnil( L );
@@ -583,14 +587,9 @@ public:
 		RString sName = SArg(1);
 
 		IPreference *pPref = IPreference::GetPreferenceByName( sName );
-		if( pPref == nullptr )
+		if( pPref == NULL )
 		{
 			LuaHelpers::ReportScriptErrorFmt( "SetPreference: unknown preference \"%s\"", sName.c_str() );
-			COMMON_RETURN_SELF;
-		}
-		else if (pPref->IsImmutable())
-		{
-			LuaHelpers::ReportScriptErrorFmt( "SetPreference: preference \"%s\" is immutable", sName.c_str() );
 			COMMON_RETURN_SELF;
 		}
 
@@ -603,14 +602,9 @@ public:
 		RString sName = SArg(1);
 
 		IPreference *pPref = IPreference::GetPreferenceByName( sName );
-		if( pPref == nullptr )
+		if( pPref == NULL )
 		{
 			LuaHelpers::ReportScriptErrorFmt( "SetPreferenceToDefault: unknown preference \"%s\"", sName.c_str() );
-			COMMON_RETURN_SELF;
-		}
-		else if (pPref->IsImmutable())
-		{
-			LuaHelpers::ReportScriptErrorFmt( "SetPreference: preference \"%s\" is immutable", sName.c_str() );
 			COMMON_RETURN_SELF;
 		}
 
@@ -623,7 +617,7 @@ public:
 		RString sName = SArg(1);
 
 		IPreference *pPref = IPreference::GetPreferenceByName( sName );
-		if( pPref == nullptr )
+		if( pPref == NULL )
 		{
 			lua_pushboolean( L, false );
 			return 1;
@@ -631,9 +625,9 @@ public:
 		lua_pushboolean( L, true );
 		return 1;
 	}
-
+	
 	static int SavePreferences( T* p, lua_State *L ) { p->SavePrefsToDisk(); COMMON_RETURN_SELF; }
-
+	
 	LunaPrefsManager()
 	{
 		ADD_METHOD( GetPreference );
@@ -650,7 +644,7 @@ LUA_REGISTER_CLASS( PrefsManager )
 /*
  * (c) 2001-2004 Chris Danford, Chris Gomez
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -660,7 +654,7 @@ LUA_REGISTER_CLASS( PrefsManager )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

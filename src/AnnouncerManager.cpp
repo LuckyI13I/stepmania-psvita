@@ -3,12 +3,9 @@
 #include "RageLog.h"
 #include "RageUtil.h"
 #include "RageFile.h"
-
 #include <cstring>
-#include <vector>
 
-
-AnnouncerManager*	ANNOUNCER = nullptr; // global and accessible from anywhere in our program
+AnnouncerManager*	ANNOUNCER = NULL; // global and accessible from anywhere in our program
 
 
 const RString EMPTY_ANNOUNCER_NAME = "Empty";
@@ -32,7 +29,7 @@ AnnouncerManager::~AnnouncerManager()
 	LUA->UnsetGlobal( "ANNOUNCER" );
 }
 
-void AnnouncerManager::GetAnnouncerNames( std::vector<RString>& AddTo )
+void AnnouncerManager::GetAnnouncerNames( vector<RString>& AddTo )
 {
 	GetDirListing( ANNOUNCERS_DIR+"*", AddTo, true );
 
@@ -50,7 +47,7 @@ bool AnnouncerManager::DoesAnnouncerExist( RString sAnnouncerName )
 	if( sAnnouncerName == "" )
 		return true;
 
-	std::vector<RString> asAnnouncerNames;
+	vector<RString> asAnnouncerNames;
 	GetAnnouncerNames( asAnnouncerNames );
 	for( unsigned i=0; i<asAnnouncerNames.size(); i++ )
 		if( 0==strcasecmp(sAnnouncerName, asAnnouncerNames[i]) )
@@ -104,7 +101,7 @@ static const char *aliases[][2] = {
 	{ "gameplay combo 900", "gameplay 900 combo" },
 	{ "gameplay combo 1000", "gameplay 1000 combo" },
 
-	{ nullptr, nullptr }
+	{ NULL, NULL }
 };
 
 /* Find an announcer directory with sounds in it.  First search sFolderName,
@@ -123,7 +120,7 @@ RString AnnouncerManager::GetPathTo( RString sAnnouncerName, RString sFolderName
 
 	/* Search for the announcer folder in the list of aliases. */
 	int i;
-	for(i = 0; aliases[i][0] != nullptr; ++i)
+	for(i = 0; aliases[i][0] != NULL; ++i)
 	{
 		if(!sFolderName.EqualsNoCase(aliases[i][0]))
 			continue; /* no match */
@@ -157,7 +154,7 @@ bool AnnouncerManager::HasSoundsFor( RString sFolderName )
 
 void AnnouncerManager::NextAnnouncer()
 {
-	std::vector<RString> as;
+	vector<RString> as;
 	GetAnnouncerNames( as );
 	if( as.size()==0 )
 		return;
@@ -189,7 +186,7 @@ public:
 	static int DoesAnnouncerExist( T* p, lua_State *L ) { lua_pushboolean(L, p->DoesAnnouncerExist( SArg(1) )); return 1; }
 	static int GetAnnouncerNames( T* p, lua_State *L )
 	{
-		std::vector<RString> vAnnouncers;
+		vector<RString> vAnnouncers;
 		p->GetAnnouncerNames( vAnnouncers );
 		LuaHelpers::CreateTableFromArray(vAnnouncers, L);
 		return 1;

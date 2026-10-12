@@ -5,9 +5,6 @@
 
 #include "RageSoundReader.h"
 
-#include <vector>
-
-
 class RageSoundSplitterImpl;
 
 class RageSoundReader_Split: public RageSoundReader
@@ -42,7 +39,7 @@ private:
 		int m_iToChannel;
 		ChannelMap( int iFromChannel, int iToChannel ) { m_iFromChannel = iFromChannel; m_iToChannel = iToChannel; }
 	};
-	std::vector<ChannelMap> m_aChannels;
+	vector<ChannelMap> m_aChannels;
 
 	int m_iPositionFrame;
 	int m_iRequestFrames;

@@ -1,11 +1,4 @@
 #include "global.h"
-
-// tomcrypt_cfg.h redefines malloc, realloc, calloc
-#pragma warning( push )
-#pragma warning( disable : 4565 )
-#include <tomcrypt.h>
-#pragma warning ( pop )
-
 #include "CryptManager.h"
 #include "RageUtil.h"
 #include "RageLog.h"
@@ -16,11 +9,12 @@
 #include "LuaReference.h"
 #include "LuaManager.h"
 
-#include <cstdint>
-#include <vector>
+#include "libtomcrypt/src/headers/tomcrypt.h"
+#if defined(VITA)
+#include "arch/Vita/ArchHooks_Vita.h" // VitaBootMark
+#endif
 
-
-CryptManager*	CRYPTMAN	= nullptr;	// global and accessible from anywhere in our program
+CryptManager*	CRYPTMAN	= NULL;	// global and accessible from anywhere in our program
 
 static const RString PRIVATE_KEY_PATH = "Data/private.rsa";
 static const RString PUBLIC_KEY_PATH = "Data/public.rsa";
@@ -66,9 +60,9 @@ bool CryptManager::VerifyFileWithFile( RString sPath, RString sSignatureFile )
 
 void CryptManager::GetRandomBytes( void *pData, int iBytes )
 {
-	std::uint8_t *pBuf = (std::uint8_t *) pData;
+	uint8_t *pBuf = (uint8_t *) pData;
 	while( iBytes-- )
-		*pBuf++ = (std::uint8_t) RandomInt( 256 );
+		*pBuf++ = (uint8_t) RandomInt( 256 );
 }
 
 #else
@@ -83,13 +77,13 @@ static const int KEY_LENGTH = 1024;
  openssl genrsa -out testing -outform DER
  openssl rsa -in testing -out testing2 -outform DER
  openssl rsa -in testing -out testing2 -pubout -outform DER
-
+ 
  openssl pkcs8 -inform DER -outform DER -nocrypt -in private.rsa -out private.der
- *
+ * 
  */
 
-static PRNGWrapper *g_pPRNG = nullptr;
-ltc_math_descriptor ltc_mp = ltm_desc;
+static PRNGWrapper *g_pPRNG = NULL;
+
 
 CryptManager::CryptManager()
 {
@@ -101,6 +95,11 @@ CryptManager::CryptManager()
 		lua_settable( L, LUA_GLOBALSINDEX );
 		LUA->Release( L );
 	}
+#if defined(VITA)
+	VitaBootMark("sm:cryptman-lua-done");
+#endif
+
+	ltc_mp = ltm_desc;
 
 	g_pPRNG = new PRNGWrapper( &yarrow_desc );
 }
@@ -151,7 +150,7 @@ static bool WriteFile( RString sFile, RString sBuf )
 		LOG->Warn( "WriteFile: opening %s failed: %s", sFile.c_str(), output.GetError().c_str() );
 		return false;
 	}
-
+	
 	if( output.Write(sBuf) == -1 || output.Flush() == -1 )
 	{
 		LOG->Warn( "WriteFile: writing %s failed: %s", sFile.c_str(), output.GetError().c_str() );
@@ -282,7 +281,7 @@ bool CryptManager::VerifyFileWithFile( RString sPath, RString sSignatureFile )
 	if( VerifyFileWithFile(sPath, sSignatureFile, PUBLIC_KEY_PATH) )
 		return true;
 
-	std::vector<RString> asKeys;
+	vector<RString> asKeys;
 	GetDirListing( ALTERNATE_PUBLIC_KEY_DIR, asKeys, false, true );
 	for( unsigned i = 0; i < asKeys.size(); ++i )
 	{
@@ -428,37 +427,6 @@ RString CryptManager::GetSHA1ForFile( RString fn )
 	return RString( (const char *) digest, sizeof(digest) );
 }
 
-RString CryptManager::GetSHA256ForString( RString sData )
-{
-	unsigned char digest[32];
-
-	int iHash = register_hash( &sha256_desc );
-
-	hash_state hash;
-	hash_descriptor[iHash].init( &hash );
-	hash_descriptor[iHash].process( &hash, (const unsigned char *) sData.data(), sData.size() );
-	hash_descriptor[iHash].done( &hash, digest );
-
-	return RString( (const char *) digest, sizeof(digest) );
-}
-
-RString CryptManager::GetSHA256ForFile( RString fn )
-{
-	RageFile file;
-	if( !file.Open( fn, RageFile::READ ) )
-	{
-		LOG->Warn( "GetSHA256: Failed to open file '%s'", fn.c_str() );
-		return RString();
-	}
-	int iHash = register_hash( &sha256_desc );
-	ASSERT( iHash >= 0 );
-
-	unsigned char digest[32];
-	HashFile( file, digest, iHash );
-
-	return RString( (const char *) digest, sizeof(digest) );
-}
-
 RString CryptManager::GetPublicKeyFileName()
 {
 	return PUBLIC_KEY_PATH;
@@ -467,7 +435,7 @@ RString CryptManager::GetPublicKeyFileName()
 /* Generate a version 4 random UUID. */
 RString CryptManager::GenerateRandomUUID()
 {
-	std::uint32_t buf[4];
+	uint32_t buf[4];
 	CryptManager::GetRandomBytes( buf, sizeof(buf) );
 
 	buf[1] &= 0xFFFF0FFF;
@@ -485,7 +453,7 @@ RString CryptManager::GenerateRandomUUID()
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the CryptManager. */
+/** @brief Allow Lua to have access to the CryptManager. */ 
 class LunaCryptManager: public Luna<CryptManager>
 {
 public:
@@ -517,20 +485,6 @@ public:
 		lua_pushlstring(L, sha1fout, sha1fout.size());
 		return 1;
 	}
-	static int SHA256String( T* p, lua_State *L )
-	{
-		RString sha256out;
-		sha256out = p->GetSHA256ForString(SArg(1));
-		lua_pushlstring(L, sha256out, sha256out.size());
-		return 1;
-	}
-	static int SHA256File( T* p, lua_State *L )
-	{
-		RString sha256fout;
-		sha256fout = p->GetSHA256ForFile(SArg(1));
-		lua_pushlstring(L, sha256fout, sha256fout.size());
-		return 1;
-	}
 	static int GenerateRandomUUID( T* p, lua_State *L )
 	{
 		RString uuidOut;
@@ -545,8 +499,6 @@ public:
 		ADD_METHOD( MD5File );
 		ADD_METHOD( SHA1String );
 		ADD_METHOD( SHA1File );
-		ADD_METHOD( SHA256String );
-		ADD_METHOD( SHA256File );
 		ADD_METHOD( GenerateRandomUUID );
 	}
 };
@@ -558,7 +510,7 @@ LUA_REGISTER_CLASS( CryptManager )
 /*
  * (c) 2004-2007 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -568,7 +520,7 @@ LUA_REGISTER_CLASS( CryptManager )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -25,7 +25,7 @@ class CircBuf
 public:
 	CircBuf()
 	{
-		buf = nullptr;
+		buf = NULL;
 		clear();
 	}
 
@@ -63,7 +63,7 @@ public:
 		}
 		else
 		{
-			buf = nullptr;
+			buf = NULL;
 		}
 	}
 
@@ -113,7 +113,7 @@ public:
 
 		clear();
 		delete[] buf;
-		buf = nullptr;
+		buf = NULL;
 
 		/* Reserve an extra byte.  We'll never fill more than n bytes; the extra
 		 * byte is to guarantee that read_pos != write_pos when the buffer is full,
@@ -131,8 +131,7 @@ public:
 
 	void clear()
 	{
-		read_pos = 0;
-		write_pos = 0;
+		read_pos = write_pos = 0;
 	}
 
 	/* Indicate that n elements have been written. */
@@ -165,7 +164,7 @@ public:
 		{
 			/* The buffer looks like "DDeeeeeeeeDD" (e = empty, D = data). */
 			pPointers[0] = buf+wpos;
-			pPointers[1] = nullptr;
+			pPointers[1] = NULL;
 
 			pSizes[0] = rpos - wpos;
 			pSizes[1] = 0;
@@ -198,7 +197,7 @@ public:
 		{
 			/* The buffer looks like "eeeeDDDDeeee" (e = empty, D = data). */
 			pPointers[0] = buf+rpos;
-			pPointers[1] = nullptr;
+			pPointers[1] = NULL;
 
 			pSizes[0] = wpos - rpos;
 			pSizes[1] = 0;
@@ -215,8 +214,8 @@ public:
 		else
 		{
 			/* The buffer looks like "eeeeeeeeeeee" (e = empty, D = data). */
-			pPointers[0] = nullptr;
-			pPointers[1] = nullptr;
+			pPointers[0] = NULL;
+			pPointers[1] = NULL;
 
 			pSizes[0] = 0;
 			pSizes[1] = 0;
@@ -235,10 +234,10 @@ public:
 		if( buffer_size > sizes[0] + sizes[1] )
 			return false;
 		
-		const int from_first = std::min( buffer_size, sizes[0] );
+		const int from_first = min( buffer_size, sizes[0] );
 		memcpy( p[0], buffer, from_first*sizeof(T) );
 		if( buffer_size > sizes[0] )
-			memcpy( p[1], buffer+from_first, (buffer_size-sizes[0])*sizeof(T) );
+			memcpy( p[1], buffer+from_first, max(buffer_size-sizes[0], 0u)*sizeof(T) );
 
 		advance_write_pointer( buffer_size );
 
@@ -257,16 +256,16 @@ public:
 		if( buffer_size > sizes[0] + sizes[1] )
 			return false;
 
-		const int from_first = std::min( buffer_size, sizes[0] );
+		const int from_first = min( buffer_size, sizes[0] );
 		memcpy( buffer, p[0], from_first*sizeof(T) );
 		if( buffer_size > sizes[0] )
-			memcpy( buffer+from_first, p[1], (buffer_size-sizes[0])*sizeof(T) );
+			memcpy( buffer+from_first, p[1], max(buffer_size-sizes[0], 0u)*sizeof(T) );
 
 		/* Set the data that we just read to 0xFF.  This way, if we're passing pointesr
 		 * through, we can tell if we accidentally get a stale pointer. */
 		memset( p[0], 0xFF, from_first*sizeof(T) );
 		if( buffer_size > sizes[0] )
-			memset( p[1], 0xFF, (buffer_size-sizes[0])*sizeof(T) );
+			memset( p[1], 0xFF, max(buffer_size-sizes[0], 0u)*sizeof(T) );
 
 		advance_read_pointer( buffer_size );
 		return true;

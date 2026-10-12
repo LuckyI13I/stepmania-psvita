@@ -42,32 +42,32 @@ public:
 		RString sQuestion, 
 		RString sInitialAnswer, 
 		int iMaxInputLength, 
-		bool(*Validate)(const RString &sAnswer,RString &sErrorOut) = nullptr, 
-		void(*OnOK)(const RString &sAnswer) = nullptr, 
-		void(*OnCancel)() = nullptr,
+		bool(*Validate)(const RString &sAnswer,RString &sErrorOut) = NULL, 
+		void(*OnOK)(const RString &sAnswer) = NULL, 
+		void(*OnCancel)() = NULL,
 		bool bPassword = false,
-		bool (*ValidateAppend)(const RString &sAnswerBeforeChar, RString &sAppend) = nullptr,
-		RString (*FormatAnswerForDisplay)(const RString &sAnswer) = nullptr
+		bool (*ValidateAppend)(const RString &sAnswerBeforeChar, RString &sAppend) = NULL,
+		RString (*FormatAnswerForDisplay)(const RString &sAnswer) = NULL
 		);
 	static void TextEntry( 
 		ScreenMessage smSendOnPop, 
 		RString sQuestion, 
 		RString sInitialAnswer, 
 		int iMaxInputLength, 
-		bool(*Validate)(const RString &sAnswer,RString &sErrorOut) = nullptr, 
-		void(*OnOK)(const RString &sAnswer) = nullptr, 
-		void(*OnCancel)() = nullptr,
+		bool(*Validate)(const RString &sAnswer,RString &sErrorOut) = NULL, 
+		void(*OnOK)(const RString &sAnswer) = NULL, 
+		void(*OnCancel)() = NULL,
 		bool bPassword = false,
-		bool (*ValidateAppend)(const RString &sAnswerBeforeChar, RString &sAppend) = nullptr,
-		RString (*FormatAnswerForDisplay)(const RString &sAnswer) = nullptr
+		bool (*ValidateAppend)(const RString &sAnswerBeforeChar, RString &sAppend) = NULL,
+		RString (*FormatAnswerForDisplay)(const RString &sAnswer) = NULL
 		);
 	static void Password( 
 		ScreenMessage smSendOnPop, 
 		const RString &sQuestion, 
-		void(*OnOK)(const RString &sPassword) = nullptr, 
-		void(*OnCancel)() = nullptr )
+		void(*OnOK)(const RString &sPassword) = NULL, 
+		void(*OnCancel)() = NULL )
 	{
-		TextEntry( smSendOnPop, sQuestion, "", 255, nullptr, OnOK, OnCancel, true );
+		TextEntry( smSendOnPop, sQuestion, "", 255, NULL, OnOK, OnCancel, true );
 	}
 
 	struct TextEntrySettings {
@@ -123,7 +123,7 @@ private:
 
 	void UpdateAnswerText();
 
-	std::wstring		m_sAnswer;
+	wstring		m_sAnswer;
 	bool		m_bShowAnswerCaret;
 	// todo: allow Left/Right to change caret location -aj
 	//int			m_iCaretLocation;

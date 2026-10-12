@@ -12,9 +12,6 @@
 #include "RageMath.h"
 #include "RageThreads.h"
 
-#include <cmath>
-#include <cstddef>
-#include <cstdint>
 #include <numeric>
 
 /* Filter length.  This must be a power of 2. */
@@ -26,14 +23,14 @@ namespace
 	{
 		if( f == 0 )
 			return 1;
-		return std::sin(f) / f;
+		return sinf(f)/f;
 	}
 
 	/* Modified Bessel function I0.  From Abramowitz and Stegun "Handbook of Mathematical
 	 * Functions", "Modified Bessel Functions I and K". */
 	float BesselI0( float fX )
 	{
-		float fAbsX = std::abs( fX );
+		float fAbsX = fabsf( fX );
 		if( fAbsX < 3.75f )
 		{
 			float y = fX / 3.75f;
@@ -44,16 +41,16 @@ namespace
 		else
 		{
 			float y = 3.75f/fAbsX;
-			float fRet = (std::exp(fAbsX)/std::sqrt(fAbsX)) *
+			float fRet = (exp(fAbsX)/sqrt(fAbsX)) *
 				  (+0.39894228f+y*(+0.01328592f+y*(+0.00225319f+y*(-0.00157565f+y*(0.00916281f+
 				y*(-0.02057706f+y*(+0.02635537f+y*(-0.01647633f+y*+0.00392377f))))))));
 			return fRet;
 		}
 	}
 
-	/*
+	/* 
 	 * Kaiser window:
-	 *
+	 * 
 	 * K(n) = I0( B*sqrt(1-(n/p)^2) )
 	 *        -----------------------
 	 *                 I0(B)
@@ -66,8 +63,8 @@ namespace
 		float p = (iLen-1)/2.0f;
 		for( int n = 0; n < iLen; ++n )
 		{
-			float fN1 = std::abs((n-p)/p);
-			float fNum = fBeta * std::sqrt( std::max(1.0f - fN1*fN1, 0.0f) );
+			float fN1 = fabsf((n-p)/p);
+			float fNum = fBeta * sqrtf( max(1-fN1*fN1, 0) );
 			fNum = BesselI0( fNum );
 			float fVal = fNum/fDenom;
 			pBuf[n] *= fVal;
@@ -107,13 +104,24 @@ namespace
 
 	void NormalizeVector( float *pBuf, int iSize )
 	{
-		float fTotal = std::accumulate( &pBuf[0], &pBuf[iSize], 0.0f );
+		float fTotal = accumulate( &pBuf[0], &pBuf[iSize], 0.0f );
 		MultiplyVector( &pBuf[0], &pBuf[iSize], 1/fTotal );
 	}
 
 	int GCD( int i1, int i2 )
 	{
-		return std::gcd(i1, i2);
+		for(;;)
+		{
+			unsigned iRem = i2 % i1;
+			if( iRem == 0 )
+			{
+				return i1;
+			}
+			i2 = i1;
+			i1 = iRem;
+		}
+
+		return i1;
 	}
 }
 
@@ -219,7 +227,7 @@ private:
  * input     first output sample (before decimation)
  * sample          second output sample
  *                     third output sample
- *
+ * 
  * 0         0
  * 0         1     0
  * 1592      2     1   0
@@ -293,7 +301,7 @@ int PolyphaseFilter::RunPolyphaseFilter(
 	float *pOutOrig = pOut;
 	const float *pInEnd = pIn + iSamplesIn*iSampleStride;
 	const float *pOutEnd = pOut + iSamplesOut*iSampleStride;
-
+	
 	int iFilled = State.m_iFilled;
 	int iPolyIndex = State.m_iPolyIndex;
 	while( pOut != pOutEnd )
@@ -394,14 +402,14 @@ namespace PolyphaseFilterCache
 {
 	/* Cache filter data, and reuse it without copying.  All operations after creation
 	 * are const, so this doesn't cause thread-safety problems. */
-	typedef std::map<std::pair<int, float>, PolyphaseFilter*> FilterMap;
+	typedef map<pair<int,float>, PolyphaseFilter *> FilterMap;
 	static RageMutex PolyphaseFiltersLock("PolyphaseFiltersLock");
 	static FilterMap g_mapPolyphaseFilters;
-
+		
 	const PolyphaseFilter *MakePolyphaseFilter( int iUpFactor, float fCutoffFrequency )
 	{
 		PolyphaseFiltersLock.Lock();
-		std::pair<int, float> params( std::make_pair(iUpFactor, fCutoffFrequency) );
+		pair<int,float> params( make_pair(iUpFactor, fCutoffFrequency) );
 		FilterMap::const_iterator it = g_mapPolyphaseFilters.find(params);
 		if( it != g_mapPolyphaseFilters.end() )
 		{
@@ -432,7 +440,7 @@ namespace PolyphaseFilterCache
 		 * Round the cutoff down, if possible; it's better to filter out too much than
 		 * too little. */
 		PolyphaseFiltersLock.Lock();
-		std::pair<int, float> params( std::make_pair(iUpFactor, fCutoffFrequency + 0.0001f) );
+		pair<int,float> params( make_pair(iUpFactor, fCutoffFrequency + 0.0001f) );
 		FilterMap::const_iterator it = g_mapPolyphaseFilters.upper_bound( params );
 		if( it != g_mapPolyphaseFilters.begin() )
 			--it;
@@ -455,14 +463,14 @@ public:
 	 * too much filtering, by not having a LPF that's high enough. */
 	RageSoundResampler_Polyphase( int iUpFactor, int iMinDownFactor, int iMaxDownFactor )
 	{
-		/* Cache filters between iMinDownFactor and iMaxDownFactor.  Do them in
+		/* Cache filters between iMinDownFactor and iMaxDownFactor.  Do them in 
 		 * iFilterIncrement increments; we'll round down to the closest match
 		 * when filtering.  This will only cause the low-pass filter to be rounded;
 		 * the conversion ratio will always be exact. */
 		m_iUpFactor = iUpFactor;
-		m_pPolyphase = nullptr;
+		m_pPolyphase = NULL;
 
-		int iFilterIncrement = std::max( (iMaxDownFactor - iMinDownFactor)/10, 1 );
+		int iFilterIncrement = max( (iMaxDownFactor - iMinDownFactor)/10, 1 );
 		for( int iDownFactor = iMinDownFactor; iDownFactor <= iMaxDownFactor; iDownFactor += iFilterIncrement )
 		{
 			float fCutoffFrequency = GetCutoffFrequency( iDownFactor );
@@ -521,7 +529,7 @@ private:
 
 		float fCutoffFrequency;
 		fCutoffFrequency = 1.0f / (2*m_iUpFactor);
-		fCutoffFrequency = std::min( fCutoffFrequency, 1.0f / (2*iDownFactor) );
+		fCutoffFrequency = min( fCutoffFrequency, 1.0f / (2*iDownFactor) );
 		return fCutoffFrequency;
 	}
 
@@ -530,7 +538,7 @@ private:
 		float fCutoffFrequency = GetCutoffFrequency( iDownFactor );
 		return PolyphaseFilterCache::FindNearestPolyphaseFilter( m_iUpFactor, fCutoffFrequency );
 	}
-
+	
 	const PolyphaseFilter *m_pPolyphase;
 	PolyphaseFilter::State *m_pState;
 	int m_iUpFactor;
@@ -539,7 +547,7 @@ private:
 
 int RageSoundReader_Resample_Good::GetNextSourceFrame() const
 {
-	std::int64_t iPosition = m_pSource->GetNextSourceFrame();
+	int64_t iPosition = m_pSource->GetNextSourceFrame();
 	iPosition -= m_apResamplers[0]->GetFilled();
 
 	iPosition *= m_iSampleRate;
@@ -577,7 +585,7 @@ RageSoundReader_Resample_Good::RageSoundReader_Resample_Good( RageSoundReader *p
 /* Call this if the input position is changed or reset. */
 void RageSoundReader_Resample_Good::Reset()
 {
-	for( std::size_t iChannel = 0; iChannel < m_pSource->GetNumChannels(); ++iChannel )
+	for( size_t iChannel = 0; iChannel < m_pSource->GetNumChannels(); ++iChannel )
 		m_apResamplers[iChannel]->Reset();
 }
 
@@ -604,14 +612,14 @@ void RageSoundReader_Resample_Good::GetFactors( int &iDownFactor, int &iUpFactor
 /* Call this if the sample factor changes. */
 void RageSoundReader_Resample_Good::ReopenResampler()
 {
-	for( std::size_t iChannel = 0; iChannel < m_apResamplers.size(); ++iChannel )
+	for( size_t iChannel = 0; iChannel < m_apResamplers.size(); ++iChannel )
 		delete m_apResamplers[iChannel];
 	m_apResamplers.clear();
 
 	int iDownFactor, iUpFactor;
 	GetFactors( iDownFactor, iUpFactor );
 
-	for( std::size_t iChannel = 0; iChannel < m_pSource->GetNumChannels(); ++iChannel )
+	for( size_t iChannel = 0; iChannel < m_pSource->GetNumChannels(); ++iChannel )
 	{
 		int iMinDownFactor = iDownFactor;
 		int iMaxDownFactor = iDownFactor;
@@ -623,15 +631,15 @@ void RageSoundReader_Resample_Good::ReopenResampler()
 	}
 
 	if( m_fRate != -1 )
-		iDownFactor = static_cast<int>((m_fRate * iDownFactor) + 0.5 );
+		iDownFactor = lrintf( m_fRate * iDownFactor );
 
-	for( std::size_t iChannel = 0; iChannel < m_apResamplers.size(); ++iChannel )
+	for( size_t iChannel = 0; iChannel < m_apResamplers.size(); ++iChannel )
 		m_apResamplers[iChannel]->SetDownFactor( iDownFactor );
 }
 
 RageSoundReader_Resample_Good::~RageSoundReader_Resample_Good()
 {
-	for( std::size_t iChannel = 0; iChannel < m_apResamplers.size(); ++iChannel )
+	for( size_t iChannel = 0; iChannel < m_apResamplers.size(); ++iChannel )
 		delete m_apResamplers[iChannel];
 }
 
@@ -639,7 +647,7 @@ RageSoundReader_Resample_Good::~RageSoundReader_Resample_Good()
 int RageSoundReader_Resample_Good::SetPosition( int iFrame )
 {
 	Reset();
-	iFrame = (int) SCALE( iFrame, 0, (std::int64_t) m_iSampleRate, 0, (std::int64_t) m_pSource->GetSampleRate() );
+	iFrame = (int) SCALE( iFrame, 0, (int64_t) m_iSampleRate, 0, (int64_t) m_pSource->GetSampleRate() );
 	return m_pSource->SetPosition( iFrame );
 }
 
@@ -699,12 +707,12 @@ void RageSoundReader_Resample_Good::SetRate( float fRatio )
 	int iDownFactor, iUpFactor;
 	GetFactors( iDownFactor, iUpFactor );
 	if( m_fRate != -1 )
-		iDownFactor = static_cast<int>((m_fRate * iDownFactor) + 0.5 );
+		iDownFactor = lrintf( m_fRate * iDownFactor );
 
 	/* Set m_fRate to the actual rate, after quantization by iUpFactor. */
 	m_fRate = float(iDownFactor) / iUpFactor;
 
-	for( std::size_t iChannel = 0; iChannel < m_apResamplers.size(); ++iChannel )
+	for( size_t iChannel = 0; iChannel < m_apResamplers.size(); ++iChannel )
 		m_apResamplers[iChannel]->SetDownFactor( iDownFactor );
 }
 
@@ -719,7 +727,7 @@ float RageSoundReader_Resample_Good::GetRate() const
 RageSoundReader_Resample_Good::RageSoundReader_Resample_Good( const RageSoundReader_Resample_Good &cpy ):
 	RageSoundReader_Filter(cpy)
 {
-	for( std::size_t i = 0; i < cpy.m_apResamplers.size(); ++i )
+	for( size_t i = 0; i < cpy.m_apResamplers.size(); ++i )
 		this->m_apResamplers.push_back( new RageSoundResampler_Polyphase(*cpy.m_apResamplers[i]) );
 	this->m_iSampleRate = cpy.m_iSampleRate;
 	this->m_fRate = cpy.m_fRate;

@@ -7,16 +7,12 @@
 #include "PlayerState.h"
 #include "Style.h"
 
-#include <cstddef>
-#include <vector>
-
-
 ReceptorArrowRow::ReceptorArrowRow()
 {
-	m_pPlayerState = nullptr;
+	m_pPlayerState = NULL;
 	m_fYReverseOffsetPixels = 0;
 	m_fFadeToFailPercent = 0;
-	m_renderers= nullptr;
+	m_renderers= NULL;
 }
 
 void ReceptorArrowRow::Load( const PlayerState* pPlayerState, float fYReverseOffset )
@@ -26,7 +22,7 @@ void ReceptorArrowRow::Load( const PlayerState* pPlayerState, float fYReverseOff
 
 	const Style* pStyle = GAMESTATE->GetCurrentStyle(pPlayerState->m_PlayerNumber);
 
-	for( int c=0; c<pStyle->m_iColsPerPlayer; c++ )
+	for( int c=0; c<pStyle->m_iColsPerPlayer; c++ ) 
 	{
 		m_ReceptorArrow.push_back( new ReceptorArrow );
 		m_ReceptorArrow[c]->SetName( "ReceptorArrow" );
@@ -35,10 +31,10 @@ void ReceptorArrowRow::Load( const PlayerState* pPlayerState, float fYReverseOff
 	}
 }
 
-void ReceptorArrowRow::SetColumnRenderers(std::vector<NoteColumnRenderer>& renderers)
+void ReceptorArrowRow::SetColumnRenderers(vector<NoteColumnRenderer>& renderers)
 {
 	ASSERT_M(renderers.size() == m_ReceptorArrow.size(), "Notefield has different number of columns than receptor row.");
-	for(std::size_t c= 0; c < m_ReceptorArrow.size(); ++c)
+	for(size_t c= 0; c < m_ReceptorArrow.size(); ++c)
 	{
 		m_ReceptorArrow[c]->SetFakeParent(&(renderers[c]));
 	}
@@ -58,7 +54,7 @@ void ReceptorArrowRow::Update( float fDeltaTime )
 	// ArrowEffects.  But if we're on ScreenNameEntry, there is no notefield,
 	// Checking whether m_renderers is null is a proxy for checking whether
 	// there is a notefield. -Kyz
-	if(m_renderers == nullptr)
+	if(m_renderers == NULL)
 	{
 		ArrowEffects::Update();
 	}
@@ -66,9 +62,7 @@ void ReceptorArrowRow::Update( float fDeltaTime )
 	for( unsigned c=0; c<m_ReceptorArrow.size(); c++ )
 	{
 		// m_fDark==1 or m_fFadeToFailPercent==1 should make fBaseAlpha==0
-		float fBaseAlpha = (1 - m_pPlayerState->m_PlayerOptions.GetCurrent().m_fDark
-			- m_pPlayerState->m_PlayerOptions.GetCurrent().m_fDarks[c]
-		);
+		float fBaseAlpha = (1 - m_pPlayerState->m_PlayerOptions.GetCurrent().m_fDark);
 		if( m_fFadeToFailPercent != -1 )
 		{
 			fBaseAlpha *= (1 - m_fFadeToFailPercent);
@@ -76,7 +70,7 @@ void ReceptorArrowRow::Update( float fDeltaTime )
 		CLAMP( fBaseAlpha, 0.0f, 1.0f );
 		m_ReceptorArrow[c]->SetBaseAlpha( fBaseAlpha );
 
-		if(m_renderers != nullptr)
+		if(m_renderers != NULL)
 		{
 			// set arrow XYZ
 			(*m_renderers)[c].UpdateReceptorGhostStuff(m_ReceptorArrow[c]);
@@ -123,7 +117,7 @@ void ReceptorArrowRow::SetNoteUpcoming( int iCol, bool b )
 /*
  * (c) 2001-2003 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -133,7 +127,7 @@ void ReceptorArrowRow::SetNoteUpcoming( int iCol, bool b )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

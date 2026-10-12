@@ -27,7 +27,7 @@ RageTexturePreloader &RageTexturePreloader::operator=( const RageTexturePreloade
 
 void RageTexturePreloader::Load( const RageTextureID &ID )
 {
-	ASSERT( TEXTUREMAN != nullptr );
+	ASSERT( TEXTUREMAN != NULL );
 
 	RageTexture *pTexture = TEXTUREMAN->LoadTexture( ID );
 	m_apTextures.push_back( pTexture );
@@ -35,7 +35,7 @@ void RageTexturePreloader::Load( const RageTextureID &ID )
 
 void RageTexturePreloader::UnloadAll()
 {
-	if( TEXTUREMAN == nullptr )
+	if( TEXTUREMAN == NULL )
 		return;
 
 	for( unsigned i = 0; i < m_apTextures.size(); ++i )

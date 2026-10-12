@@ -15,10 +15,6 @@
 #include "RageLog.h"
 #include "RageFileBasic.h"
 
-#include <cstdint>
-#include <vector>
-
-
 namespace
 {
 	/* pBuf contains iSamples 8-bit samples; convert to 16-bit.  pBuf must
@@ -26,7 +22,7 @@ namespace
 	void Convert8bitToFloat( void *pBuf, int iSamples )
 	{
 		/* Convert in reverse, so we can do it in-place. */
-		const std::uint8_t *pIn = (std::uint8_t *) pBuf;
+		const uint8_t *pIn = (uint8_t *) pBuf;
 		float *pOut = (float *) pBuf;
 		for( int i = iSamples-1; i >= 0; --i )
 		{
@@ -41,11 +37,11 @@ namespace
 	void ConvertLittleEndian16BitToFloat( void *pBuf, int iSamples )
 	{
 		/* Convert in reverse, so we can do it in-place. */
-		const std::int16_t *pIn = (std::int16_t *) pBuf;
+		const int16_t *pIn = (int16_t *) pBuf;
 		float *pOut = (float *) pBuf;
 		for( int i = iSamples-1; i >= 0; --i )
 		{
-                        std::int16_t iSample = Swap16LE( pIn[i] );
+                        int16_t iSample = Swap16LE( pIn[i] );
 			pOut[i] = iSample / 32768.0f;
 		}
 	}
@@ -60,7 +56,7 @@ namespace
 		{
 			pIn -= 3;
 
-			std::int32_t iSample =
+			int32_t iSample =
 				(int(pIn[0]) << 0) |
 				(int(pIn[1]) << 8) |
 				(int(pIn[2]) << 16);
@@ -76,11 +72,11 @@ namespace
 	void ConvertLittleEndian32BitToFloat( void *pBuf, int iSamples )
 	{
 		/* Convert in reverse, so we can do it in-place. */
-		const std::int32_t *pIn = (std::int32_t *) pBuf;
+		const int32_t *pIn = (int32_t *) pBuf;
 		float *pOut = (float *) pBuf;
 		for( int i = iSamples-1; i >= 0; --i )
 		{
-                        std::int32_t iSample = Swap32LE( pIn[i] );
+                        int32_t iSample = Swap32LE( pIn[i] );
 			pOut[i] = iSample / 2147483648.0f;
 		}
 	}
@@ -138,7 +134,7 @@ struct WavReaderPCM: public WavReader
 		if( !iBytesLeftInDataChunk )
 			return RageSoundReader::END_OF_FILE;
 
-		len = std::min( len, iBytesLeftInDataChunk );
+		len = min( len, iBytesLeftInDataChunk );
 		int iGot = m_File.Read( buf, len );
 
 		int iGotSamples = iGot / iBytesPerSample;
@@ -167,13 +163,13 @@ struct WavReaderPCM: public WavReader
 	int GetLength() const
 	{
 		const int iBytesPerSec = m_WavData.m_iSampleRate * m_WavData.m_iChannels * m_WavData.m_iBitsPerSample / 8;
-		std::int64_t iMS = (std::int64_t(m_WavData.m_iDataChunkSize) * 1000) / iBytesPerSec;
+		int64_t iMS = (int64_t(m_WavData.m_iDataChunkSize) * 1000) / iBytesPerSec;
 		return (int) iMS;
 	}
 
 	int SetPosition( int iFrame )
 	{
-		int iByte = (int) (std::int64_t(iFrame) * m_WavData.m_iChannels * m_WavData.m_iBitsPerSample / 8);
+		int iByte = (int) (int64_t(iFrame) * m_WavData.m_iChannels * m_WavData.m_iBitsPerSample / 8);
 		if( iByte > m_WavData.m_iDataChunkSize )
 		{
 			m_File.Seek( m_WavData.m_iDataChunkSize+m_WavData.m_iDataChunkPos );
@@ -196,15 +192,15 @@ struct WavReaderPCM: public WavReader
 struct WavReaderADPCM: public WavReader
 {
 public:
-	std::vector<std::int16_t> m_iaCoef1, m_iaCoef2;
-	std::int16_t m_iFramesPerBlock;
+	vector<int16_t> m_iaCoef1, m_iaCoef2;
+	int16_t m_iFramesPerBlock;
 	float *m_pBuffer;
 	int m_iBufferAvail, m_iBufferUsed;
-
+	
 	WavReaderADPCM( RageFileBasic &f, const RageSoundReader_WAV::WavData &data ):
 		WavReader(f, data)
 	{
-		m_pBuffer = nullptr;
+		m_pBuffer = NULL;
 	}
 
 	virtual ~WavReaderADPCM()
@@ -223,7 +219,7 @@ public:
 		m_File.Seek( m_WavData.m_iExtraFmtPos );
 
 		m_iFramesPerBlock = FileReading::read_16_le( m_File, m_sError );
-		std::int16_t iNumCoef = FileReading::read_16_le( m_File, m_sError );
+		int16_t iNumCoef = FileReading::read_16_le( m_File, m_sError );
 		m_iaCoef1.resize( iNumCoef );
 		m_iaCoef2.resize( iNumCoef );
 		for( int i = 0; i < iNumCoef; ++i )
@@ -259,8 +255,8 @@ public:
 		if( m_File.Tell() >= m_WavData.m_iDataChunkSize+m_WavData.m_iDataChunkPos || m_File.AtEOF() )
 			return true; /* past the data chunk */
 
-		std::int8_t iPredictor[2];
-		std::int16_t iDelta[2], iSamp1[2], iSamp2[2];
+		int8_t iPredictor[2];
+		int16_t iDelta[2], iSamp1[2], iSamp2[2];
 		for( int i = 0; i < m_WavData.m_iChannels; ++i )
 			iPredictor[i] = FileReading::read_8( m_File, m_sError );
 		for( int i = 0; i < m_WavData.m_iChannels; ++i )
@@ -290,7 +286,7 @@ public:
 		}
 
 		/* We've read the block header; read the rest.  Don't read past the end of the data chunk. */
-		int iMaxSize = std::min( (int) m_WavData.m_iBlockAlign - 7 * m_WavData.m_iChannels, (m_WavData.m_iDataChunkSize+m_WavData.m_iDataChunkPos) - m_File.Tell() );
+		int iMaxSize = min( (int) m_WavData.m_iBlockAlign - 7 * m_WavData.m_iChannels, (m_WavData.m_iDataChunkSize+m_WavData.m_iDataChunkPos) - m_File.Tell() );
 
 		char *pBuf = (char *) alloca( iMaxSize );
 
@@ -304,12 +300,12 @@ public:
 		}
 
 		for( int i = 0; i < m_WavData.m_iChannels; ++i )
-			pBuffer[m_iBufferAvail++] = (std::int16_t)iSamp2[i] / 32768.0f;
+			pBuffer[m_iBufferAvail++] = (int16_t)iSamp2[i] / 32768.0f;
 		for( int i = 0; i < m_WavData.m_iChannels; ++i )
-			pBuffer[m_iBufferAvail++] = (std::int16_t)iSamp1[i] / 32768.0f;
+			pBuffer[m_iBufferAvail++] = (int16_t)iSamp1[i] / 32768.0f;
 
-		std::int8_t iBufSize = 0;
-		std::uint8_t iBuf = 0;
+		int8_t iBufSize = 0;
+		uint8_t iBuf = 0;
 
 		bool bDone = false;
 		for( int i = 2; !bDone && i < m_iFramesPerBlock; ++i )
@@ -330,39 +326,39 @@ public:
 				}
 
 				/* Store the nibble in signed char, so we get an arithmetic shift. */
-				std::int8_t iErrorDelta = (std::int8_t)(iBuf) >> 4;
-				std::uint8_t iErrorDeltaUnsigned = iBuf >> 4;
+				int8_t iErrorDelta = (int8_t)(iBuf) >> 4;
+				uint8_t iErrorDeltaUnsigned = iBuf >> 4;
 				iBuf <<= 4;
 				--iBufSize;
 
-				std::int32_t iPredSample = (iSamp1[c] * iCoef1[c] + iSamp2[c] * iCoef2[c]) / (1<<8);
+				int32_t iPredSample = (iSamp1[c] * iCoef1[c] + iSamp2[c] * iCoef2[c]) / (1<<8);
 				if( iPredSample < -32768 ) iPredSample = -32768;
 				if( iPredSample > 32767 )  iPredSample = 32767;
-
-				std::int16_t iNewSample = (std::int16_t)iPredSample + (iDelta[c] * iErrorDelta);
+				
+				int16_t iNewSample = (int16_t)iPredSample + (iDelta[c] * iErrorDelta);
 				pBuffer[m_iBufferAvail++] = iNewSample / 32768.0f;
 
 				static const int aAdaptionTable[] = {
 					230, 230, 230, 230, 307, 409, 512, 614,
 					768, 614, 512, 409, 307, 230, 230, 230
 				};
-				iDelta[c] = std::int16_t( (iDelta[c] * aAdaptionTable[iErrorDeltaUnsigned]) / (1<<8) );
-				iDelta[c] = std::max( (std::int16_t) 16, iDelta[c] );
-
+				iDelta[c] = int16_t( (iDelta[c] * aAdaptionTable[iErrorDeltaUnsigned]) / (1<<8) );
+				iDelta[c] = max( (int16_t) 16, iDelta[c] );
+				
 				iSamp2[c] = iSamp1[c];
 				iSamp1[c] = iNewSample;
 			}
 		}
-
+		
 		return true;
 	}
 
 	int Read( float *buf, int iFrames )
 	{
 		int iGotFrames = 0;
-
+		
 		int iSample = 0;
-
+		
 		while( iGotFrames < (int) iFrames )
 		{
 			if( m_iBufferUsed == m_iBufferAvail )
@@ -390,19 +386,19 @@ public:
 	{
 		const int iNumWholeBlocks = m_WavData.m_iDataChunkSize / m_WavData.m_iBlockAlign;
 		const int iExtraBytes = m_WavData.m_iDataChunkSize - (iNumWholeBlocks*m_WavData.m_iBlockAlign);
-
+		
 		int iFrames = iNumWholeBlocks * m_iFramesPerBlock;
 
 		const int iBlockHeaderSize = 7 * m_WavData.m_iChannels;
 		if( iExtraBytes > iBlockHeaderSize )
 		{
-			const int iExtraADPCMNibbles = std::max( 0, iExtraBytes-iBlockHeaderSize )*2;
+			const int iExtraADPCMNibbles = max( 0, iExtraBytes-iBlockHeaderSize )*2;
 			const int iExtraADPCMFrames = iExtraADPCMNibbles/m_WavData.m_iChannels;
-
+			
 			iFrames += 2+iExtraADPCMFrames;
 		}
 
-		int iMS = int((std::int64_t(iFrames)*1000)/m_WavData.m_iSampleRate);
+		int iMS = int((int64_t(iFrames)*1000)/m_WavData.m_iSampleRate);
 		return iMS;
 	}
 
@@ -445,7 +441,7 @@ public:
 		int iFrame = iBlock * m_iFramesPerBlock;
 
 		int iBufferRemainingBytes = m_iBufferAvail - m_iBufferUsed;
-		int iBufferRemainingFrames = iBufferRemainingBytes / (m_WavData.m_iChannels * sizeof(std::int16_t));
+		int iBufferRemainingFrames = iBufferRemainingBytes / (m_WavData.m_iChannels * sizeof(int16_t));
 		iFrame -= iBufferRemainingFrames;
 
 		return iFrame;
@@ -496,7 +492,7 @@ RageSoundReader_FileReader::OpenResult RageSoundReader_WAV::Open( RageFileBasic 
 	while( !bGotFormatChunk || !bGotDataChunk )
 	{
 		RString ChunkID = ReadString( *m_pFile, 4, sError );
-		std::int32_t iChunkSize = FileReading::read_32_le( *m_pFile, sError );
+		int32_t iChunkSize = FileReading::read_32_le( *m_pFile, sError );
 
 		if( sError.size() != 0 )
 		{
@@ -585,31 +581,31 @@ RageSoundReader_FileReader::OpenResult RageSoundReader_WAV::Open( RageFileBasic 
 
 int RageSoundReader_WAV::GetLength() const
 {
-	ASSERT( m_pImpl != nullptr );
+	ASSERT( m_pImpl != NULL );
 	return m_pImpl->GetLength();
 }
 
 int RageSoundReader_WAV::SetPosition( int iFrame )
 {
-	ASSERT( m_pImpl != nullptr );
+	ASSERT( m_pImpl != NULL );
 	return m_pImpl->SetPosition( iFrame );
 }
 
 int RageSoundReader_WAV::GetNextSourceFrame() const
 {
-	ASSERT( m_pImpl != nullptr );
+	ASSERT( m_pImpl != NULL );
 	return m_pImpl->GetNextSourceFrame();
 }
 
 int RageSoundReader_WAV::Read( float *pBuf, int iFrames )
 {
-	ASSERT( m_pImpl != nullptr );
+	ASSERT( m_pImpl != NULL );
 	return m_pImpl->Read( pBuf, iFrames );
 }
 
 RageSoundReader_WAV::RageSoundReader_WAV()
 {
-	m_pImpl = nullptr;
+	m_pImpl = NULL;
 }
 
 RageSoundReader_WAV::~RageSoundReader_WAV()
@@ -629,7 +625,7 @@ RageSoundReader_WAV *RageSoundReader_WAV::Copy() const
 /*
  * (c) 2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -639,7 +635,7 @@ RageSoundReader_WAV *RageSoundReader_WAV::Copy() const
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -73,7 +73,7 @@ void TextBanner::SetFromString(
 
 void TextBanner::SetFromSong( const Song *pSong )
 {
-	if( pSong == nullptr )
+	if( pSong == NULL )
 	{
 		SetFromString( "", "", "", "", "", "" );
 		return;

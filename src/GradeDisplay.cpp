@@ -6,8 +6,6 @@
 #include "ActorUtil.h"
 #include "ThemeManager.h"
 
-#include <cstddef>
-
 REGISTER_ACTOR_CLASS( GradeDisplay );
 
 void GradeDisplay::Load( RString sMetricsGroup )
@@ -20,14 +18,14 @@ void GradeDisplay::Load( RString sMetricsGroup )
 		AutoActor &spr = m_vSpr[i];
 		spr.Load( THEME->GetPathG(sMetricsGroup,GradeToString(g)) );
 		spr->SetVisible( false );
-		this->AddChild( spr );
+		this->AddChild( spr ); 
 		i++;
 	}
 }
 
 void GradeDisplay::SetGrade( Grade grade )
 {
-	std::size_t i = 0;
+	size_t i = 0;
 	FOREACH_PossibleGrade( g )
 	{
 		if(i >= m_vSpr.size())
@@ -45,7 +43,7 @@ void GradeDisplay::SetGrade( Grade grade )
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the GradeDisplay. */
+/** @brief Allow Lua to have access to the GradeDisplay. */ 
 class LunaGradeDisplay: public Luna<GradeDisplay>
 {
 public:
@@ -74,7 +72,7 @@ LUA_REGISTER_DERIVED_CLASS( GradeDisplay, ActorFrame )
 /*
  * (c) 2001-2002 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -84,7 +82,7 @@ LUA_REGISTER_DERIVED_CLASS( GradeDisplay, ActorFrame )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

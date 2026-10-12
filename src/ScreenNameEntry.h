@@ -6,9 +6,6 @@
 #include "ReceptorArrowRow.h"
 #include "RageSound.h"
 
-#include <vector>
-
-
 /** @brief Enter a name for a new high score using a gimmicky interface. */
 class ScreenNameEntry : public ScreenWithMenuElements
 {
@@ -26,7 +23,7 @@ private:
 	public:
 		ScrollingText() : m_bDone(true) { }
 		inline void SetDone() { m_bDone = true; }
-		void Init( const RString &sName, const std::vector<float> &xs );
+		void Init( const RString &sName, const vector<float> &xs );
 		virtual bool EarlyAbortDraw() const { return m_bDone; }
 		virtual void DrawPrimitives();
 		char GetClosestChar( float fFakeBeat ) const;
@@ -34,7 +31,7 @@ private:
 	private:
 		float GetClosestCharYOffset( float fFakeBeat ) const;
 
-		std::vector<float>	m_Xs;
+		vector<float>	m_Xs;
 		bool		m_bDone;
 		BitmapText	m_Stamp;
 		static RString	g_sNameChars;
@@ -53,7 +50,7 @@ private:
 	bool			m_bStillEnteringName[NUM_PLAYERS];
 
 	ScrollingText		m_Text[NUM_PLAYERS];
-	std::vector<int>		m_ColToStringIndex[NUM_PLAYERS];
+	vector<int>		m_ColToStringIndex[NUM_PLAYERS];
 };
 
 #endif
@@ -61,7 +58,7 @@ private:
 /*
  * (c) 2001-2006 Chris Danford, Steve Checkoway
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -71,7 +68,7 @@ private:
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -4,8 +4,6 @@
 #include "RageFile.h"
 #include "RageFileDriver.h"
 
-#include <cstddef>
-
 /** @brief File driver for accessing a regular filesystem. */
 class RageFileDriverDirect: public RageFileDriver
 {
@@ -37,22 +35,22 @@ class RageFileObjDirect: public RageFileObj
 public:
 	RageFileObjDirect( const RString &sPath, int iFD, int iMode );
 	virtual ~RageFileObjDirect();
-	virtual int ReadInternal( void *pBuffer, std::size_t iBytes );
-	virtual int WriteInternal( const void *pBuffer, std::size_t iBytes );
+	virtual int ReadInternal( void *pBuffer, size_t iBytes );
+	virtual int WriteInternal( const void *pBuffer, size_t iBytes );
 	virtual int FlushInternal();
 	virtual int SeekInternal( int offset );
 	virtual RageFileObjDirect *Copy() const;
 	virtual RString GetDisplayPath() const { return m_sPath; }
 	virtual int GetFileSize() const;
 	virtual int GetFD();
-
+	
 private:
 	bool FinalFlush();
-
+	
 	int m_iFD;
 	int m_iMode;
 	RString m_sPath; /* for Copy */
-
+	
 	/*
 	 * When not streaming to disk, we write to a temporary file, and rename to the
 	 * real file on completion.  If any write, this is aborted.  When streaming to
@@ -60,7 +58,7 @@ private:
 	 */
 	bool m_bWriteFailed;
 	bool WriteFailed() const { return !(m_iMode & RageFile::STREAMED) && m_bWriteFailed; }
-
+	
 	// unused
 	RageFileObjDirect& operator=(const RageFileObjDirect& rhs);
 	RageFileObjDirect(const RageFileObjDirect& rhs);

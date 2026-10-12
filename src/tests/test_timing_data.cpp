@@ -116,7 +116,7 @@ int q = 0;
 
 		/* b == f */
 
-//		if( std::abs(b-f) > 0.001 )
+//		if( fabsf(b-f) > 0.001 )
 //		{
 //			LOG->Warn( "%f != %f", b, f );
 //			return;

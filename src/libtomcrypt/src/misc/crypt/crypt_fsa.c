@@ -5,6 +5,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 #include <stdarg.h>
@@ -12,11 +14,12 @@
 /**
   @file crypt_fsa.c
   LibTomCrypt FULL SPEED AHEAD!, Tom St Denis
-*/
+*/  
 
 /* format is ltc_mp, cipher_desc, [cipher_desc], NULL, hash_desc, [hash_desc], NULL, prng_desc, [prng_desc], NULL */
 int crypt_fsa(void *mp, ...)
 {
+   int      err;
    va_list  args;
    void     *p;
 
@@ -24,33 +27,33 @@ int crypt_fsa(void *mp, ...)
    if (mp != NULL) {
       XMEMCPY(&ltc_mp, mp, sizeof(ltc_mp));
    }
-
+   
    while ((p = va_arg(args, void*)) != NULL) {
-      if (register_cipher(p) == -1) {
+      if ((err = register_cipher(p)) != CRYPT_OK) {
          va_end(args);
-         return CRYPT_INVALID_CIPHER;
+         return err;
       }
    }
 
    while ((p = va_arg(args, void*)) != NULL) {
-      if (register_hash(p) == -1) {
+      if ((err = register_hash(p)) != CRYPT_OK) {
          va_end(args);
-         return CRYPT_INVALID_HASH;
+         return err;
       }
    }
 
    while ((p = va_arg(args, void*)) != NULL) {
-      if (register_prng(p) == -1) {
+      if ((err = register_prng(p)) != CRYPT_OK) {
          va_end(args);
-         return CRYPT_INVALID_PRNG;
+         return err;
       }
    }
 
    va_end(args);
-   return CRYPT_OK;
+   return CRYPT_OK;   
 }
 
 
-/* ref:         HEAD -> master, tag: v1.18.2 */
-/* git commit:  7e7eb695d581782f04b24dc444cbfde86af59853 */
-/* commit time: 2018-07-01 22:49:01 +0200 */
+/* $Source$ */
+/* $Revision: 24838 $ */
+/* $Date: 2007-01-23 23:16:57 -0600 (Tue, 23 Jan 2007) $ */

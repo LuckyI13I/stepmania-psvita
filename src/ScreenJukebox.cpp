@@ -22,9 +22,6 @@
 #include "SongUtil.h"
 #include "Song.h"
 
-#include <vector>
-
-
 #define SHOW_COURSE_MODIFIERS_PROBABILITY	THEME->GetMetricF(m_sName,"ShowCourseModifiersProbability")
 
 REGISTER_SCREEN_CLASS( ScreenJukebox );
@@ -32,12 +29,12 @@ void ScreenJukebox::SetSong()
 {
 	ThemeMetric<bool>	ALLOW_ADVANCED_MODIFIERS(m_sName,"AllowAdvancedModifiers");
 
-	std::vector<Song*> vSongs;
+	vector<Song*> vSongs;
 
 	/* Check to see if there is a theme course. If there is a course that has
 	 * the exact same name as the theme, then we pick a song from this course. */
 	Course *pCourse = SONGMAN->GetCourseFromName( THEME->GetCurThemeName() );
-	if( pCourse != nullptr )
+	if( pCourse != NULL )
 		for ( unsigned i = 0; i < pCourse->m_vEntries.size(); i++ )
 			if( pCourse->m_vEntries[i].IsFixedSong() )
 				vSongs.push_back( pCourse->m_vEntries[i].songID.ToSong() );
@@ -50,7 +47,7 @@ void ScreenJukebox::SetSong()
 
 
 	// Calculate what difficulties to show
-	std::vector<Difficulty> vDifficultiesToShow;
+	vector<Difficulty> vDifficultiesToShow;
 	if( m_bDemonstration )
 	{
 		// HACK: This belongs in ScreenDemonstration.
@@ -77,7 +74,7 @@ void ScreenJukebox::SetSong()
 	{
 		Song* pSong = vSongs[RandomInt(vSongs.size())];
 
-		ASSERT( pSong != nullptr );
+		ASSERT( pSong != NULL );
 		if( !pSong->HasMusic() )
 			continue;	// skip
 		if( !pSong->NormallyDisplayed() )
@@ -88,7 +85,7 @@ void ScreenJukebox::SetSong()
 		Difficulty dc = vDifficultiesToShow[ RandomInt(vDifficultiesToShow.size()) ];
 		Steps* pSteps = SongUtil::GetStepsByDifficulty( pSong, GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType, dc );
 
-		if( pSteps == nullptr )
+		if( pSteps == NULL )
 			continue;	// skip
 
 		if( !PREFSMAN->m_bAutogenSteps && pSteps->IsAutogen())
@@ -106,15 +103,15 @@ void ScreenJukebox::SetSong()
 		{
 			/* If we have a modifier course containing this song, apply its
 			 * modifiers. Only check fixed course entries. */
-			std::vector<Course*> apCourses;
+			vector<Course*> apCourses;
 			SONGMAN->GetAllCourses( apCourses, false );
-			std::vector<const CourseEntry *> apOptions;
-			std::vector<Course*> apPossibleCourses;
+			vector<const CourseEntry *> apOptions;
+			vector<Course*> apPossibleCourses;
 			for( unsigned j = 0; j < apCourses.size(); ++j )
 			{
 				Course *lCourse = apCourses[j];
 				const CourseEntry *pEntry = lCourse->FindFixedSong( pSong );
-				if( pEntry == nullptr || pEntry->attacks.size() == 0 )
+				if( pEntry == NULL || pEntry->attacks.size() == 0 )
 					continue;
 
 				if( !ALLOW_ADVANCED_MODIFIERS )
@@ -124,13 +121,13 @@ void ScreenJukebox::SetSong()
 					AttackArray aAttacks = pEntry->attacks;
 					if( !pEntry->sModifiers.empty() )
 						aAttacks.push_back( Attack::FromGlobalCourseModifier( pEntry->sModifiers ) );
-					for (Attack const &a: aAttacks)
+					FOREACH_CONST( Attack, aAttacks, a )
 					{
-						RString s = a.sModifiers;
+						RString s = a->sModifiers;
 						s.MakeLower();
 						// todo: allow themers to modify this list? -aj
-						if( s.find("dark") != std::string::npos ||
-							s.find("stealth") != std::string::npos )
+						if( s.find("dark") != string::npos ||
+							s.find("stealth") != string::npos )
 						{
 							bModsAreOkToShow = false;
 							break;
@@ -148,7 +145,7 @@ void ScreenJukebox::SetSong()
 			{
 				int iIndex = RandomInt( apOptions.size() );
 				m_pCourseEntry = apOptions[iIndex];
-				Course *lCourse = apPossibleCourses[iIndex];
+				Course *lCourse = apPossibleCourses[iIndex]; 
 
 				PlayMode pm = CourseTypeToPlayMode( lCourse->GetCourseType() );
 				GAMESTATE->m_PlayMode.Set( pm );
@@ -156,7 +153,7 @@ void ScreenJukebox::SetSong()
 				FOREACH_PlayerNumber( p )
 				{
 					GAMESTATE->m_pCurTrail[p].Set( lCourse->GetTrail( GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType ) );
-					ASSERT( GAMESTATE->m_pCurTrail[p] != nullptr );
+					ASSERT( GAMESTATE->m_pCurTrail[p] != NULL );
 				}
 			}
 		}
@@ -170,14 +167,16 @@ void ScreenJukebox::SetSong()
 ScreenJukebox::ScreenJukebox()
 {
 	m_bDemonstration = false;
-	m_pCourseEntry = nullptr;
+	m_pCourseEntry = NULL;
 }
 
 static LocalizedString NO_MATCHING_STEPS("ScreenJukebox", "NoMatchingSteps");
 void ScreenJukebox::Init()
 {
+	// The server crashes if syncing is attempted while connected to SMO. -Kyz
+	NSMAN->CloseConnection();
 	// ScreenJukeboxMenu must set this
-	ASSERT( GAMESTATE->GetCurrentStyle(PLAYER_INVALID) != nullptr );
+	ASSERT( GAMESTATE->GetCurrentStyle(PLAYER_INVALID) != NULL );
 	GAMESTATE->m_PlayMode.Set( PLAY_MODE_REGULAR );
 
 	SetSong();
@@ -231,7 +230,7 @@ void ScreenJukebox::Init()
 	// Now that we've set up, init the base class.
 	ScreenGameplay::Init();
 
-	if( GAMESTATE->m_pCurSong == nullptr )	// we didn't find a song.
+	if( GAMESTATE->m_pCurSong == NULL )	// we didn't find a song.
 	{
 		SCREENMAN->SystemMessage( NO_MATCHING_STEPS );
 		this->PostScreenMessage( SM_GoToPrevScreen, 0 );	// Abort demonstration.
@@ -329,7 +328,7 @@ void ScreenJukebox::InitSongQueues()
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -339,7 +338,7 @@ void ScreenJukebox::InitSongQueues()
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

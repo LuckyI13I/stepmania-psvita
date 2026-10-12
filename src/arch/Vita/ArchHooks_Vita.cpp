@@ -15,47 +15,48 @@
 
 #include "miniz.h"
 #endif
+#if defined(VITA)
+#include "VitaBootSplash.h"
+#endif
 #if defined(VITA) && __has_include("vita_build_number.h")
 #include "vita_build_number.h"
 #endif
 
+#ifdef VITA
 // Create the writable data tree before anything (log, profiles, cache)
 // tries to use it. The VPK ships no ux0:data content, so first run must
 // create it; sceIoMkdir fails harmlessly if a directory already exists.
-#ifdef VITA
 static void VitaEnsureDataTree()
 {
 	static const char *dirs[] = {
-		"ux0:data/stepmania-5.1",
-		"ux0:data/stepmania-5.1/Announcers",
-		"ux0:data/stepmania-5.1/BGAnimations",
-		"ux0:data/stepmania-5.1/BackgroundEffects",
-		"ux0:data/stepmania-5.1/BackgroundTransitions",
-		"ux0:data/stepmania-5.1/Cache",
-		"ux0:data/stepmania-5.1/CDTitles",
-		"ux0:data/stepmania-5.1/Characters",
-		"ux0:data/stepmania-5.1/Courses",
-		"ux0:data/stepmania-5.1/Downloads",
-		"ux0:data/stepmania-5.1/Logs",
-		"ux0:data/stepmania-5.1/NoteSkins",
-		"ux0:data/stepmania-5.1/Packages",
-		"ux0:data/stepmania-5.1/Save",
-		"ux0:data/stepmania-5.1/Screenshots",
-		"ux0:data/stepmania-5.1/Songs",
-		"ux0:data/stepmania-5.1/RandomMovies",
-		"ux0:data/stepmania-5.1/Themes",
-		nullptr
+		"ux0:data/stepmania-5.0",
+		"ux0:data/stepmania-5.0/Announcers",
+		"ux0:data/stepmania-5.0/BGAnimations",
+		"ux0:data/stepmania-5.0/BackgroundEffects",
+		"ux0:data/stepmania-5.0/BackgroundTransitions",
+		"ux0:data/stepmania-5.0/Cache",
+		"ux0:data/stepmania-5.0/CDTitles",
+		"ux0:data/stepmania-5.0/Characters",
+		"ux0:data/stepmania-5.0/Courses",
+		"ux0:data/stepmania-5.0/Downloads",
+		"ux0:data/stepmania-5.0/Logs",
+		"ux0:data/stepmania-5.0/NoteSkins",
+		"ux0:data/stepmania-5.0/Packages",
+		"ux0:data/stepmania-5.0/Save",
+		"ux0:data/stepmania-5.0/Screenshots",
+		"ux0:data/stepmania-5.0/Songs",
+		"ux0:data/stepmania-5.0/RandomMovies",
+		"ux0:data/stepmania-5.0/Themes",
+		NULL
 	};
-	for (const char **p = dirs; *p != nullptr; ++p)
+	for (const char **p = dirs; *p != NULL; ++p)
 		sceIoMkdir(*p, 0777);
 }
 #endif
 
 #ifdef VITA
-// First-boot game data extraction: the VPK ships data.zip (all Themes/Data/
-// NoteSkins/... in one file, fast to install) instead of 1300+ loose files.
-// On first launch (or when the build number changes) it is unpacked to
-// ux0:data/stepmania-5.1/. Subsequent launches skip via the marker file.
+// First-boot game data extraction: the VPK ships data.zip instead of 1300+
+// loose files. Unpacked to ux0:data/stepmania-5.0/ once per build number.
 static bool VitaFileExists(const char *path)
 {
 	SceUID fd = sceIoOpen(path, 0x0001 /*SCE_O_RDONLY*/, 0);
@@ -80,10 +81,9 @@ static void VitaMkdirParents(char *path)
 
 static void VitaExtractDataZip()
 {
-	static const char *kMarker = "ux0:data/stepmania-5.1/.data_ready";
+	static const char *kMarker = "ux0:data/stepmania-5.0/.data_ready";
 	static const char *kZip = "app0:data.zip";
 
-	// Marker content = build number that extracted the data (if available).
 	int haveBuild = -1;
 	{
 		SceUID fd = sceIoOpen(kMarker, 0x0001 /*SCE_O_RDONLY*/, 0);
@@ -116,11 +116,14 @@ static void VitaExtractDataZip()
 		return;
 
 	mz_uint total = mz_zip_reader_get_num_files(&zip);
-	{
-		char mark[64];
-		snprintf(mark, sizeof(mark), "extract-start %u files", (unsigned)total);
-		VitaBootMark(mark);
-	}
+ 	{
+ 		char mark[64];
+ 		snprintf(mark, sizeof(mark), "extract-start %u files", (unsigned)total);
+ 		VitaBootMark(mark);
+ 	}
+#if defined(VITA)
+	VitaBootSplash::SetStage( BOOTSTAGE_EXTRACT );
+#endif
 
 	char out[256];
 	for (mz_uint i = 0; i < total; ++i)
@@ -132,7 +135,7 @@ static void VitaExtractDataZip()
 			continue;
 		if (st.m_filename[0] == '\0' || st.m_filename[0] == '/')
 			continue;
-		snprintf(out, sizeof(out), "ux0:data/stepmania-5.1/%s", st.m_filename);
+		snprintf(out, sizeof(out), "ux0:data/stepmania-5.0/%s", st.m_filename);
 		VitaMkdirParents(out);
 		mz_zip_reader_extract_to_file(&zip, i, out, 0);
 		if ((i & 255) == 0)
@@ -140,6 +143,9 @@ static void VitaExtractDataZip()
 			char mark[64];
 			snprintf(mark, sizeof(mark), "extract %u/%u", (unsigned)i, (unsigned)total);
 			VitaBootMark(mark);
+#if defined(VITA)
+			VitaBootSplash::SetProgress( (int)i, (int)total );
+#endif
 		}
 	}
 	mz_zip_reader_end(&zip);
@@ -166,9 +172,8 @@ static void VitaExtractDataZip()
 void VitaBootMark(const char *stage)
 {
 	// Raw kernel I/O only: safe to call before FILEMAN/LOG exist.
-	// (SCE_O_WRONLY=0x0002, SCE_O_CREAT=0x0200, SCE_O_APPEND=0x0400)
-	SceUID fd = sceIoOpen("ux0:data/stepmania-5.1/vita-boot.log",
-		0x0002 | 0x0200 | 0x0400, 0777);
+	SceUID fd = sceIoOpen("ux0:data/stepmania-5.0/vita-boot.log",
+		SCE_O_WRONLY | SCE_O_CREAT | SCE_O_APPEND, 0777);
 	if (fd < 0)
 		return;
 	char buf[128];
@@ -188,9 +193,13 @@ void ArchHooks_Vita::Init()
 {
 #ifdef VITA
 	// Data tree first: the very first boot mark needs the directory.
+	// NOTE: LOG does not exist yet (created later in sm_main), so no LOG use here.
 	VitaEnsureDataTree();
 	VitaBootMark("hooks-init-enter");
-	// NOTE: LOG does not exist yet (created later in sm_main), so no LOG use here.
+#if defined(VITA)
+	/* Boot splash first: extraction below can take minutes on first boot. */
+	VitaBootSplash::Init();
+#endif
 	VitaExtractDataZip();
 	VitaBootMark("hooks-init-exit");
 #endif
@@ -198,7 +207,7 @@ void ArchHooks_Vita::Init()
 
 void ArchHooks_Vita::DumpDebugInfo()
 {
-	LOG->Info("ArchHooks_Vita: 960x544, app0: + ux0:data/stepmania-5.1");
+	LOG->Info("ArchHooks_Vita: 960x544, app0: + ux0:data/stepmania-5.0");
 }
 
 void ArchHooks_Vita::SetTime(tm newtime)
@@ -215,10 +224,10 @@ bool ArchHooks_Vita::GoToURL(RString sUrl)
 
 // ---- ArchHooks statics, Vita implementations (cf. ArchHooks_Unix.cpp) ----
 
-std::int64_t ArchHooks::GetMicrosecondsSinceStart(bool /*bAccurate*/)
+int64_t ArchHooks::GetMicrosecondsSinceStart(bool /*bAccurate*/)
 {
 #ifdef VITA
-	return std::int64_t(sceKernelGetProcessTimeWide());
+	return int64_t(sceKernelGetProcessTimeWide());
 #else
 	return 0;
 #endif
@@ -227,7 +236,6 @@ std::int64_t ArchHooks::GetMicrosecondsSinceStart(bool /*bAccurate*/)
 RString ArchHooks::GetPreferredLanguage()
 {
 	// TODO(Vita): sceAppUtilSystemParamGetById(SCE_SYSTEM_PARAM_ID_LANG,...)
-	// and map SceSystemParamLang -> RString ("en", "ja", ...).
 	return "en";
 }
 
@@ -239,6 +247,7 @@ void ArchHooks::MountInitialFilesystems(const RString &sDirOfExecutable)
 #ifdef VITA
 	// NOTE: Vita device paths have NO slash after the colon
 	// ("app0:Data", NOT "app0:/Data") — the slash form fails to open.
+	(void)sDirOfExecutable;
 	FILEMAN->Mount("dirro", "app0:", "/");
 	FILEMAN->Mount("dir", "app0:Announcers", "/Announcers");
 	FILEMAN->Mount("dir", "app0:BGAnimations", "/BGAnimations");
@@ -253,7 +262,6 @@ void ArchHooks::MountInitialFilesystems(const RString &sDirOfExecutable)
 	FILEMAN->Mount("dir", "app0:Songs", "/Songs");
 	FILEMAN->Mount("dir", "app0:Themes", "/Themes");
 #else
-	// VPK payload layout: everything read-only under the executable dir.
 	FILEMAN->Mount("dirro", sDirOfExecutable, "/");
 	FILEMAN->Mount("dir", sDirOfExecutable + "/Announcers", "/Announcers");
 	FILEMAN->Mount("dir", sDirOfExecutable + "/BGAnimations", "/BGAnimations");
@@ -281,7 +289,7 @@ void ArchHooks::MountUserFilesystems(const RString &/*sDirOfExecutable*/)
 	VitaBootMark("mount-user-enter");
 #endif
 	// Writable per-user data on the memory card.
-	static const char *sUserDataPath = "ux0:data/stepmania-5.1";
+	static const char *sUserDataPath = "ux0:data/stepmania-5.0";
 	FILEMAN->Mount("dir", ssprintf("%s/Announcers", sUserDataPath), "/Announcers");
 	FILEMAN->Mount("dir", ssprintf("%s/BGAnimations", sUserDataPath), "/BGAnimations");
 	FILEMAN->Mount("dir", ssprintf("%s/BackgroundEffects", sUserDataPath), "/BackgroundEffects");

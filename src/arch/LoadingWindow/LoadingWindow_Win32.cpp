@@ -7,22 +7,17 @@
 #include "archutils/win32/WindowIcon.h"
 #include "archutils/win32/ErrorStrings.h"
 #include "arch/ArchHooks/ArchHooks.h"
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "CommCtrl.h"
 #include "RageSurface_Load.h"
 #include "RageSurface.h"
 #include "RageSurfaceUtils.h"
-#include "RageSurfaceUtils_Zoom.h"
 #include "RageLog.h"
 #include "ProductInfo.h"
 #include "LocalizedString.h"
 
-#include <cmath>
-#include <vector>
-
-
-static HBITMAP g_hBitmap = nullptr;
+#include "RageSurfaceUtils_Zoom.h"
+static HBITMAP g_hBitmap = NULL;
 
 /* Load a RageSurface into a GDI surface. */
 static HBITMAP LoadWin32Surface( const RageSurface *pSplash, HWND hWnd )
@@ -39,16 +34,16 @@ static HBITMAP LoadWin32Surface( const RageSurface *pSplash, HWND hWnd )
 
 		int iWidth = r.right;
 		float fRatio = (float) iWidth / s->w;
-		int iHeight = std::lrint( s->h * fRatio );
+		int iHeight = lrintf( s->h * fRatio );
 
 		RageSurfaceUtils::Zoom( s, iWidth, iHeight );
 	}
 
-	HDC hScreen = GetDC(nullptr);
-	ASSERT_M( hScreen != nullptr, werr_ssprintf(GetLastError(), "hScreen") );
+	HDC hScreen = GetDC(NULL);
+	ASSERT_M( hScreen != NULL, werr_ssprintf(GetLastError(), "hScreen") );
 
 	HBITMAP bitmap = CreateCompatibleBitmap( hScreen, s->w, s->h );
-	ASSERT_M( bitmap != nullptr, werr_ssprintf(GetLastError(), "CreateCompatibleBitmap") );
+	ASSERT_M( bitmap != NULL, werr_ssprintf(GetLastError(), "CreateCompatibleBitmap") );
 
 	HDC BitmapDC = CreateCompatibleDC( hScreen );
 	SelectObject( BitmapDC, bitmap );
@@ -60,15 +55,15 @@ static HBITMAP LoadWin32Surface( const RageSurface *pSplash, HWND hWnd )
 		for( int x = 0; x < s->w; ++x )
 		{
 			unsigned const char *data = line + (x*s->format->BytesPerPixel);
-
+			
 			SetPixelV( BitmapDC, x, y, RGB( data[3], data[2], data[1] ) );
 		}
 	}
 
-	SelectObject( BitmapDC, nullptr );
+	SelectObject( BitmapDC, NULL );
 	DeleteObject( BitmapDC );
 
-	ReleaseDC( nullptr, hScreen );
+	ReleaseDC( NULL, hScreen );
 
 	delete s;
 	return bitmap;
@@ -78,38 +73,38 @@ static HBITMAP LoadWin32Surface( RString sFile, HWND hWnd )
 {
         RString error;
         RageSurface *pSurface = RageSurfaceUtils::LoadFile( sFile, error );
-        if( pSurface == nullptr )
-                return nullptr;
+        if( pSurface == NULL )
+                return NULL;
 
         HBITMAP ret = LoadWin32Surface( pSurface, hWnd );
         delete pSurface;
         return ret;
 }
 
-INT_PTR CALLBACK LoadingWindow_Win32::WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+BOOL CALLBACK LoadingWindow_Win32::WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
 	switch( msg )
 	{
 	case WM_INITDIALOG:
 		{
-			std::vector<RString> vs;
+			vector<RString> vs;
 			GetDirListing( "Data/splash*.png", vs, false, true );
 			if( !vs.empty() )
 				g_hBitmap = LoadWin32Surface( vs[0], hWnd );
 		}
-		if( g_hBitmap == nullptr )
+		if( g_hBitmap == NULL )
 			g_hBitmap = LoadWin32Surface( "Data/splash.bmp", hWnd );
-		SendMessage(
-			GetDlgItem(hWnd,IDC_SPLASH),
-			STM_SETIMAGE,
-			(WPARAM) IMAGE_BITMAP,
+		SendMessage( 
+			GetDlgItem(hWnd,IDC_SPLASH), 
+			STM_SETIMAGE, 
+			(WPARAM) IMAGE_BITMAP, 
 			(LPARAM) (HANDLE) g_hBitmap );
 		SetWindowTextA( hWnd, PRODUCT_ID );
 		break;
 
 	case WM_DESTROY:
 		DeleteObject( g_hBitmap );
-		g_hBitmap = nullptr;
+		g_hBitmap = NULL;
 		break;
 	}
 
@@ -118,24 +113,25 @@ INT_PTR CALLBACK LoadingWindow_Win32::WndProc( HWND hWnd, UINT msg, WPARAM wPara
 
 void LoadingWindow_Win32::SetIcon( const RageSurface *pIcon )
 {
-	if( m_hIcon != nullptr )
+	if( m_hIcon != NULL )
 		DestroyIcon( m_hIcon );
 
 	m_hIcon = IconFromSurface( pIcon );
-	if( m_hIcon != nullptr )
- 		SetClassLongPtrA( hwnd, GCLP_HICON, reinterpret_cast<LONG_PTR>(m_hIcon) );
+	if( m_hIcon != NULL )
+		// XXX: GCL_HICON isn't available on x86-64 Windows
+		SetClassLong( hwnd, GCL_HICON, (LONG) m_hIcon );
 }
 
 void LoadingWindow_Win32::SetSplash( const RageSurface *pSplash )
 {
-	if( g_hBitmap != nullptr )
+	if( g_hBitmap != NULL )
 	{
 		DeleteObject( g_hBitmap );
-		g_hBitmap = nullptr;
+		g_hBitmap = NULL;
 	}
 
 	g_hBitmap = LoadWin32Surface( pSplash, hwnd );
-	if( g_hBitmap != nullptr )
+	if( g_hBitmap != NULL )
 	{
 		SendDlgItemMessage(
 			hwnd, IDC_SPLASH,
@@ -148,9 +144,9 @@ void LoadingWindow_Win32::SetSplash( const RageSurface *pSplash )
 
 LoadingWindow_Win32::LoadingWindow_Win32()
 {
-	m_hIcon = nullptr;
-	hwnd = CreateDialog( handle.Get(), MAKEINTRESOURCE(IDD_LOADING_DIALOG), nullptr, WndProc );
-	ASSERT( hwnd != nullptr );
+	m_hIcon = NULL;
+	hwnd = CreateDialog( handle.Get(), MAKEINTRESOURCE(IDD_LOADING_DIALOG), NULL, WndProc );
+	ASSERT( hwnd != NULL );
 	for( unsigned i = 0; i < 3; ++i )
 		text[i] = "ABC"; /* always set on first call */
 	SetText( "" );
@@ -161,7 +157,7 @@ LoadingWindow_Win32::~LoadingWindow_Win32()
 {
 	if( hwnd )
 		DestroyWindow( hwnd );
-	if( m_hIcon != nullptr )
+	if( m_hIcon != NULL )
 		DestroyIcon( m_hIcon );
 }
 
@@ -181,7 +177,7 @@ void LoadingWindow_Win32::Paint()
 
 void LoadingWindow_Win32::SetText( RString sText )
 {
-	std::vector<RString> asMessageLines;
+	vector<RString> asMessageLines;
 	split( sText, "\n", asMessageLines, false );
 	while( asMessageLines.size() < 3 )
 		asMessageLines.push_back( "" );
@@ -231,7 +227,7 @@ void LoadingWindow_Win32::SetIndeterminate(bool indeterminate)
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -241,7 +237,7 @@ void LoadingWindow_Win32::SetIndeterminate(bool indeterminate)
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

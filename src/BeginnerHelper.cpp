@@ -149,7 +149,7 @@ bool BeginnerHelper::Init( int iDancePadType )
 
 		// Load character data
 		const Character *Character = GAMESTATE->m_pCurCharacters[pl];
-		ASSERT( Character != nullptr );
+		ASSERT( Character != NULL );
 
 		m_pDancer[pl]->SetName( ssprintf("PlayerP%d",pl+1) );
 
@@ -204,7 +204,7 @@ void BeginnerHelper::AddPlayer( PlayerNumber pn, const NoteData &ns )
 		return;
 	
 	const Character *Character = GAMESTATE->m_pCurCharacters[pn];
-	ASSERT( Character != nullptr );
+	ASSERT( Character != NULL );
 	if( !DoesFileExist(Character->GetModelPath()) )
 		return;
 
@@ -219,7 +219,7 @@ bool BeginnerHelper::CanUse(PlayerNumber pn)
 			return false;
 
 	// This does not pass PLAYER_INVALID to GetCurrentStyle because that would
-	// only check the first non-nullptr style.  Both styles need to be checked. -Kyz
+	// only check the first non-NULL style.  Both styles need to be checked. -Kyz
 	if(pn == PLAYER_INVALID)
 	{
 		return GAMESTATE->GetCurrentStyle(PLAYER_1)->m_bCanUseBeginnerHelper ||
@@ -388,7 +388,7 @@ void BeginnerHelper::Update( float fDeltaTime )
 }
 
 /*
- * (c) 2003 Kevin Slaughter, Tracy Ward
+ * (c) 2003 Kevin Slaughter, Thad Ward
  * All rights reserved.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a

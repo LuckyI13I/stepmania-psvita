@@ -5,9 +5,6 @@
 #include "RageTextureID.h"
 #include "ActorUtil.h"
 
-#include <vector>
-
-
 RString GetRandomFileInDir( RString sDir );
 
 Character::Character(): m_sCharDir(""), m_sCharacterID(""),
@@ -23,13 +20,13 @@ bool Character::Load( RString sCharDir )
 
 	// save ID
 	{
-		std::vector<RString> as;
+		vector<RString> as;
 		split( sCharDir, "/", as );
 		m_sCharacterID = as.back();
 	}
 
 	{
-		std::vector<RString> as;
+		vector<RString> as;
 		GetDirListing( m_sCharDir+"card.png", as, false, true );
 		GetDirListing( m_sCharDir+"card.jpg", as, false, true );
 		GetDirListing( m_sCharDir+"card.jpeg", as, false, true );
@@ -42,7 +39,7 @@ bool Character::Load( RString sCharDir )
 	}
 
 	{
-		std::vector<RString> as;
+		vector<RString> as;
 		GetDirListing( m_sCharDir+"icon.png", as, false, true );
 		GetDirListing( m_sCharDir+"icon.jpg", as, false, true );
 		GetDirListing( m_sCharDir+"icon.jpeg", as, false, true );
@@ -77,7 +74,7 @@ bool Character::Load( RString sCharDir )
 
 RString GetRandomFileInDir( RString sDir )
 {
-	std::vector<RString> asFiles;
+	vector<RString> asFiles;
 	GetDirListing( sDir, asFiles, false, true );
 	if( asFiles.empty() )
 		return RString();
@@ -89,8 +86,8 @@ RString Character::GetModelPath() const
 {
 	RString s = m_sCharDir + "model.txt";
 	if( DoesFileExist(s) )
-		return s;
-	else
+		return s; 
+	else 
 		return RString();
 }
 
@@ -99,7 +96,7 @@ RString Character::GetWarmUpAnimationPath() const { return DerefRedir(GetRandomF
 RString Character::GetDanceAnimationPath() const { return DerefRedir(GetRandomFileInDir(m_sCharDir + "Dance/")); }
 RString Character::GetTakingABreakPath() const
 {
-	std::vector<RString> as;
+	vector<RString> as;
 	GetDirListing( m_sCharDir+"break.png", as, false, true );
 	GetDirListing( m_sCharDir+"break.jpg", as, false, true );
 	GetDirListing( m_sCharDir+"break.jpeg", as, false, true );
@@ -113,7 +110,7 @@ RString Character::GetTakingABreakPath() const
 
 RString Character::GetSongSelectIconPath() const
 {
-	std::vector<RString> as;
+	vector<RString> as;
 	// first try and find an icon specific to the select music screen
 	// so you can have different icons for music select / char select
 	GetDirListing( m_sCharDir+"selectmusicicon.png", as, false, true );
@@ -141,7 +138,7 @@ RString Character::GetSongSelectIconPath() const
 
 RString Character::GetStageIconPath() const
 {
-	std::vector<RString> as;
+	vector<RString> as;
 	// first try and find an icon specific to the select music screen
 	// so you can have different icons for music select / char select
 	GetDirListing( m_sCharDir+"stageicon.png", as, false, true );
@@ -174,7 +171,7 @@ bool Character::Has2DElems()
 	if( DoesFileExist(m_sCharDir + "2DFever/BGAnimation.ini") ) // check 2D Idle BGAnim exists
 		return true;
 	if( DoesFileExist(m_sCharDir + "2DGood/BGAnimation.ini") ) // check 2D Idle BGAnim exists
-		return true;
+		return true;	
 	if( DoesFileExist(m_sCharDir + "2DMiss/BGAnimation.ini") ) // check 2D Idle BGAnim exists
 		return true;
 	if( DoesFileExist(m_sCharDir + "2DWin/BGAnimation.ini") ) // check 2D Idle BGAnim exists
@@ -209,7 +206,7 @@ void Character::UndemandGraphics()
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the Character. */
+/** @brief Allow Lua to have access to the Character. */ 
 class LunaCharacter: public Luna<Character>
 {
 public:
@@ -248,7 +245,7 @@ LUA_REGISTER_CLASS( Character )
 /*
  * (c) 2003 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -258,7 +255,7 @@ LUA_REGISTER_CLASS( Character )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -23,19 +23,17 @@ extern "C" const char *Init( int *argc, char ***argv )
 		return "Couldn't initialize gtk (cannot open display)";
 
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_position( GTK_WINDOW(window), GTK_WIN_POS_CENTER_ALWAYS );
-	gtk_widget_set_size_request(window,-1,-1);
+	gtk_window_set_position( GTK_WINDOW(window), GTK_WIN_POS_CENTER );
+	gtk_widget_set_size_request(window,468,-1);
 	gtk_window_set_deletable( GTK_WINDOW(window), FALSE );
 	gtk_window_set_resizable(GTK_WINDOW(window),FALSE);
 	gtk_window_set_role( GTK_WINDOW(window), "sm-startup" );
 	//gtk_window_set_icon( GTK_WINDOW(window), );
 	gtk_widget_realize(window);
 
-	splash = gtk_image_new_from_pixbuf(
-		gdk_pixbuf_new_from_file (splash_image_path, nullptr)
-	);
+	splash = gtk_image_new_from_file(splash_image_path);
 
-	label = gtk_label_new(nullptr);
+	label = gtk_label_new(NULL);
 	gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_CENTER);
 	gtk_label_set_ellipsize(GTK_LABEL(label),PANGO_ELLIPSIZE_END);
 	gtk_label_set_line_wrap(GTK_LABEL(label),FALSE);
@@ -43,7 +41,7 @@ extern "C" const char *Init( int *argc, char ***argv )
 	progressBar = gtk_progress_bar_new();
 	gtk_progress_bar_set_fraction( GTK_PROGRESS_BAR(progressBar), 0.0 );
 
-	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	vbox = gtk_vbox_new(FALSE,0);
 	gtk_container_add(GTK_CONTAINER(window),vbox);
 	gtk_box_pack_start(GTK_BOX(vbox),splash,FALSE,FALSE,0);
 	gtk_box_pack_end(GTK_BOX(vbox),progressBar,FALSE,FALSE,0);
@@ -51,7 +49,7 @@ extern "C" const char *Init( int *argc, char ***argv )
 
 	gtk_widget_show_all(window);
 	gtk_main_iteration_do(FALSE);
-	return nullptr;
+	return NULL;
 }
 
 extern "C" void Shutdown()
@@ -81,9 +79,9 @@ GdkPixbuf *MakePixbuf( const RageSurface *pSrc )
 	RageSurfaceUtils::Blit( pSrc, pSurface , -1, -1 );
 
 	GdkPixbuf *pBuf = gdk_pixbuf_new_from_data( pSurface->pixels, GDK_COLORSPACE_RGB,
-		true, 8, pSurface->w, pSurface->h , pSurface->pitch, DeletePixels, nullptr);
+		true, 8, pSurface->w, pSurface->h , pSurface->pitch, DeletePixels, NULL);
 
-	if( pBuf != nullptr )
+	if( pBuf != NULL )
 		pSurface->pixels_owned = false;
 
 	delete pSurface;
@@ -93,7 +91,7 @@ GdkPixbuf *MakePixbuf( const RageSurface *pSrc )
 extern "C" void SetIcon( const RageSurface *pSrcImg )
 {
 	GdkPixbuf *pBuf = MakePixbuf( pSrcImg );
-	if( pBuf != nullptr )
+	if( pBuf != NULL )
 	{
 		gtk_window_set_icon( GTK_WINDOW(window), pBuf );
 		g_object_unref(pBuf);
@@ -104,7 +102,7 @@ extern "C" void SetIcon( const RageSurface *pSrcImg )
 extern "C" void SetSplash( const RageSurface *pSplash )
 {
 	GdkPixbuf *pBuf = MakePixbuf( pSplash );
-	if( pBuf != nullptr )
+	if( pBuf != NULL )
 	{
 		gtk_image_set_from_pixbuf(GTK_IMAGE(splash), pBuf);
 		g_object_unref(pBuf);

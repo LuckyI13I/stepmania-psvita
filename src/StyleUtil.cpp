@@ -23,8 +23,8 @@ void StyleID::FromStyle( const Style *p )
 const Style *StyleID::ToStyle() const
 {
 	const Game* pGame = GAMEMAN->StringToGame( sGame );
-	if( pGame == nullptr )
-		return nullptr;
+	if( pGame == NULL )
+		return NULL;
 
 	return GAMEMAN->GameAndStringToStyle( pGame, sStyle );
 }

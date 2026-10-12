@@ -9,9 +9,6 @@
 #include "InputEventPlus.h"
 #include "InputMapper.h"
 
-#include <vector>
-
-
 #define NEXT_SCREEN		THEME->GetMetric (m_sName,"NextScreen")
 #define PREV_SCREEN		THEME->GetMetric (m_sName,"PrevScreen")
 #define PREPARE_SCREENS		THEME->GetMetric (m_sName,"PrepareScreens")
@@ -64,7 +61,7 @@ void Screen::Init()
 
 	PlayCommandNoRecurse( Message("Init") );
 
-	std::vector<RString> asList;
+	vector<RString> asList;
 	split( PREPARE_SCREENS, ",", asList );
 	for( unsigned i = 0; i < asList.size(); ++i )
 	{
@@ -106,23 +103,20 @@ void Screen::EndScreen()
 {
 	this->PlayCommand( "End" );
 	m_bRunning = false;
-
-	m_InputCallbacks.clear();
-	m_DelayedCallbackRemovals.clear();
 }
 
 void Screen::Update( float fDeltaTime )
 {
 	ActorFrame::Update( fDeltaTime );
-
-	m_fLockInputSecs = std::max( 0.0f, m_fLockInputSecs-fDeltaTime );
+	
+	m_fLockInputSecs = max( 0, m_fLockInputSecs-fDeltaTime );
 
 	/* We need to ensure two things:
 	 * 1. Messages must be sent in the order of delay. If two messages are sent
 	 *    simultaneously, one with a .001 delay and another with a .002 delay,
 	 *    the .001 delay message must be sent first.
 	 * 2. Messages to be delivered simultaneously must be sent in the order queued.
-	 *
+	 * 
 	 * Sort by time to ensure #1; use a stable sort to ensure #2. */
 	stable_sort(m_QueuedMessages.begin(), m_QueuedMessages.end(), SortMessagesByDelayRemaining);
 
@@ -142,7 +136,7 @@ void Screen::Update( float fDeltaTime )
 		if( m_QueuedMessages[i].fDelayRemaining > 0.0001f )
 		{
 			m_QueuedMessages[i].fDelayRemaining -= fDeltaTime;
-			m_QueuedMessages[i].fDelayRemaining = std::max( m_QueuedMessages[i].fDelayRemaining, 0.0001f );
+			m_QueuedMessages[i].fDelayRemaining = max( m_QueuedMessages[i].fDelayRemaining, 0.0001f );
 		}
 		else
 		{
@@ -228,10 +222,9 @@ bool Screen::Input( const InputEventPlus &input )
 					return this->MenuBack( input );
 			}
 			return false;
-		case GAME_BUTTON_START:   return this->MenuStart  ( input );
-		case GAME_BUTTON_SELECT:  return this->MenuSelect ( input );
-		case GAME_BUTTON_RESTART: return this->MenuRestart( input );
-		case GAME_BUTTON_COIN:    return this->MenuCoin   ( input );
+		case GAME_BUTTON_START:  return this->MenuStart ( input );
+		case GAME_BUTTON_SELECT: return this->MenuSelect( input );
+		case GAME_BUTTON_COIN:   return this->MenuCoin  ( input );
 		default: return false;
 	}
 }
@@ -306,14 +299,14 @@ void Screen::PostScreenMessage( const ScreenMessage SM, float fDelay )
 
 void Screen::ClearMessageQueue()
 {
-	m_QueuedMessages.clear();
+	m_QueuedMessages.clear(); 
 }
 
 void Screen::ClearMessageQueue( const ScreenMessage SM )
 {
 	for( int i=m_QueuedMessages.size()-1; i>=0; i-- )
 		if( m_QueuedMessages[i].SM == SM )
-			m_QueuedMessages.erase( m_QueuedMessages.begin()+i );
+			m_QueuedMessages.erase( m_QueuedMessages.begin()+i ); 
 }
 
 bool Screen::PassInputToLua(const InputEventPlus& input)
@@ -362,7 +355,7 @@ bool Screen::PassInputToLua(const InputEventPlus& input)
 	lua_setfield(L, -2, "PlayerNumber");
 	Enum::Push(L, input.mp);
 	lua_setfield(L, -2, "MultiPlayer");
-	for(std::map<callback_key_t, LuaReference>::iterator callback= m_InputCallbacks.begin();
+	for(map<callback_key_t, LuaReference>::iterator callback= m_InputCallbacks.begin();
 			callback != m_InputCallbacks.end() && !handled; ++callback)
 	{
 		callback->second.PushSelf(L);
@@ -377,7 +370,7 @@ bool Screen::PassInputToLua(const InputEventPlus& input)
 	m_CallingInputCallbacks= false;
 	if(!m_DelayedCallbackRemovals.empty())
 	{
-		for(std::vector<callback_key_t>::iterator key= m_DelayedCallbackRemovals.begin();
+		for(vector<callback_key_t>::iterator key= m_DelayedCallbackRemovals.begin();
 				key != m_DelayedCallbackRemovals.end(); ++key)
 		{
 			InternalRemoveCallback(*key);
@@ -407,7 +400,7 @@ void Screen::RemoveInputCallback(lua_State* L)
 
 void Screen::InternalRemoveCallback(callback_key_t key)
 {
-	std::map<callback_key_t, LuaReference>::iterator iter= m_InputCallbacks.find(key);
+	map<callback_key_t, LuaReference>::iterator iter= m_InputCallbacks.find(key);
 	if(iter != m_InputCallbacks.end())
 	{
 		m_InputCallbacks.erase(iter);
@@ -418,7 +411,7 @@ void Screen::InternalRemoveCallback(callback_key_t key)
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the Screen. */
+/** @brief Allow Lua to have access to the Screen. */ 
 class LunaScreen: public Luna<Screen>
 {
 public:
@@ -477,7 +470,7 @@ LUA_REGISTER_DERIVED_CLASS( Screen, ActorFrame )
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -487,7 +480,7 @@ LUA_REGISTER_DERIVED_CLASS( Screen, ActorFrame )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

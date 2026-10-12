@@ -16,8 +16,8 @@ REGISTER_ACTOR_CLASS( PercentageDisplay );
 
 PercentageDisplay::PercentageDisplay()
 {
-	m_pPlayerState = nullptr;
-	m_pPlayerStageStats = nullptr;
+	m_pPlayerState = NULL;
+	m_pPlayerStageStats = NULL;
 
 	m_Last = -1;
 	m_LastMax = -1;
@@ -53,7 +53,7 @@ void PercentageDisplay::LoadFromNode( const XNode* pNode )
 	}
 
 	const XNode *pChild = pNode->GetChild( "Percent" );
-	if( pChild == nullptr )
+	if( pChild == NULL )
 	{
 		LuaHelpers::ReportScriptError(ActorUtil::GetWhere(pNode) + ": PercentageDisplay: missing the node \"Percent\"");
 		// Make a BitmapText just so we don't crash.
@@ -66,7 +66,7 @@ void PercentageDisplay::LoadFromNode( const XNode* pNode )
 	this->AddChild( &m_textPercent );
 
 	pChild = pNode->GetChild( "PercentRemainder" );
-	if( !ShowDancePointsNotPercentage()  &&  pChild != nullptr )
+	if( !ShowDancePointsNotPercentage()  &&  pChild != NULL )
 	{
 		m_bUseRemainder = true;
 		m_textPercentRemainder.LoadFromNode( pChild );
@@ -154,7 +154,7 @@ void PercentageDisplay::Refresh()
 
 	if( ShowDancePointsNotPercentage() )
 	{
-		sNumToDisplay = ssprintf( "%*d", m_iDancePointsDigits, std::max( 0, iActualDancePoints ) );
+		sNumToDisplay = ssprintf( "%*d", m_iDancePointsDigits, max( 0, iActualDancePoints ) );
 	}
 	else
 	{
@@ -200,6 +200,9 @@ bool PercentageDisplay::ShowDancePointsNotPercentage() const
 		if( GAMESTATE->m_pCurCourse->m_fGoalSeconds > 0 )
 			return true;
 	}
+
+	if( PREFSMAN->m_bDancePointsForOni )
+		return true;
 
 	return false;
 }

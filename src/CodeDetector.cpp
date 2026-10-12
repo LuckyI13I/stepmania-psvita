@@ -11,7 +11,6 @@
 #include "InputEventPlus.h"
 #include "OptionRowHandler.h"
 
-
 const char *CodeNames[] = {
 	"PrevSteps1",
 	"PrevSteps2",
@@ -54,8 +53,6 @@ const char *CodeNames[] = {
 	"CancelAllPlayerOptions",
 	"BackInEventMode",
 	"CloseCurrentFolder",
-	"PrevOptionsList",
-	"NextOptionsList"
 };
 XToString( Code );
 
@@ -119,15 +116,6 @@ bool CodeDetector::EnteredModeMenu( GameController controller )
 	return EnteredCode(controller,CODE_MODE_MENU1) || EnteredCode(controller,CODE_MODE_MENU2);
 }
 
-bool CodeDetector::EnteredPrevOpList( GameController controller )
-{
-	return EnteredCode(controller,CODE_PREV_OPLIST);
-}
-bool CodeDetector::EnteredNextOpList( GameController controller )
-{
-	return EnteredCode(controller,CODE_NEXT_OPLIST);
-}
-
 #define  TOGGLE(v,a,b)	if(v!=a) v=a; else v=b;
 #define  FLOAT_TOGGLE(v)	if(v!=1.f) v=1.f; else v=0.f;
 // XXX: Read the metrics file instead!
@@ -168,13 +156,13 @@ void CodeDetector::ChangeScrollSpeed( GameController controller, bool bIncrement
 	RString sTitleOut;
 	ScreenOptionsMaster::SetList( row, hand, "Speed", sTitleOut );
 
-	std::vector<ModeChoice>& entries = hand.ListEntries;
+	vector<ModeChoice>& entries = hand.ListEntries;
 
 	RString sScrollSpeed = po.GetScrollSpeedAsString();
 	if (sScrollSpeed.empty())
 		sScrollSpeed = "1x";
 
-	for ( std::vector<ModeChoice>::iterator it = entries.begin(); it != entries.end(); ++it )
+	for ( vector<ModeChoice>::iterator it = entries.begin(); it != entries.end(); ++it )
 	{
 		ModeChoice& modeChoice = *it;
 		if ( modeChoice.m_sModifiers == sScrollSpeed ) {
@@ -254,7 +242,7 @@ bool CodeDetector::DetectAndAdjustMusicOptions( GameController controller )
 /*
  * (c) 2001-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -264,7 +252,7 @@ bool CodeDetector::DetectAndAdjustMusicOptions( GameController controller )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -8,12 +8,9 @@
 #include "RageLog.h"
 #include "RageMath.h"
 #include "StageStats.h"
+#include "Foreach.h"
 #include "Song.h"
 #include "XmlFile.h"
-
-#include <cmath>
-#include <vector>
-
 
 //#define DIVIDE_LINE_WIDTH			THEME->GetMetricI(m_sName,"TexturedBottomHalf")
 REGISTER_ACTOR_CLASS( GraphDisplay );
@@ -31,7 +28,7 @@ public:
 
 		DISPLAY->ClearAllTextures();
 
-		// Must call this after setting the texture or else texture
+		// Must call this after setting the texture or else texture 
 		// parameters have no effect.
 		Actor::SetTextureRenderStates();
 
@@ -54,8 +51,8 @@ public:
 		for( int i = 0; i < iSubdivisions+1; ++i )
 		{
 			const float fRotation = float(i) / iSubdivisions * 2*PI;
-			const float fX = std::cos(fRotation) * fRadius;
-			const float fY = -std::sin(fRotation) * fRadius;
+			const float fX = RageFastCos(fRotation) * fRadius;
+			const float fY = -RageFastSin(fRotation) * fRadius;
 			pVerts[1+i] = v;
 			pVerts[1+i].p.x += fX;
 			pVerts[1+i].p.y += fY;
@@ -70,7 +67,7 @@ public:
 		{
 			MakeCircle( m_LineStrip[i], &m_pCircles[0] + iCircleVertices*i, iSubdivisions, 1 );
 		}
-
+		
 		int iNumLines = iSize-1;
 		m_Quads.resize( iNumLines * 4 );
 		for( int i = 0; i < iNumLines; ++i )
@@ -80,7 +77,7 @@ public:
 
 			float opp = p2.p.x - p1.p.x;
 			float adj = p2.p.y - p1.p.y;
-			float hyp = std::pow(opp*opp + adj*adj, 0.5f);
+			float hyp = powf(opp*opp + adj*adj, 0.5f);
 
 			float lsin = opp/hyp;
 			float lcos = adj/hyp;
@@ -92,7 +89,7 @@ public:
 			int iLineWidth = 2;
 			float ydist = lsin * iLineWidth/2;
 			float xdist = lcos * iLineWidth/2;
-
+			
 			v[0].p.x += xdist;
 			v[0].p.y -= ydist;
 			v[1].p.x -= xdist;
@@ -108,8 +105,8 @@ public:
 	virtual GraphLine *Copy() const;
 
 private:
-	std::vector<RageSpriteVertex> m_Quads;
-	std::vector<RageSpriteVertex> m_pCircles;
+	vector<RageSpriteVertex> m_Quads;
+	vector<RageSpriteVertex> m_pCircles;
 };
 REGISTER_ACTOR_CLASS( GraphLine );
 
@@ -129,7 +126,7 @@ public:
 	~GraphBody()
 	{
 		TEXTUREMAN->UnloadTexture( m_pTexture );
-		m_pTexture = nullptr;
+		m_pTexture = NULL;
 	}
 
 	void DrawPrimitives()
@@ -139,7 +136,7 @@ public:
 		DISPLAY->ClearAllTextures();
 		DISPLAY->SetTexture( TextureUnit_1, m_pTexture->GetTexHandle() );
 
-		// Must call this after setting the texture or else texture
+		// Must call this after setting the texture or else texture 
 		// parameters have no effect.
 		Actor::SetTextureRenderStates();
 
@@ -153,16 +150,14 @@ public:
 
 GraphDisplay::GraphDisplay()
 {
-	m_pGraphLine = nullptr;
-	m_pGraphBody = nullptr;
+	m_pGraphLine = NULL;
+	m_pGraphBody = NULL;
 }
 
 GraphDisplay::~GraphDisplay()
 {
-	for (Actor *p : m_vpSongBoundaries)
-	{
-		SAFE_DELETE( p );
-	}
+	FOREACH( Actor*, m_vpSongBoundaries, p )
+		SAFE_DELETE( *p );
 	m_vpSongBoundaries.clear();
 	SAFE_DELETE( m_pGraphLine );
 	SAFE_DELETE( m_pGraphBody );
@@ -181,17 +176,18 @@ void GraphDisplay::Set( const StageStats &ss, const PlayerStageStats &pss )
 
 	// Show song boundaries
 	float fSec = 0;
-	std::vector<Song *> const &possibleSongs = ss.m_vpPossibleSongs;
-
-	std::for_each(possibleSongs.begin(), possibleSongs.end() - 1, [&](Song *song) {
-		fSec += song->GetStepsSeconds();
+	FOREACH_CONST( Song*, ss.m_vpPossibleSongs, song )
+	{
+		if( song == ss.m_vpPossibleSongs.end()-1 )
+			continue;
+		fSec += (*song)->GetStepsSeconds();
 
 		Actor *p = m_sprSongBoundary->Copy();
 		m_vpSongBoundaries.push_back( p );
 		float fX = SCALE( fSec, 0, fTotalStepSeconds, m_quadVertices.left, m_quadVertices.right );
 		p->SetX( fX );
 		this->AddChild( p );
-	});
+	}
 
 	if( !pss.m_bFailed )
 	{
@@ -279,7 +275,7 @@ void GraphDisplay::UpdateVerts()
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the GraphDisplay. */
+/** @brief Allow Lua to have access to the GraphDisplay. */ 
 class LunaGraphDisplay: public Luna<GraphDisplay>
 {
 public:
@@ -292,11 +288,11 @@ public:
 	{
 		StageStats *pStageStats = Luna<StageStats>::check( L, 1 );
 		PlayerStageStats *pPlayerStageStats = Luna<PlayerStageStats>::check( L, 2 );
-		if(pStageStats == nullptr)
+		if(pStageStats == NULL)
 		{
 			luaL_error(L, "The StageStats passed to GraphDisplay:Set are nil.");
 		}
-		if(pPlayerStageStats == nullptr)
+		if(pPlayerStageStats == NULL)
 		{
 			luaL_error(L, "The PlayerStageStats passed to GraphDisplay:Set are nil.");
 		}
@@ -317,7 +313,7 @@ LUA_REGISTER_DERIVED_CLASS( GraphDisplay, ActorFrame )
 /*
  * (c) 2003 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -327,7 +323,7 @@ LUA_REGISTER_DERIVED_CLASS( GraphDisplay, ActorFrame )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

@@ -3,7 +3,7 @@
 
 static Preference<float> g_fVisualDelaySeconds( "VisualDelaySeconds", 0.0f );
 
-void SongPosition::UpdateSongPosition( float fPositionSeconds, const TimingData &timing, const RageTimer &timestamp, float fAdditionalVisualDelay )
+void SongPosition::UpdateSongPosition( float fPositionSeconds, const TimingData &timing, const RageTimer &timestamp )
 {
 
 	if( !timestamp.IsZero() )
@@ -31,7 +31,7 @@ void SongPosition::UpdateSongPosition( float fPositionSeconds, const TimingData 
 
 	m_fSongBeatNoOffset = timing.GetBeatFromElapsedTimeNoOffset( fPositionSeconds );
 	
-	m_fMusicSecondsVisible = fPositionSeconds - g_fVisualDelaySeconds.Get() - fAdditionalVisualDelay;
+	m_fMusicSecondsVisible = fPositionSeconds - g_fVisualDelaySeconds.Get();
 	beat_info.elapsed_time= m_fMusicSecondsVisible;
 	timing.GetBeatAndBPSFromElapsedTime(beat_info);
 	m_fSongBeatVisible= beat_info.beat;

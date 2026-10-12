@@ -33,7 +33,7 @@ struct TweenDecelerate: public ITween
 };
 struct TweenSpring: public ITween
 {
-	float Tween( float f ) const { return 1 - std::cos( f*PI*2.5f )/(1+f*3); }
+	float Tween( float f ) const { return 1 - RageFastCos( f*PI*2.5f )/(1+f*3); }
 	ITween *Copy() const { return new TweenSpring(*this); }
 };
 
@@ -99,7 +99,7 @@ ITween *ITween::CreateFromStack( Lua *L, int iStackPos )
 		if( iArgs != 4 && iArgs != 8 )
 		{
 			LuaHelpers::ReportScriptErrorFmt("Tween::CreateFromStack: table argument must have 4 or 8 entries");
-			return nullptr;
+			return NULL;
 		}
 
 		float fC[8];

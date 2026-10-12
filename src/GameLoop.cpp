@@ -18,11 +18,9 @@
 #include "InputMapper.h"
 #include "RageFileManager.h"
 #include "LightsManager.h"
+#include "NetworkSyncManager.h"
 #include "RageTimer.h"
 #include "RageInput.h"
-
-#include <cmath>
-#include <vector>
 
 static RageTimer g_GameplayTimer;
 
@@ -42,6 +40,9 @@ void GameLoop::SetUpdateRate( float fUpdateRate )
 
 static void CheckGameLoopTimerSkips( float fDeltaTime )
 {
+	if( !PREFSMAN->m_bLogSkips )
+		return;
+
 	static int iLastFPS = 0;
 	int iThisFPS = DISPLAY->GetFPS();
 
@@ -56,7 +57,7 @@ static void CheckGameLoopTimerSkips( float fDeltaTime )
 
 	const float fExpectedTime = 1.0f / iThisFPS;
 	const float fDifference = fDeltaTime - fExpectedTime;
-	if( std::abs(fDifference) > 0.002f && std::abs(fDifference) < 0.100f )
+	if( fabsf(fDifference) > 0.002f && fabsf(fDifference) < 0.100f )
 		LOG->Trace( "GameLoop timer skip: %i FPS, expected %.3f, got %.3f (%.3f difference)",
 			iThisFPS, fExpectedTime, fDeltaTime, fDifference );
 }
@@ -65,6 +66,27 @@ static bool ChangeAppPri()
 {
 	if( g_bNeverBoostAppPriority.Get() )
 		return false;
+
+	// if using NTPAD don't boost or else input is laggy
+#if defined(_WINDOWS)
+	{
+		vector<InputDeviceInfo> vDevices;
+
+		// This can get called before INPUTMAN is constructed.
+		if( INPUTMAN )
+		{
+			INPUTMAN->GetDevicesAndDescriptions(vDevices);
+			FOREACH_CONST( InputDeviceInfo, vDevices, d )
+			{
+				if( d->sDesc.find("NTPAD") != string::npos )
+				{
+					LOG->Trace( "Using NTPAD.  Don't boost priority." );
+					return false;
+				}
+			}
+		}
+	}
+#endif
 
 	// If this is a debug build, don't. It makes the VC debugger sluggish.
 #if defined(WIN32) && defined(DEBUG)
@@ -81,17 +103,13 @@ static void CheckFocus()
 
 	// If we lose focus, we may lose input events, especially key releases.
 	INPUTFILTER->Reset();
-}
 
-static void CheckInputDevices()
-{
-	if (INPUTMAN->DevicesChanged())
+	if( ChangeAppPri() )
 	{
-		INPUTFILTER->Reset();    // fix "buttons stuck" if button held while unplugged
-		INPUTMAN->LoadDrivers();
-		RString sMessage;
-		if (INPUTMAPPER->CheckForChangedInputDevicesAndRemap(sMessage))
-			SCREENMAN->SystemMessage(sMessage);
+		if( HOOKS->AppHasFocus() )
+			HOOKS->BoostPriority();
+		else
+			HOOKS->UnBoostPriority();
 	}
 }
 
@@ -114,25 +132,6 @@ void GameLoop::ChangeGame(const RString& new_game, const RString& new_theme)
 #include "Game.h"
 namespace
 {
-	RString GetNewScreenName()
-	{
-		if (THEME->HasMetric("Common", "AfterThemeChangeScreen"))
-		{
-			RString after_screen = THEME->GetMetric("Common", "AfterThemeChangeScreen");
-			if (SCREENMAN->IsScreenNameValid(after_screen))
-			{
-				return after_screen;
-			}
-		}
-
-		RString new_screen = THEME->GetMetric("Common", "InitialScreen");
-		if (!SCREENMAN->IsScreenNameValid(new_screen))
-		{
-			return "ScreenInitialScreenIsInvalid";
-		}
-		return new_screen;
-	}
-
 	void DoChangeTheme()
 	{
 		SAFE_DELETE( SCREENMAN );
@@ -161,17 +160,28 @@ namespace
 		// So now the correct thing to do is for a theme to specify its entry
 		// point after a theme change, ensuring that we are going to a valid
 		// screen and not crashing. -Kyz
-		RString newScreenName = GetNewScreenName();
-		SCREENMAN->SetNewScreen(newScreenName);
+		RString new_screen= THEME->GetMetric("Common", "InitialScreen");
+		if(THEME->HasMetric("Common", "AfterThemeChangeScreen"))
+		{
+			RString after_screen= THEME->GetMetric("Common", "AfterThemeChangeScreen");
+			if(SCREENMAN->IsScreenNameValid(after_screen))
+			{
+				new_screen= after_screen;
+			}
+		}
+		if(!SCREENMAN->IsScreenNameValid(new_screen))
+		{
+			new_screen= "ScreenInitialScreenIsInvalid";
+		}
+		SCREENMAN->SetNewScreen(new_screen);
 
-		// Indicate no further theme change is needed
 		g_NewTheme = RString();
 	}
 
 	void DoChangeGame()
 	{
 		const Game* g= GAMEMAN->StringToGame(g_NewGame);
-		ASSERT(g != nullptr);
+		ASSERT(g != NULL);
 		GAMESTATE->SetCurGame(g);
 
 		bool theme_changing= false;
@@ -240,73 +250,6 @@ namespace
 	}
 }
 
-void GameLoop::UpdateAllButDraw(bool bRunningFromVBLANK)
-{
-	// Flag to indicate whether an update has been processed during the VBLANK period.
-	static bool m_bUpdatedDuringVBLANK = false;
-
-	// If we're running from VBLANK, and we've already updated during the VBLANK period,
-	// don't update again. This is to prevent multiple updates during the same VBLANK period.
-	if (!bRunningFromVBLANK && m_bUpdatedDuringVBLANK)
-	{
-		m_bUpdatedDuringVBLANK = false;
-		return;
-	}
-
-	// If we're running from VBLANK, indicate we've updated during the VBLANK period.
-	// Otherwise, make sure the flag is cleared.
-	if (bRunningFromVBLANK)
-	{
-		m_bUpdatedDuringVBLANK = true;
-	}
-	else
-	{
-		m_bUpdatedDuringVBLANK = false;
-	}
-
-	// If the constant update delta is set, use that value. Otherwise, use the delta
-	// time from the gameplay timer.
-	float fDeltaTime = (g_fConstantUpdateDeltaSeconds > 0) 
-		? g_fConstantUpdateDeltaSeconds 
-		: g_GameplayTimer.GetDeltaTime();
-
-	// Use a static boolean to check the preference once per game launch.
-	// This is a rarely used debug feature, so we try to skip it if possible.
-	static bool bLogSkips = PREFSMAN->m_bLogSkips;
-	if (bLogSkips)
-	{
-		CheckGameLoopTimerSkips(fDeltaTime);
-	}
-
-	fDeltaTime *= g_fUpdateRate;
-
-	// Update SOUNDMAN early (before any RageSound::GetPosition calls), to flush position data.
-	SOUNDMAN->Update();
-
-	/* Update song beat information -before- calling update on all the classes that
-	 * depend on it. If you don't do this first, the classes are all acting on old
-	 * information and will lag. (but no longer fatally, due to timestamping -glenn) */
-	SOUND->Update(fDeltaTime);
-	TEXTUREMAN->Update(fDeltaTime);
-	GAMESTATE->Update(fDeltaTime);
-	SCREENMAN->Update(fDeltaTime);
-	MEMCARDMAN->Update();
-
-	/* Important: Process input AFTER updating game logic, or input will be
-	 * acting on song beat from last frame */
-	HandleInputEvents(fDeltaTime);
-
-	// Legacy hack to work around low sample count in some sound drivers.
-	// This is a workaround for a bug in the Windows sound system that causes
-	// the sound to be cut off if the sample count is too low. This is a
-	// workaround for the bug, but it's not a fix. It should probably be
-	// removed or localized to the DirectSound driver. --sukibaby
-	SOUNDMAN->low_sample_count_workaround();
-
-	// Update the lights
-	LIGHTSMAN->Update(fDeltaTime);
-}
-
 void GameLoop::RunGameLoop()
 {
 	/* People may want to do something else while songs are loading, so do
@@ -325,17 +268,47 @@ void GameLoop::RunGameLoop()
 			DoChangeTheme();
 		}
 
+		// Update
+		float fDeltaTime = g_GameplayTimer.GetDeltaTime();
+
+		if( g_fConstantUpdateDeltaSeconds > 0 )
+			fDeltaTime = g_fConstantUpdateDeltaSeconds;
+		
+		CheckGameLoopTimerSkips( fDeltaTime );
+
+		fDeltaTime *= g_fUpdateRate;
+
 		CheckFocus();
 
-		UpdateAllButDraw(false);
-		
-		// Check input devices every 255 frames (uint8_t can hold 0-255).
-		static uint8_t i_CheckInputDevices = 0;
-		if (++i_CheckInputDevices == 0)
+		// Update SOUNDMAN early (before any RageSound::GetPosition calls), to flush position data.
+		SOUNDMAN->Update();
+
+		/* Update song beat information -before- calling update on all the classes that
+		 * depend on it. If you don't do this first, the classes are all acting on old 
+		 * information and will lag. (but no longer fatally, due to timestamping -glenn) */
+		SOUND->Update( fDeltaTime );
+		TEXTUREMAN->Update( fDeltaTime );
+		GAMESTATE->Update( fDeltaTime );
+		SCREENMAN->Update( fDeltaTime );
+		MEMCARDMAN->Update();
+		NSMAN->Update( fDeltaTime );
+
+		/* Important: Process input AFTER updating game logic, or input will be
+		 * acting on song beat from last frame */
+		HandleInputEvents( fDeltaTime );
+
+		if( INPUTMAN->DevicesChanged() )
 		{
-			CheckInputDevices();
+			INPUTFILTER->Reset();	// fix "buttons stuck" if button held while unplugged
+			INPUTMAN->LoadDrivers();
+			RString sMessage;
+			if( INPUTMAPPER->CheckForChangedInputDevicesAndRemap(sMessage) )
+				SCREENMAN->SystemMessage( sMessage );
 		}
-		
+
+		LIGHTSMAN->Update( fDeltaTime );
+
+		// Render
 		SCREENMAN->Draw();
 	}
 
@@ -365,7 +338,7 @@ private:
 	enum State { RENDERING_IDLE, RENDERING_START, RENDERING_ACTIVE, RENDERING_END };
 	State m_State;
 };
-static ConcurrentRenderer *g_pConcurrentRenderer = nullptr;
+static ConcurrentRenderer *g_pConcurrentRenderer = NULL;
 
 ConcurrentRenderer::ConcurrentRenderer():
 	m_Event("ConcurrentRenderer")
@@ -412,7 +385,7 @@ void ConcurrentRenderer::Stop()
 
 void ConcurrentRenderer::RenderThread()
 {
-	ASSERT( SCREENMAN != nullptr );
+	ASSERT( SCREENMAN != NULL );
 
 	while( !m_bShutdown )
 	{
@@ -469,7 +442,7 @@ int ConcurrentRenderer::StartRenderThread( void *p )
 
 void GameLoop::StartConcurrentRendering()
 {
-	if( g_pConcurrentRenderer == nullptr )
+	if( g_pConcurrentRenderer == NULL )
 		g_pConcurrentRenderer = new ConcurrentRenderer;
 	g_pConcurrentRenderer->Start();
 }

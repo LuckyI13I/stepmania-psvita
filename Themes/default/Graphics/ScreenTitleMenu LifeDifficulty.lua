@@ -1,7 +1,21 @@
-local icon_params = {
-	base_color = color("#981F41"),
-	label_text = Screen.String("LifeDifficulty"),
-	value_text = GetLifeDifficulty()
-}
+local label_text= false
 
-return LoadActor(THEME:GetPathG("", "_title_info_icon"), icon_params)
+return Def.ActorFrame {
+	LoadFont("Common Normal") .. {
+		Text=GetLifeDifficulty();
+		AltText="";
+		InitCommand=cmd(horizalign,left;zoom,0.675);
+		OnCommand= function(self)
+			label_text= self
+			self:shadowlength(1):settextf(Screen.String("LifeDifficulty"), "");
+		end,
+	};
+	LoadFont("Common Normal") .. {
+		Text=GetLifeDifficulty();
+		AltText="";
+		InitCommand=cmd(zoom,0.675;halign,0);
+		OnCommand= function(self)
+			self:shadowlength(1):skewx(-0.125):x(label_text:GetZoomedWidth()+8)
+		end,
+	};
+};

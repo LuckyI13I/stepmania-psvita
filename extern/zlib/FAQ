@@ -3,8 +3,8 @@
 
 
 If your question is not there, please check the zlib home page
-https://zlib.net/ which may have more recent information.
-The latest zlib FAQ is at https://zlib.net/zlib_faq.html
+http://zlib.net/ which may have more recent information.
+The lastest zlib FAQ is at http://zlib.net/zlib_faq.html
 
 
  1. Is zlib Y2K-compliant?
@@ -14,12 +14,13 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
  2. Where can I get a Windows DLL version?
 
     The zlib sources can be compiled without change to produce a DLL.  See the
-    file win32/DLL_FAQ.txt in the zlib distribution.
+    file win32/DLL_FAQ.txt in the zlib distribution.  Pointers to the
+    precompiled DLL are found in the zlib web site at http://zlib.net/ .
 
  3. Where can I get a Visual Basic interface to zlib?
 
     See
-        * https://zlib.net/nelson/
+        * http://marknelson.us/1997/01/01/zlib-engine/
         * win32/DLL_FAQ.txt in the zlib distribution
 
  4. compress() returns Z_BUF_ERROR.
@@ -38,13 +39,13 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
     made with more input or output space.  A Z_BUF_ERROR may in fact be
     unavoidable depending on how the functions are used, since it is not
     possible to tell whether or not there is more output pending when
-    strm.avail_out returns with zero.  See https://zlib.net/zlib_how.html for a
+    strm.avail_out returns with zero.  See http://zlib.net/zlib_how.html for a
     heavily annotated example.
 
  6. Where's the zlib documentation (man pages, etc.)?
 
-    It's in zlib.h .  Examples of zlib usage are in the files test/example.c
-    and test/minigzip.c, with more in examples/ .
+    It's in zlib.h .  Examples of zlib usage are in the files example.c and
+    minigzip.c, with more in examples/ .
 
  7. Why don't you use GNU autoconf or libtool or ...?
 
@@ -83,10 +84,8 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
 
 13. How can I make a Unix shared library?
 
-    By default a shared (and a static) library is built for Unix.  So:
-
-    make distclean
-    ./configure
+    make clean
+    ./configure -s
     make
 
 14. How do I install a shared zlib library on Unix?
@@ -109,8 +108,8 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
 
 16. Can zlib decode Flate data in an Adobe PDF file?
 
-    Yes. See https://www.pdflib.com/ . To modify PDF forms, see
-    https://sourceforge.net/projects/acroformtool/ .
+    Yes. See http://www.pdflib.com/ . To modify PDF forms, see
+    http://sourceforge.net/projects/acroformtool/ .
 
 17. Why am I getting this "register_frame_info not found" error on Solaris?
 
@@ -155,10 +154,6 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
     functions use stdio library routines, and most of zlib's functions use the
     library memory allocation routines by default.  zlib's *Init* functions
     allow for the application to provide custom memory allocation routines.
-
-    If the non-default BUILDFIXED or DYNAMIC_CRC_TABLE defines are used on a
-    system without atomics (e.g. pre-C11), then inflate() and crc32() will not
-    be thread safe.
 
     Of course, you should only operate on any given zlib or gzip stream from a
     single thread at a time.
@@ -239,7 +234,7 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
     As far as we know, no.  In fact, that was originally the whole point behind
     zlib.  Look here for some more information:
 
-    https://web.archive.org/web/20180729212847/http://www.gzip.org/#faq11
+    http://www.gzip.org/#faq11
 
 32. Can zlib work with greater than 4 GB of data?
 
@@ -262,20 +257,20 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
 33. Does zlib have any security vulnerabilities?
 
     The only one that we are aware of is potentially in gzprintf().  If zlib is
-    compiled to use sprintf() or vsprintf(), which requires that ZLIB_INSECURE
-    be defined, then there is no protection against a buffer overflow of an 8K
-    string space (or other value as set by gzbuffer()), other than the caller
-    of gzprintf() assuring that the output will not exceed 8K.  On the other
-    hand, if zlib is compiled to use snprintf() or vsnprintf(), which should
-    normally be the case, then there is no vulnerability.  The ./configure
-    script will display warnings if an insecure variation of sprintf() will be
-    used by gzprintf().  Also the zlibCompileFlags() function will return
-    information on what variant of sprintf() is used by gzprintf().
+    compiled to use sprintf() or vsprintf(), then there is no protection
+    against a buffer overflow of an 8K string space (or other value as set by
+    gzbuffer()), other than the caller of gzprintf() assuring that the output
+    will not exceed 8K.  On the other hand, if zlib is compiled to use
+    snprintf() or vsnprintf(), which should normally be the case, then there is
+    no vulnerability.  The ./configure script will display warnings if an
+    insecure variation of sprintf() will be used by gzprintf().  Also the
+    zlibCompileFlags() function will return information on what variant of
+    sprintf() is used by gzprintf().
 
     If you don't have snprintf() or vsnprintf() and would like one, you can
-    find a good portable implementation in stb_sprintf.h here:
+    find a portable implementation here:
 
-        https://github.com/nothings/stb
+        http://www.ijs.si/software/snprintf/
 
     Note that you should be using the most recent version of zlib.  Versions
     1.1.3 and before were subject to a double-free vulnerability, and versions
@@ -287,7 +282,7 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
     Probably what you want is to use zlib in Java. zlib is already included
     as part of the Java SDK in the java.util.zip package. If you really want
     a version of zlib written in the Java language, look on the zlib home
-    page for links: https://zlib.net/ .
+    page for links: http://zlib.net/ .
 
 35. I get this or that compiler or source-code scanner warning when I crank it
     up to maximally-pedantic. Can't you guys write proper code?
@@ -318,9 +313,9 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
 
     zlib doesn't support encryption.  The original PKZIP encryption is very
     weak and can be broken with freely available programs.  To get strong
-    encryption, use GnuPG, https://www.gnupg.org/ , which already includes zlib
+    encryption, use GnuPG, http://www.gnupg.org/ , which already includes zlib
     compression.  For PKZIP compatible "encryption", look at
-    https://infozip.sourceforge.net/
+    http://www.info-zip.org/
 
 39. What's the difference between the "gzip" and "deflate" HTTP 1.1 encodings?
 
@@ -330,7 +325,7 @@ The latest zlib FAQ is at https://zlib.net/zlib_faq.html
     correctly points to the zlib specification in RFC 1950 for the "deflate"
     transfer encoding, there have been reports of servers and browsers that
     incorrectly produce or expect raw deflate data per the deflate
-    specification in RFC 1951, most notably Microsoft.  So even though the
+    specficiation in RFC 1951, most notably Microsoft.  So even though the
     "deflate" transfer encoding using the zlib format would be the more
     efficient approach (and in fact exactly what the zlib format was designed
     for), using the "gzip" transfer encoding is probably more reliable due to

@@ -2,7 +2,6 @@
 #define ARROWEFFECTS_H
 
 #include "RageTypes.h"
-#include "PlayerNumber.h"
 
 class PlayerState;
 class PlayerOptions;
@@ -10,8 +9,6 @@ class PlayerOptions;
 class ArrowEffects
 {
 public:
-	static void Init(PlayerNumber pn);
-	static float GetTime();
 	static void Update();
 	// SetCurrentOptions and the hidden static variable it set exists so that
 	// ArrowEffects doesn't have to reach through the PlayerState to check
@@ -32,9 +29,9 @@ public:
 
 	static void GetXYZPos(const PlayerState* player_state, int col, float y_offset, float y_reverse_offset, RageVector3& ret, bool with_reverse= true)
 	{
-		ret.x= GetMoveX(col) + GetXPos(player_state, col, y_offset);
-		ret.y= GetMoveY(col) + GetYPos(player_state, col, y_offset, y_reverse_offset, with_reverse);
-		ret.z= GetMoveZ(col) + GetZPos(player_state, col, y_offset);
+		ret.x= GetXPos(player_state, col, y_offset);
+		ret.y= GetYPos(col, y_offset, y_reverse_offset, with_reverse);
+		ret.z= GetZPos(col, y_offset);
 	}
 
 	/**
@@ -47,7 +44,7 @@ public:
 	 * @param fYReverseOffsetPixels the amount offset due to reverse.
 	 * @param WithReverse a flag to see if the Reverse mod is on.
 	 * @return the actual display position. */
-	static float GetYPos(const PlayerState* pPlayerState, int iCol, float fYOffset, float fYReverseOffsetPixels, bool WithReverse = true );
+	static float GetYPos(int iCol, float fYOffset, float fYReverseOffsetPixels, bool WithReverse = true );
 
 	// Inverse of ArrowGetYPos (YPos -> fYOffset).
 	static float GetYOffsetFromYPos(int iCol, float YPos, float fYReverseOffsetPixels);
@@ -55,20 +52,13 @@ public:
 	// fRotation is Z rotation of an arrow.  This will depend on the column of 
 	// the arrow and possibly the Arrow effect and the fYOffset (in the case of 
 	// EFFECT_DIZZY).
-	static float GetRotationZ(	const PlayerState* pPlayerState, float fNoteBeat, bool bIsHoldHead, int iCol );
-	static float ReceptorGetRotationZ(	const PlayerState* pPlayerState, int iCol );
+	static float GetRotationZ(	const PlayerState* pPlayerState, float fNoteBeat, bool bIsHoldHead );
+	static float ReceptorGetRotationZ(	const PlayerState* pPlayerState );
 
 	// Due to the handling logic for holds on Twirl, we need to use an offset instead.
 	// It's more intuitive for Roll to be based off offset, so use an offset there too.
-	static float GetRotationX(const PlayerState* pPlayerState, float fYOffset, bool bIsHoldCap, int iCol);
-	static float GetRotationY(const PlayerState* pPlayerState, float fYOffset, int iCol);
-	
-	static float ReceptorGetRotationX(	const PlayerState* pPlayerState, int iCol);
-	static float ReceptorGetRotationY(	const PlayerState* pPlayerState, int iCol);
-	
-	static float GetMoveX(int iCol);
-	static float GetMoveY(int iCol);
-	static float GetMoveZ(int iCol);
+	static float GetRotationX(float fYOffset);
+	static float GetRotationY(float fYOffset);
 
 	// fXPos is a horizontal position in pixels relative to the center of the field.
 	// This depends on the column of the arrow and possibly the Arrow effect and
@@ -83,18 +73,18 @@ public:
 	 * @param iCol the specific arrow column.
 	 * @param fYPos the Y position of the arrow.
 	 * @return the Z position. */
-	static float GetZPos( const PlayerState* pPlayerState, int iCol, float fYPos);
+	static float GetZPos(int iCol, float fYPos);
 
 	// Enable this if any ZPos effects are enabled.
 	static bool NeedZBuffer();
 
 	// fAlpha is the transparency of the arrow.  It depends on fYPos and the 
 	// AppearanceType.
-	static float GetAlpha(const PlayerState* pPlayerState, int iCol, float fYPos, float fPercentFadeToFail, float fYReverseOffsetPixels, float fDrawDistanceBeforeTargetsPixels, float fFadeInPercentOfDrawFar);
+	static float GetAlpha(int iCol, float fYPos, float fPercentFadeToFail, float fYReverseOffsetPixels, float fDrawDistanceBeforeTargetsPixels, float fFadeInPercentOfDrawFar);
 
 	// fAlpha is the transparency of the arrow.  It depends on fYPos and the 
 	// AppearanceType.
-	static float GetGlow(const PlayerState* pPlayerState, int iCol, float fYPos, float fPercentFadeToFail, float fYReverseOffsetPixels, float fDrawDistanceBeforeTargetsPixels, float fFadeInPercentOfDrawFar );
+	static float GetGlow(int iCol, float fYPos, float fPercentFadeToFail, float fYReverseOffsetPixels, float fDrawDistanceBeforeTargetsPixels, float fFadeInPercentOfDrawFar );
 
 	/**
 	 * @brief Retrieve the current brightness.
@@ -106,9 +96,7 @@ public:
 	static float GetBrightness( const PlayerState* pPlayerState, float fNoteBeat );
 
 	// This is the zoom of the individual tracks, not of the whole Player.
-	static float GetZoom( const PlayerState* pPlayerState, float fYOffset, int iCol );
-	static float GetZoomVariable( float fYOffset, int iCol, float fCurZoom );
-	static float GetPulseInner();
+	static float GetZoom( const PlayerState* pPlayerState );
 
 	static float GetFrameWidthScale( const PlayerState* pPlayerState, float fYOffset, float fOverlappedTime );
 };

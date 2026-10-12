@@ -6,9 +6,6 @@
 #include "RageUtil.h"
 #include "RageFile.h"
 
-#include <cstddef>
-#include <cstdint>
-
 #undef FAR // fix for VC
 /** @brief A helper to get the jpeg lib. */
 namespace jpeg
@@ -25,7 +22,7 @@ typedef struct
 	struct jpeg::jpeg_destination_mgr pub;
 
 	RageFile *f;
-	std::uint8_t buffer[OUTPUT_BUFFER_SIZE];
+	uint8_t buffer[OUTPUT_BUFFER_SIZE];
 } my_destination_mgr;
 
 
@@ -48,7 +45,7 @@ static jpeg::boolean empty_output_buffer( jpeg::j_compress_ptr cinfo )
 	dest->pub.next_output_byte = dest->buffer;
 	dest->pub.free_in_buffer = OUTPUT_BUFFER_SIZE;
 
-	return jpeg::TRUE;
+	return TRUE;
 }
 
 
@@ -73,7 +70,7 @@ static void term_destination (jpeg::j_compress_ptr cinfo)
  */
 static void jpeg_RageFile_dest( jpeg::j_compress_ptr cinfo, RageFile &f )
 {
-	ASSERT( cinfo->dest == nullptr );
+	ASSERT( cinfo->dest == NULL );
 
 	cinfo->dest = (struct jpeg::jpeg_destination_mgr *)
 		(*cinfo->mem->alloc_small) ( (jpeg::j_common_ptr) cinfo, JPOOL_PERMANENT,
@@ -105,7 +102,7 @@ bool RageSurfaceUtils::SaveJPEG( RageSurface *surface, RageFile &f, bool bHighQu
 
 	/* Now we can initialize the JPEG compression object. */
 	jpeg::jpeg_CreateCompress(&cinfo, JPEG_LIB_VERSION, \
-		(std::size_t) sizeof(struct jpeg::jpeg_compress_struct));
+		(size_t) sizeof(struct jpeg::jpeg_compress_struct));
 
 	cinfo.image_width = surface->w; 	/* image width and height, in pixels */
 	cinfo.image_height = surface->h;
@@ -117,14 +114,14 @@ bool RageSurfaceUtils::SaveJPEG( RageSurface *surface, RageFile &f, bool bHighQu
 	jpeg::jpeg_set_defaults(&cinfo);
 
 	if( bHighQual )
-		jpeg::jpeg_set_quality( &cinfo, 150, jpeg::TRUE );
+		jpeg::jpeg_set_quality( &cinfo, 150, TRUE );
 	else
-		jpeg::jpeg_set_quality( &cinfo, 70, jpeg::TRUE );
+		jpeg::jpeg_set_quality( &cinfo, 70, TRUE );
 
 	jpeg_RageFile_dest( &cinfo, f );
 
 	/* Start the compressor. */
-	jpeg::jpeg_start_compress( &cinfo, jpeg::TRUE );
+	jpeg::jpeg_start_compress( &cinfo, TRUE );
 
 	/* Here we use the library's state variable cinfo.next_scanline as the
 	 * loop counter, so that we don't have to keep track ourselves.
@@ -152,7 +149,7 @@ bool RageSurfaceUtils::SaveJPEG( RageSurface *surface, RageFile &f, bool bHighQu
 /*
  * (c) 2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -162,7 +159,7 @@ bool RageSurfaceUtils::SaveJPEG( RageSurface *surface, RageFile &f, bool bHighQu
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

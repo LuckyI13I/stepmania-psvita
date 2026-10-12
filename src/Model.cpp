@@ -10,13 +10,9 @@
 #include "RageLog.h"
 #include "ActorUtil.h"
 #include "ModelManager.h"
+#include "Foreach.h"
 #include "LuaBinding.h"
 #include "PrefsManager.h"
-
-#include <cstddef>
-#include <cstdint>
-#include <vector>
-
 
 REGISTER_ACTOR_CLASS( Model );
 
@@ -28,13 +24,13 @@ Model::Model()
 	m_bTextureWrapping = true;
 	SetUseZBuffer( true );
 	SetCullMode( CULL_BACK );
-	m_pGeometry = nullptr;
-	m_pCurAnimation = nullptr;
+	m_pGeometry = NULL;
+	m_pCurAnimation = NULL;
 	m_fDefaultAnimationRate = 1;
 	m_fCurAnimationRate = 1;
 	m_bLoop = true;
 	m_bDrawCelShaded = false;
-	m_pTempGeometry = nullptr;
+	m_pTempGeometry = NULL;
 }
 
 Model::~Model()
@@ -47,12 +43,12 @@ void Model::Clear()
 	if( m_pGeometry )
 	{
 		MODELMAN->UnloadModel( m_pGeometry );
-		m_pGeometry = nullptr;
+		m_pGeometry = NULL;
 	}
 	m_vpBones.clear();
 	m_Materials.clear();
 	m_mapNameToAnimation.clear();
-	m_pCurAnimation = nullptr;
+	m_pCurAnimation = NULL;
 	RecalcAnimationLengthSeconds();
 
 	if( m_pTempGeometry )
@@ -85,7 +81,7 @@ void Model::LoadPieces( const RString &sMeshesPath, const RString &sMaterialsPat
 	// TRICKY: Load materials before geometry so we can figure out whether the materials require normals.
 	LoadMaterialsFromMilkshapeAscii( sMaterialsPath );
 
-	ASSERT( m_pGeometry == nullptr );
+	ASSERT( m_pGeometry == NULL );
 	m_pGeometry = MODELMAN->LoadMilkshapeAscii( sMeshesPath, this->MaterialsNeedNormals() );
 
 	// Validate material indices.
@@ -186,7 +182,7 @@ void Model::LoadMaterialsFromMilkshapeAscii( const RString &_sPath )
 				RageVector4 Ambient;
 				if( sscanf(sLine, "%f %f %f %f", &Ambient[0], &Ambient[1], &Ambient[2], &Ambient[3]) != 4 )
 					THROW;
-				Material.Ambient = Ambient;
+				memcpy( &Material.Ambient, &Ambient, sizeof(Material.Ambient) );
 
 				// diffuse
 				if( f.GetLine( sLine ) <= 0 )
@@ -194,7 +190,7 @@ void Model::LoadMaterialsFromMilkshapeAscii( const RString &_sPath )
 				RageVector4 Diffuse;
 				if( sscanf(sLine, "%f %f %f %f", &Diffuse[0], &Diffuse[1], &Diffuse[2], &Diffuse[3]) != 4 )
 					THROW;
-				Material.Diffuse = Diffuse;
+				memcpy( &Material.Diffuse, &Diffuse, sizeof(Material.Diffuse) );
 
 				// specular
 				if( f.GetLine( sLine ) <= 0 )
@@ -202,7 +198,7 @@ void Model::LoadMaterialsFromMilkshapeAscii( const RString &_sPath )
 				RageVector4 Specular;
 				if( sscanf(sLine, "%f %f %f %f", &Specular[0], &Specular[1], &Specular[2], &Specular[3]) != 4 )
 					THROW;
-				Material.Specular = Specular;
+				memcpy( &Material.Specular, &Specular, sizeof(Material.Specular) );
 
 				// emissive
 				if( f.GetLine( sLine ) <= 0 )
@@ -210,7 +206,7 @@ void Model::LoadMaterialsFromMilkshapeAscii( const RString &_sPath )
 				RageVector4 Emissive;
 				if( sscanf (sLine, "%f %f %f %f", &Emissive[0], &Emissive[1], &Emissive[2], &Emissive[3]) != 4 )
 					THROW;
-				Material.Emissive = Emissive;
+				memcpy( &Material.Emissive, &Emissive, sizeof(Material.Emissive) );
 
 				// shininess
 				if( f.GetLine( sLine ) <= 0 )
@@ -292,7 +288,7 @@ bool Model::LoadMilkshapeAsciiBones( const RString &sAniName, const RString &sPa
 
 bool Model::EarlyAbortDraw() const
 {
-	return m_pGeometry == nullptr || m_pGeometry->m_Meshes.empty();
+	return m_pGeometry == NULL || m_pGeometry->m_Meshes.empty();
 }
 
 void Model::DrawCelShaded()
@@ -302,13 +298,13 @@ void Model::DrawCelShaded()
 	DISPLAY->SetCullMode(CULL_FRONT);
 	this->SetZWrite(false); // XXX: Why on earth isn't the culling working? -Colby
 	this->Draw();
-
+	
 	// Second pass: cel shading
 	DISPLAY->SetCelShaded(2);
 	DISPLAY->SetCullMode(CULL_BACK);
 	this->SetZWrite(true);
 	this->Draw();
-
+	
 	DISPLAY->SetCelShaded(0);
 }
 
@@ -539,12 +535,12 @@ void Model::PlayAnimation( const RString &sAniName, float fPlayRate )
 	for( unsigned i = 0; i < m_pGeometry->m_Meshes.size(); ++i )
 	{
 		msMesh *pMesh = &m_pGeometry->m_Meshes[i];
-		std::vector<RageModelVertex> &Vertices = pMesh->Vertices;
+		vector<RageModelVertex> &Vertices = pMesh->Vertices;
 		for( unsigned j = 0; j < Vertices.size(); j++ )
 		{
 			// int iBoneIndex = (pMesh->m_iBoneIndex!=-1) ? pMesh->m_iBoneIndex : bone;
 			RageVector3 &pos = Vertices[j].p;
-			std::int8_t bone = Vertices[j].bone;
+			int8_t bone = Vertices[j].bone;
 			if( bone != -1 )
 			{
 				pos[0] -= m_vpBones[bone].m_Absolute.m[3][0];
@@ -570,13 +566,13 @@ void Model::PlayAnimation( const RString &sAniName, float fPlayRate )
 void Model::SetPosition( float fSeconds )
 {
 	m_fCurFrame = FRAMES_PER_SECOND * fSeconds;
-	m_fCurFrame = std::clamp( m_fCurFrame, (float) 0, (float) m_pCurAnimation->nTotalFrames );
+	m_fCurFrame = clamp( m_fCurFrame, 0, (float) m_pCurAnimation->nTotalFrames );
 }
 
 void Model::AdvanceFrame( float fDeltaTime )
 {
-	if( m_pGeometry == nullptr ||
-		m_pGeometry->m_Meshes.empty() ||
+	if( m_pGeometry == NULL || 
+		m_pGeometry->m_Meshes.empty() || 
 		!m_pCurAnimation )
 	{
 		return; // bail early
@@ -596,16 +592,16 @@ void Model::AdvanceFrame( float fDeltaTime )
 		else if( m_bLoop )
 			wrap( m_fCurFrame, (float) m_pCurAnimation->nTotalFrames );
 		else
-			m_fCurFrame = std::clamp( m_fCurFrame, (float) 0, (float) m_pCurAnimation->nTotalFrames );
+			m_fCurFrame = clamp( m_fCurFrame, 0, (float) m_pCurAnimation->nTotalFrames );
 	}
 
 	SetBones( m_pCurAnimation, m_fCurFrame, m_vpBones );
 	UpdateTempGeometry();
 }
 
-void Model::SetBones( const msAnimation* pAnimation, float fFrame, std::vector<myBone_t> &vpBones )
+void Model::SetBones( const msAnimation* pAnimation, float fFrame, vector<myBone_t> &vpBones )
 {
-	for( std::size_t i = 0; i < pAnimation->Bones.size(); ++i )
+	for( size_t i = 0; i < pAnimation->Bones.size(); ++i )
 	{
 		const msBone *pBone = &pAnimation->Bones[i];
 		if( pBone->PositionKeys.size() == 0 && pBone->RotationKeys.size() == 0 )
@@ -615,8 +611,8 @@ void Model::SetBones( const msAnimation* pAnimation, float fFrame, std::vector<m
 		}
 
 		// search for the adjacent position keys
-		const msPositionKey *pLastPositionKey = nullptr, *pThisPositionKey = nullptr;
-		for( std::size_t j = 0; j < pBone->PositionKeys.size(); ++j )
+		const msPositionKey *pLastPositionKey = NULL, *pThisPositionKey = NULL;
+		for( size_t j = 0; j < pBone->PositionKeys.size(); ++j )
 		{
 			const msPositionKey *pPositionKey = &pBone->PositionKeys[j];
 			if( pPositionKey->fTime >= fFrame )
@@ -628,19 +624,19 @@ void Model::SetBones( const msAnimation* pAnimation, float fFrame, std::vector<m
 		}
 
 		RageVector3 vPos;
-		if( pLastPositionKey != nullptr && pThisPositionKey != nullptr )
+		if( pLastPositionKey != NULL && pThisPositionKey != NULL )
 		{
 			const float s = SCALE( fFrame, pLastPositionKey->fTime, pThisPositionKey->fTime, 0, 1 );
 			vPos = pLastPositionKey->Position + (pThisPositionKey->Position - pLastPositionKey->Position) * s;
 		}
-		else if( pLastPositionKey == nullptr )
+		else if( pLastPositionKey == NULL )
 			vPos = pThisPositionKey->Position;
-		else if( pThisPositionKey == nullptr )
+		else if( pThisPositionKey == NULL )
 			vPos = pLastPositionKey->Position;
 
 		// search for the adjacent rotation keys
-		const msRotationKey *pLastRotationKey = nullptr, *pThisRotationKey = nullptr;
-		for( std::size_t j = 0; j < pBone->RotationKeys.size(); ++j )
+		const msRotationKey *pLastRotationKey = NULL, *pThisRotationKey = NULL;
+		for( size_t j = 0; j < pBone->RotationKeys.size(); ++j )
 		{
 			const msRotationKey *pRotationKey = &pBone->RotationKeys[j];
 			if( pRotationKey->fTime >= fFrame )
@@ -652,16 +648,16 @@ void Model::SetBones( const msAnimation* pAnimation, float fFrame, std::vector<m
 		}
 
 		RageVector4 vRot;
-		if( pLastRotationKey != nullptr && pThisRotationKey != nullptr )
+		if( pLastRotationKey != NULL && pThisRotationKey != NULL )
 		{
 			const float s = SCALE( fFrame, pLastRotationKey->fTime, pThisRotationKey->fTime, 0, 1 );
 			RageQuatSlerp( &vRot, pLastRotationKey->Rotation, pThisRotationKey->Rotation, s );
 		}
-		else if( pLastRotationKey == nullptr )
+		else if( pLastRotationKey == NULL )
 		{
 			vRot = pThisRotationKey->Rotation;
 		}
-		else if( pThisRotationKey == nullptr )
+		else if( pThisRotationKey == NULL )
 		{
 			vRot = pLastRotationKey->Rotation;
 		}
@@ -686,22 +682,22 @@ void Model::SetBones( const msAnimation* pAnimation, float fFrame, std::vector<m
 
 void Model::UpdateTempGeometry()
 {
-	if( m_pGeometry == nullptr || m_pTempGeometry == nullptr )
+	if( m_pGeometry == NULL || m_pTempGeometry == NULL )
 		return;
 
 	for( unsigned i = 0; i < m_pGeometry->m_Meshes.size(); ++i )
 	{
 		const msMesh &origMesh = m_pGeometry->m_Meshes[i];
 		msMesh &tempMesh = m_vTempMeshes[i];
-		const std::vector<RageModelVertex> &origVertices = origMesh.Vertices;
-		std::vector<RageModelVertex> &tempVertices = tempMesh.Vertices;
+		const vector<RageModelVertex> &origVertices = origMesh.Vertices;
+		vector<RageModelVertex> &tempVertices = tempMesh.Vertices;
 		for( unsigned j = 0; j < origVertices.size(); j++ )
 		{
 			RageVector3 &tempPos =			tempVertices[j].p;
 			RageVector3 &tempNormal =		tempVertices[j].n;
 			const RageVector3 &originalPos =	origVertices[j].p;
 			const RageVector3 &originalNormal =	origVertices[j].n;
-			std::int8_t bone =				origVertices[j].bone;
+			int8_t bone =				origVertices[j].bone;
 
 			if( bone == -1 )
 			{
@@ -735,48 +731,53 @@ void Model::Update( float fDelta )
 int Model::GetNumStates() const
 {
 	int iMaxStates = 0;
-	for (msMaterial const &m : m_Materials)
-		iMaxStates = std::max( iMaxStates, m.diffuse.GetNumStates() );
+	FOREACH_CONST( msMaterial, m_Materials, m )
+		iMaxStates = max( iMaxStates, m->diffuse.GetNumStates() );
 	return iMaxStates;
 }
 
 void Model::SetState( int iNewState )
 {
-	for (msMaterial &m : m_Materials)
+	FOREACH( msMaterial, m_Materials, m )
 	{
-		m.diffuse.SetState( iNewState );
-		m.alpha.SetState( iNewState );
+		m->diffuse.SetState( iNewState );
+		m->alpha.SetState( iNewState );
 	}
 }
 
 void Model::RecalcAnimationLengthSeconds()
 {
 	m_animation_length_seconds= 0;
-	for (msMaterial const &m : m_Materials)
+	FOREACH_CONST(msMaterial, m_Materials, m)
 	{
-		m_animation_length_seconds= std::max(m_animation_length_seconds,
-			m.diffuse.GetAnimationLengthSeconds());
+		m_animation_length_seconds= max(m_animation_length_seconds,
+			m->diffuse.GetAnimationLengthSeconds());
 	}
 }
 
 void Model::SetSecondsIntoAnimation( float fSeconds )
 {
-	for (msMaterial &m : m_Materials)
+	FOREACH( msMaterial, m_Materials, m )
 	{
-		m.diffuse.SetSecondsIntoAnimation( fSeconds );
-		m.alpha.SetSecondsIntoAnimation( fSeconds );
+		m->diffuse.SetSecondsIntoAnimation( fSeconds );
+		m->alpha.SetSecondsIntoAnimation( fSeconds );
 	}
 }
 
 bool Model::MaterialsNeedNormals() const
 {
-	return std::any_of(m_Materials.begin(), m_Materials.end(), [](msMaterial const &m) { return m.NeedsNormals(); });
+	FOREACH_CONST( msMaterial, m_Materials, m )
+	{
+		if( m->NeedsNormals() )
+			return true;
+	}
+	return false;
 }
 
 // lua start
 #include "LuaBinding.h"
 
-/** @brief Allow Lua to have access to the Model. */
+/** @brief Allow Lua to have access to the Model. */ 
 class LunaModel: public Luna<Model>
 {
 public:
@@ -810,7 +811,7 @@ LUA_REGISTER_DERIVED_CLASS( Model, Actor )
 /*
  * (c) 2003-2004 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -820,7 +821,7 @@ LUA_REGISTER_DERIVED_CLASS( Model, Actor )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

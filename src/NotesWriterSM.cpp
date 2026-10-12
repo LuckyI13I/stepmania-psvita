@@ -3,6 +3,7 @@
 #include <cstring>
 #include "NotesWriterSM.h"
 #include "BackgroundUtil.h"
+#include "Foreach.h"
 #include "GameManager.h"
 #include "LocalizedString.h"
 #include "NoteTypes.h"
@@ -16,16 +17,13 @@
 #include "Steps.h"
 #include "ThemeMetric.h"
 
-#include <vector>
-
-
 ThemeMetric<bool> USE_CREDIT	( "NotesWriterSM", "DescriptionUsesCreditField" );
 
 /**
  * @brief Write out the common tags for .SM files.
  * @param f the file in question.
  * @param out the Song in question. */
-static void WriteGlobalTags( RageFileBasic &f, Song &out )
+static void WriteGlobalTags( RageFile &f, Song &out )
 {
 	TimingData &timing = out.m_SongTiming;
 	f.PutLine( ssprintf( "#TITLE:%s;", SmEscape(out.m_sMainTitle).c_str() ) );
@@ -54,7 +52,7 @@ static void WriteGlobalTags( RageFileBasic &f, Song &out )
 		default:
 			FAIL_M(ssprintf("Invalid selection display: %i", out.m_SelectionDisplay));
 		case Song::SHOW_ALWAYS:	f.Write( "YES" );		break;
-			//case Song::SHOW_NONSTOP:	f.Write( "NONSTOP" );	break;
+		//case Song::SHOW_NONSTOP:	f.Write( "NONSTOP" );	break;
 		case Song::SHOW_NEVER:		f.Write( "NO" );		break;
 	}
 	f.PutLine( ";" );
@@ -68,8 +66,8 @@ static void WriteGlobalTags( RageFileBasic &f, Song &out )
 			if( out.m_fSpecifiedBPMMin == out.m_fSpecifiedBPMMax )
 				f.PutLine( ssprintf( "#DISPLAYBPM:%.6f;", out.m_fSpecifiedBPMMin ) );
 			else
-				f.PutLine( ssprintf( "#DISPLAYBPM:%.6f:%.6f;",
-									 out.m_fSpecifiedBPMMin, out.m_fSpecifiedBPMMax ) );
+				f.PutLine( ssprintf( "#DISPLAYBPM:%.6f:%.6f;", 
+							out.m_fSpecifiedBPMMin, out.m_fSpecifiedBPMMax ) );
 			break;
 		case DISPLAY_BPM_RANDOM:
 			f.PutLine( ssprintf( "#DISPLAYBPM:*;" ) );
@@ -80,7 +78,7 @@ static void WriteGlobalTags( RageFileBasic &f, Song &out )
 
 
 	f.Write( "#BPMS:" );
-	const std::vector<TimingSegment*> &bpms = timing.GetTimingSegments(SEGMENT_BPM);
+	const vector<TimingSegment *> &bpms = timing.GetTimingSegments(SEGMENT_BPM);
 	for( unsigned i=0; i<bpms.size(); i++ )
 	{
 		const BPMSegment *bs = ToBPM(bpms[i]);
@@ -91,11 +89,11 @@ static void WriteGlobalTags( RageFileBasic &f, Song &out )
 	}
 	f.PutLine( ";" );
 
-	const std::vector<TimingSegment*> &stops = timing.GetTimingSegments(SEGMENT_STOP);
-	const std::vector<TimingSegment*> &delays = timing.GetTimingSegments(SEGMENT_DELAY);
+	const vector<TimingSegment *> &stops = timing.GetTimingSegments(SEGMENT_STOP);
+	const vector<TimingSegment *> &delays = timing.GetTimingSegments(SEGMENT_DELAY);
 
-	std::map<float, float> allPauses;
-	const std::vector<TimingSegment*> &warps = timing.GetTimingSegments(SEGMENT_WARP);
+	map<float, float> allPauses;
+	const vector<TimingSegment *> &warps = timing.GetTimingSegments(SEGMENT_WARP);
 	unsigned wSize = warps.size();
 	if( wSize > 0 )
 	{
@@ -114,37 +112,37 @@ static void WriteGlobalTags( RageFileBasic &f, Song &out )
 		const StopSegment *fs = ToStop( stops[i] );
 		// Handle warps on the same row by summing the values.  Not sure this
 		// plays out the same. -Kyz
-		std::map<float, float>::iterator already_exists= allPauses.find(fs->GetBeat());
+		map<float, float>::iterator already_exists= allPauses.find(fs->GetBeat());
 		if(already_exists != allPauses.end())
 		{
 			already_exists->second+= fs->GetPause();
 		}
 		else
 		{
-			allPauses.insert(std::pair<float, float>(fs->GetBeat(), fs->GetPause()));
+			allPauses.insert(pair<float, float>(fs->GetBeat(), fs->GetPause()));
 		}
 	}
 	// Delays can't be negative: thus, no effect.
-	for (TimingSegment const *ss : delays)
+	FOREACH_CONST(TimingSegment *, delays, ss)
 	{
-		float fBeat = NoteRowToBeat( ss->GetRow()-1 );
-		float fPause = ToDelay(ss)->GetPause();
-		std::map<float, float>::iterator already_exists= allPauses.find(fBeat);
+		float fBeat = NoteRowToBeat( (*ss)->GetRow()-1 );
+		float fPause = ToDelay(*ss)->GetPause();
+		map<float, float>::iterator already_exists= allPauses.find(fBeat);
 		if(already_exists != allPauses.end())
 		{
 			already_exists->second+= fPause;
 		}
 		else
 		{
-			allPauses.insert(std::pair<float, float>(fBeat, fPause));
+			allPauses.insert(pair<float,float>(fBeat, fPause));
 		}
 	}
 
 	f.Write( "#STOPS:" );
-	std::vector<RString> stopLines;
-	for (std::pair<float const &, float const &> ap : allPauses)
+	vector<RString> stopLines;
+	FOREACHM(float, float, allPauses, ap)
 	{
-		stopLines.push_back(ssprintf("%.6f=%.6f", ap.first, ap.second));
+		stopLines.push_back(ssprintf("%.6f=%.6f", ap->first, ap->second));
 	}
 	f.PutLine(join(",\n", stopLines));
 
@@ -159,8 +157,8 @@ static void WriteGlobalTags( RageFileBasic &f, Song &out )
 		else
 			f.Write( ssprintf("#BGCHANGES%d:", b+1) );
 
-		for (BackgroundChange const &bgc : out.GetBackgroundChanges(b))
-			f.PutLine( bgc.ToString() +"," );
+		FOREACH_CONST( BackgroundChange, out.GetBackgroundChanges(b), bgc )
+			f.PutLine( (*bgc).ToString() +"," );
 
 		/* If there's an animation plan at all, add a dummy "-nosongbg-" tag to indicate that
 		 * this file doesn't want a song BG entry added at the end.  See SMLoader::TidyUpData.
@@ -174,9 +172,9 @@ static void WriteGlobalTags( RageFileBasic &f, Song &out )
 	if( out.GetForegroundChanges().size() )
 	{
 		f.Write( "#FGCHANGES:" );
-		for (BackgroundChange const &bgc : out.GetForegroundChanges())
+		FOREACH_CONST( BackgroundChange, out.GetForegroundChanges(), bgc )
 		{
-			f.PutLine( bgc.ToString() +"," );
+			f.PutLine( (*bgc).ToString() +"," );
 		}
 		f.PutLine( ";" );
 	}
@@ -197,7 +195,7 @@ static void WriteGlobalTags( RageFileBasic &f, Song &out )
  * @brief Turn a vector of lines into a single line joined by newline characters.
  * @param lines the list of lines to join.
  * @return the joined lines. */
-static RString JoinLineList( std::vector<RString> &lines )
+static RString JoinLineList( vector<RString> &lines )
 {
 	for( unsigned i = 0; i < lines.size(); ++i )
 		TrimRight( lines[i] );
@@ -217,28 +215,28 @@ static RString JoinLineList( std::vector<RString> &lines )
  * @return the #NOTES tag. */
 static RString GetSMNotesTag( const Song &song, const Steps &in )
 {
-	std::vector<RString> lines;
+	vector<RString> lines;
 
 	lines.push_back( "" );
 	// Escape to prevent some clown from making a comment of "\r\n;"
 	lines.push_back( ssprintf("//---------------%s - %s----------------",
-							  in.m_StepsTypeStr.c_str(), SmEscape(in.GetDescription()).c_str()) );
+		in.m_StepsTypeStr.c_str(), SmEscape(in.GetDescription()).c_str()) );
 	lines.push_back( song.m_vsKeysoundFile.empty() ? "#NOTES:" : "#NOTES2:" );
 	lines.push_back( ssprintf( "     %s:", in.m_StepsTypeStr.c_str() ) );
 	RString desc = (USE_CREDIT ? in.GetCredit() : in.GetChartName());
 	lines.push_back( ssprintf( "     %s:", SmEscape(desc).c_str() ) );
 	lines.push_back( ssprintf( "     %s:", DifficultyToString(in.GetDifficulty()).c_str() ) );
 	lines.push_back( ssprintf( "     %d:", in.GetMeter() ) );
-
-	std::vector<RString> asRadarValues;
+	
+	vector<RString> asRadarValues;
 	// OpenITG simfiles use 11 radar categories.
 	int categories = 11;
 	FOREACH_PlayerNumber( pn )
 	{
 		const RadarValues &rv = in.GetRadarValues( pn );
 		// Can't use the foreach anymore due to flexible radar lines.
-		for( RadarCategory rc = (RadarCategory)0; rc < categories;
-			 enum_add<RadarCategory>( rc, 1 ) )
+		for( RadarCategory rc = (RadarCategory)0; rc < categories; 
+		    enum_add<RadarCategory>( rc, 1 ) )
 		{
 			asRadarValues.push_back( ssprintf("%.6f", rv[rc]) );
 		}
@@ -254,7 +252,7 @@ static RString GetSMNotesTag( const Song &song, const Steps &in )
 	return JoinLineList( lines );
 }
 
-bool NotesWriterSM::Write( RString sPath, Song &out, const std::vector<Steps*>& vpStepsToSave )
+bool NotesWriterSM::Write( RString sPath, Song &out, const vector<Steps*>& vpStepsToSave )
 {
 	int flags = RageFile::WRITE;
 
@@ -267,15 +265,11 @@ bool NotesWriterSM::Write( RString sPath, Song &out, const std::vector<Steps*>& 
 		return false;
 	}
 
-	return Write( f, out, vpStepsToSave );
-}
-
-bool NotesWriterSM::Write( RageFileBasic &f, Song &out, const std::vector<Steps*>& vpStepsToSave )
-{
 	WriteGlobalTags( f, out );
 
-	for (Steps const *pSteps : vpStepsToSave)
+	FOREACH_CONST( Steps*, vpStepsToSave, s ) 
 	{
+		const Steps* pSteps = *s;
 		RString sTag = GetSMNotesTag( out, *pSteps );
 		f.PutLine( sTag );
 	}
@@ -291,7 +285,7 @@ void NotesWriterSM::GetEditFileContents( const Song *pSong, const Steps *pSteps,
 	RString sDir = pSong->GetSongDir();
 
 	// "Songs/foo/bar"; strip off "Songs/".
-	std::vector<RString> asParts;
+	vector<RString> asParts;
 	split( sDir, "/", asParts );
 	if( asParts.size() )
 		sDir = join( "/", asParts.begin()+1, asParts.end() );
@@ -325,9 +319,9 @@ bool NotesWriterSM::WriteEditFileToMachine( const Song *pSong, Steps *pSteps, RS
 	RString sPath = sDir + GetEditFileName(pSong,pSteps);
 
 	// Check to make sure that we're not clobering an existing file before opening.
-	bool bFileNameChanging =
-			pSteps->GetSavedToDisk()  &&
-			pSteps->GetFilename() != sPath;
+	bool bFileNameChanging = 
+		pSteps->GetSavedToDisk()  && 
+		pSteps->GetFilename() != sPath;
 	if( bFileNameChanging  &&  DoesFileExist(sPath) )
 	{
 		sErrorOut = ssprintf( DESTINATION_ALREADY_EXISTS.GetValue(), sPath.c_str() );
@@ -362,7 +356,7 @@ bool NotesWriterSM::WriteEditFileToMachine( const Song *pSong, Steps *pSteps, RS
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -372,7 +366,7 @@ bool NotesWriterSM::WriteEditFileToMachine( const Song *pSong, Steps *pSteps, RS
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

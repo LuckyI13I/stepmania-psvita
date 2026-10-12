@@ -45,7 +45,7 @@ void LyricDisplay::Update( float fDeltaTime )
 
 	ActorFrame::Update( fDeltaTime );
 
-	if( GAMESTATE->m_pCurSong == nullptr )
+	if( GAMESTATE->m_pCurSong == NULL )
 		return;
 
 	// If the song has changed (in a course), reset.
@@ -75,7 +75,7 @@ void LyricDisplay::Update( float fDeltaTime )
 	/* If it's negative, two lyrics are so close together that there's no time
 	 * to tween properly. Lyrics should never be this brief, anyway, so just
 	 * skip it. */
-	float fShowLength = std::max( fDistance - fTweenBufferTime, 0.0f );
+	float fShowLength = max( fDistance - fTweenBufferTime, 0.0f );
 
 	// Make lyrics show faster for faster song rates.
 	fShowLength /= GAMESTATE->m_SongOptions.GetCurrent().m_fMusicRate;

@@ -14,9 +14,6 @@
 #include "RageFile.h"
 #include "archutils/SpecialDirs.h"
 
-#include <vector>
-
-
 // main page (type list)
 REGISTER_SCREEN_CLASS( ScreenOptionsExportPackage );
 
@@ -37,13 +34,13 @@ void ScreenOptionsExportPackage::BeginScreen()
 	m_vsPackageTypes.push_back("Songs");
 	// announcers, characters, others?
 
-	std::vector<OptionRowHandler*> OptionRowHandlers;
-	for (RString const &s : m_vsPackageTypes)
+	vector<OptionRowHandler*> OptionRowHandlers;
+	FOREACH_CONST( RString, m_vsPackageTypes, s )
 	{
 		OptionRowHandler *pHand = OptionRowHandlerUtil::MakeNull();
 		OptionRowDefinition &def = pHand->m_Def;
 
-		def.m_sName = s;
+		def.m_sName = *s;
 		def.m_bAllowExplanation = false;
 		//def.m_sExplanationName = "# files, # MB, # subdirs";
 		def.m_bAllowThemeTitle = false;
@@ -83,12 +80,12 @@ void ScreenOptionsExportPackage::ProcessMenuStart( const InputEventPlus &input )
 
 // todo: process menu back in SubGroup mode
 
-void ScreenOptionsExportPackage::ImportOptions( int /* iRow */, const std::vector<PlayerNumber> & /* vpns */ )
+void ScreenOptionsExportPackage::ImportOptions( int /* iRow */, const vector<PlayerNumber> & /* vpns */ )
 {
 
 }
 
-void ScreenOptionsExportPackage::ExportOptions( int /* iRow */, const std::vector<PlayerNumber> & /* vpns */ )
+void ScreenOptionsExportPackage::ExportOptions( int /* iRow */, const vector<PlayerNumber> & /* vpns */ )
 {
 
 }
@@ -118,51 +115,51 @@ void ScreenOptionsExportPackageSubPage::BeginScreen()
 	else if( *s_packageType == "NoteSkins" )
 	{
 		// add noteskins
-		std::vector<RString> vs;
+		vector<RString> vs;
 		GetDirListing( SpecialFiles::NOTESKINS_DIR + "*", vs, true, true );
-		for (RString const &s : vs)
-			GetDirListing( s + "*", m_vsPossibleDirsToExport, true, true );
+		FOREACH_CONST( RString, vs, s )
+			GetDirListing( *s + "*", m_vsPossibleDirsToExport, true, true );
 	}
 	else if( *s_packageType == "Courses" )
 	{
 		// Add courses. Only support courses that are in a group folder.
 		// Support for courses not in a group folder should be phased out.
-		std::vector<RString> vs;
+		vector<RString> vs;
 		GetDirListing( SpecialFiles::COURSES_DIR + "*", vs, true, true );
 		StripCvsAndSvn( vs );
 		StripMacResourceForks( vs );
-		for (RString const &s : vs)
+		FOREACH_CONST( RString, vs, s )
 		{
-			m_vsPossibleDirsToExport.push_back( s );
-			GetDirListing( s + "/*", m_vsPossibleDirsToExport, true, true );
+			m_vsPossibleDirsToExport.push_back( *s );
+			GetDirListing( *s + "/*", m_vsPossibleDirsToExport, true, true );
 		}
 	}
 	else if( *s_packageType == "Songs" )
 	{
 		// Add song groups
-		std::vector<RString> asAllGroups;
+		vector<RString> asAllGroups;
 		SONGMAN->GetSongGroupNames(asAllGroups);
-		for (RString const &s : asAllGroups)
+		FOREACH_CONST( RString, asAllGroups , s )
 		{
-			m_vsPossibleDirsToExport.push_back(s);
+			m_vsPossibleDirsToExport.push_back(*s);
 		}
 	}
 	else if( *s_packageType == "SubGroup" )
 	{
 		//ExportPackages::m_sFolder
-		std::vector<RString> vs;
+		vector<RString> vs;
 		GetDirListing( SpecialFiles::SONGS_DIR + "/" + ExportPackages::m_sFolder + "/*", vs, true, true );
-		for (RString const &s : vs)
+		FOREACH_CONST( RString, vs, s )
 		{
-			m_vsPossibleDirsToExport.push_back( s );
-			GetDirListing( s + "/*", m_vsPossibleDirsToExport, true, true );
+			m_vsPossibleDirsToExport.push_back( *s );
+			GetDirListing( *s + "/*", m_vsPossibleDirsToExport, true, true );
 		}
 	}
 	StripCvsAndSvn( m_vsPossibleDirsToExport );
 	StripMacResourceForks( m_vsPossibleDirsToExport );
 
-	std::vector<OptionRowHandler*> OptionRowHandlers;
-	for (RString const &s : m_vsPossibleDirsToExport)
+	vector<OptionRowHandler*> OptionRowHandlers;
+	FOREACH_CONST( RString, m_vsPossibleDirsToExport, s )
 	{
 		OptionRowHandler *pHand = OptionRowHandlerUtil::MakeNull();
 		OptionRowDefinition &def = pHand->m_Def;
@@ -170,7 +167,7 @@ void ScreenOptionsExportPackageSubPage::BeginScreen()
 		def.m_bAllowThemeTitle = false;
 		def.m_bAllowThemeItems = false;
 		def.m_bAllowExplanation = false;
-		def.m_sName = s;
+		def.m_sName = *s;
 		def.m_sExplanationName = "# files, # MB, # subdirs";
 
 		def.m_vsChoices.push_back( "" );
@@ -184,10 +181,10 @@ void ScreenOptionsExportPackageSubPage::BeginScreen()
 static RString ReplaceInvalidFileNameChars( RString sOldFileName )
 {
 	RString sNewFileName = sOldFileName;
-	const char charsToReplace[] = {
-		' ', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
+	const char charsToReplace[] = { 
+		' ', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', 
 		'+', '=', '[', ']', '{', '}', '|', ':', '\"', '\\',
-		'<', '>', ',', '?', '/'
+		'<', '>', ',', '?', '/' 
 	};
 	for( unsigned i=0; i<sizeof(charsToReplace); i++ )
 		sNewFileName.Replace( charsToReplace[i], '_' );
@@ -212,15 +209,15 @@ static bool ExportPackage( RString sPackageName, RString sDirToExport, RString &
 	zip.Start();
 	zip.SetGlobalComment( sComment );
 
-	std::vector<RString> vs;
+	vector<RString> vs;
 	GetDirListingRecursive( sDirToExport, "*", vs );
 	SMPackageUtil::StripIgnoredSmzipFiles( vs );
 	LOG->Trace("Adding files...");
-	for (RString &s : vs)
+	FOREACH( RString, vs, s )
 	{
-		if( !zip.AddFile( s ) )
+		if( !zip.AddFile( *s ) )
 		{
-			sErrorOut = ssprintf( "Couldn't add file: %s", s.c_str() );
+			sErrorOut = ssprintf( "Couldn't add file: %s", s->c_str() );
 			return false;
 		}
 	}
@@ -270,12 +267,12 @@ void ScreenOptionsExportPackageSubPage::ProcessMenuStart( const InputEventPlus &
 		ScreenPrompt::Prompt( SM_None, ssprintf("Failed to export package: %s",sError.c_str()) );
 }
 
-void ScreenOptionsExportPackageSubPage::ImportOptions( int iRow, const std::vector<PlayerNumber> &vpns )
+void ScreenOptionsExportPackageSubPage::ImportOptions( int iRow, const vector<PlayerNumber> &vpns )
 {
 
 }
 
-void ScreenOptionsExportPackageSubPage::ExportOptions( int iRow, const std::vector<PlayerNumber> &vpns )
+void ScreenOptionsExportPackageSubPage::ExportOptions( int iRow, const vector<PlayerNumber> &vpns )
 {
 
 }
@@ -283,7 +280,7 @@ void ScreenOptionsExportPackageSubPage::ExportOptions( int iRow, const std::vect
 /*
  * (c) 2002-2014 Chris Danford, AJ Kelly, Renaud Lepage
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -293,7 +290,7 @@ void ScreenOptionsExportPackageSubPage::ExportOptions( int iRow, const std::vect
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

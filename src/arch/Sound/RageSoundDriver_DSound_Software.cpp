@@ -8,11 +8,7 @@
 #include "PrefsManager.h"
 #include "archutils/Win32/ErrorStrings.h"
 
-#include <cstdint>
-
-// clang-format off
 REGISTER_SOUND_DRIVER_CLASS2( DirectSound-sw, DSound_Software );
-// clang-format on
 
 static const int channels = 2;
 static const int bytes_per_frame = channels*2; /* 16-bit */
@@ -46,7 +42,7 @@ void RageSoundDriver_DSound_Software::MixerThread()
 	{
 		char *pLockedBuf;
 		unsigned iLen;
-		const std::int64_t iPlayPos = m_pPCM->GetOutputPosition(); /* must be called before get_output_buf */
+		const int64_t iPlayPos = m_pPCM->GetOutputPosition(); /* must be called before get_output_buf */
 
 		if( !m_pPCM->get_output_buf(&pLockedBuf, &iLen, chunksize()) )
 		{
@@ -54,7 +50,7 @@ void RageSoundDriver_DSound_Software::MixerThread()
 			continue;
 		}
 
-		this->Mix( (std::int16_t *) pLockedBuf, iLen/bytes_per_frame, iPlayPos, m_pPCM->GetPosition() );
+		this->Mix( (int16_t *) pLockedBuf, iLen/bytes_per_frame, iPlayPos, m_pPCM->GetPosition() );
 
 		m_pPCM->release_output_buf( pLockedBuf, iLen );
 	}
@@ -64,7 +60,7 @@ void RageSoundDriver_DSound_Software::MixerThread()
 	m_pPCM->Stop();
 }
 
-std::int64_t RageSoundDriver_DSound_Software::GetPosition() const
+int64_t RageSoundDriver_DSound_Software::GetPosition() const
 {
 	return m_pPCM->GetPosition();
 }
@@ -78,7 +74,7 @@ int RageSoundDriver_DSound_Software::MixerThread_start(void *p)
 RageSoundDriver_DSound_Software::RageSoundDriver_DSound_Software()
 {
 	m_bShutdownMixerThread = false;
-	m_pPCM = nullptr;
+	m_pPCM = NULL;
 }
 
 RString RageSoundDriver_DSound_Software::Init()
@@ -150,7 +146,7 @@ int RageSoundDriver_DSound_Software::GetSampleRate() const
 /*
  * (c) 2002-2004 Glenn Maynard
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -160,7 +156,7 @@ int RageSoundDriver_DSound_Software::GetSampleRate() const
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

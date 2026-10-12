@@ -9,10 +9,7 @@
 #include "RageTypes.h"
 #include "RageUtil.h"
 #include "RageSurface.h"
-#include "DisplaySpec.h"
-
-#include <vector>
-
+#include "DisplayResolutions.h"
 
 static RageDisplay::RagePixelFormatDesc PIXEL_FORMAT_DESC[NUM_RagePixelFormat] = {
 	{
@@ -84,12 +81,11 @@ RString RageDisplay_Null::Init( const VideoModeParams &p, bool /* bAllowUnaccele
 	return RString();
 }
 
-void RageDisplay_Null::GetDisplaySpecs(DisplaySpecs &out) const
+void RageDisplay_Null::GetDisplayResolutions( DisplayResolutions &out ) const
 {
 	out.clear();
-	DisplayMode nullMode = {640U, 480U, 30.0};
-	DisplaySpec nullSpec("NullDisplay", "NullDisplay", nullMode);
-	out.insert( nullSpec );
+	DisplayResolution res = { 640, 480, true };
+	out.insert( res );
 }
 
 RageSurface* RageDisplay_Null::CreateScreenshot()
@@ -126,14 +122,14 @@ void RageDisplay_Null::EndFrame()
 {
 	ProcessStatsOnFlip();
 }
-
+	
 
 class RageCompiledGeometryNull : public RageCompiledGeometry
 {
 public:
-
-	void Allocate( const std::vector<msMesh> & ) {}
-	void Change( const std::vector<msMesh> & ) {}
+	
+	void Allocate( const vector<msMesh> & ) {}
+	void Change( const vector<msMesh> & ) {}
 	void Draw( int iMeshIndex ) const {}
 };
 

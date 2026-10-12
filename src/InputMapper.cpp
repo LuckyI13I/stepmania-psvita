@@ -9,11 +9,8 @@
 #include "RageInput.h"
 #include "SpecialFiles.h"
 #include "LocalizedString.h"
+#include "Foreach.h"
 #include "arch/Dialog/Dialog.h"
-
-#include <cstddef>
-#include <vector>
-
 
 #define AUTOMAPPINGS_DIR "/Data/AutoMappings/"
 
@@ -24,17 +21,17 @@ namespace
 {
 	// lookup for efficiency from a DeviceInput to a GameInput
 	// This is repopulated every time m_PItoDI changes by calling UpdateTempDItoPI().
-	std::map<DeviceInput, GameInput> g_tempDItoGI;
+	map<DeviceInput, GameInput> g_tempDItoGI;
 
 	PlayerNumber g_JoinControllers;
 };
 
-InputMapper*	INPUTMAPPER = nullptr;	// global and accessible from anywhere in our program
+InputMapper*	INPUTMAPPER = NULL;	// global and accessible from anywhere in our program
 
 InputMapper::InputMapper()
 {
 	g_JoinControllers = PLAYER_INVALID;
-	m_pInputScheme = nullptr;
+	m_pInputScheme = NULL;
 }
 
 InputMapper::~InputMapper()
@@ -67,7 +64,7 @@ static const AutoMappings g_DefaultKeyMappings = AutoMappings(
 	AutoMappingEntry( 0, KEY_KP_C2,	GAME_BUTTON_MENUDOWN,	true ),
 	AutoMappingEntry( 0, KEY_KP_ENTER,	GAME_BUTTON_START,	true ),
 	AutoMappingEntry( 0, KEY_KP_C0,	GAME_BUTTON_SELECT,	true ),
-	AutoMappingEntry( 0, KEY_BACKSLASH,	GAME_BUTTON_BACK,	true ), // laptop keyboards.
+	AutoMappingEntry( 0, KEY_HYPHEN,	GAME_BUTTON_BACK,	true ), // laptop keyboards.
 	AutoMappingEntry( 0, KEY_F1,	GAME_BUTTON_COIN,	false ),
 	AutoMappingEntry( 0, KEY_SCRLLOCK,	GAME_BUTTON_OPERATOR,	false )
 );
@@ -79,23 +76,23 @@ void InputMapper::AddDefaultMappingsForCurrentGameIfUnmapped()
 		FOREACH_ENUM( GameButton, j)
 			ClearFromInputMap( GameInput(i, j), 2 );
 
-	std::vector<AutoMappingEntry> aMaps;
+	vector<AutoMappingEntry> aMaps;
 	aMaps.reserve( 32 );
 
-	for (AutoMappingEntry const &iter : g_DefaultKeyMappings.m_vMaps)
-		aMaps.push_back( iter );
-	for (AutoMappingEntry const &iter : m_pInputScheme->m_pAutoMappings->m_vMaps)
-		aMaps.push_back( iter );
+	FOREACH_CONST( AutoMappingEntry, g_DefaultKeyMappings.m_vMaps, iter )
+		aMaps.push_back( *iter );
+	FOREACH_CONST( AutoMappingEntry, m_pInputScheme->m_pAutoMappings->m_vMaps, iter )
+		aMaps.push_back( *iter );
 
 	/* There may be duplicate GAME_BUTTON maps.  Process the list backwards,
 	 * so game-specific mappings override g_DefaultKeyMappings. */
 	std::reverse( aMaps.begin(), aMaps.end() );
 
-	for (AutoMappingEntry const &m : aMaps)
+	FOREACH( AutoMappingEntry, aMaps, m )
 	{
-		DeviceButton key = m.m_deviceButton;
+		DeviceButton key = m->m_deviceButton;
 		DeviceInput DeviceI( DEVICE_KEYBOARD, key );
-		GameInput GameI( m.m_bSecondController ? GameController_2 : GameController_1, m.m_gb );
+		GameInput GameI( m->m_bSecondController ? GameController_2 : GameController_1, m->m_gb );
 		if( !IsMapped(DeviceI) )	// if this key isn't already being used by another user-made mapping
 		{
 			if( !GameI.IsValid() )
@@ -288,7 +285,7 @@ static const AutoMappings g_AutoMappings[] =
 	   ),
 	   AutoMappings(
 		"dance",
-		"0b43:0003", // The EMS USB2 doesn't provide a model string, so Linux
+		"0b43:0003", // The EMS USB2 doesn't provide a model string, so Linux 
 				 // just gives us the VendorID and ModelID in hex.
 		"EMS USB2",
 			   // Player 1.
@@ -460,64 +457,6 @@ static const AutoMappings g_AutoMappings[] =
 		AutoMappingEntry( 0, JOY_BUTTON_7,      GAME_BUTTON_BACK,       false )	       // back button
 	   ),
 	   AutoMappings(
-		"dance",
-		"Raw Thrills I/O",
-		"Raw Thrills I/O",
-		AutoMappingEntry( 0, JOY_BUTTON_1,      DANCE_BUTTON_LEFT,       false ),
-		AutoMappingEntry( 0, JOY_BUTTON_2,      DANCE_BUTTON_DOWN,       false ),
-		AutoMappingEntry( 0, JOY_BUTTON_3,      DANCE_BUTTON_UP,         false ),
-		AutoMappingEntry( 0, JOY_BUTTON_4,      DANCE_BUTTON_RIGHT,      false ),
-		AutoMappingEntry( 0, JOY_BUTTON_5,      GAME_BUTTON_MENULEFT,    false ),
-		AutoMappingEntry( 0, JOY_BUTTON_6,      GAME_BUTTON_MENUDOWN,    false ),
-		AutoMappingEntry( 0, JOY_BUTTON_7,      GAME_BUTTON_MENUUP,      false ),
-		AutoMappingEntry( 0, JOY_BUTTON_8,      GAME_BUTTON_MENURIGHT,   false ),
-		AutoMappingEntry( 0, JOY_BUTTON_9,      GAME_BUTTON_START,       false ),
-		AutoMappingEntry( 0, JOY_BUTTON_10,     DANCE_BUTTON_LEFT,       true ),
-		AutoMappingEntry( 0, JOY_BUTTON_11,     DANCE_BUTTON_DOWN,       true ),
-		AutoMappingEntry( 0, JOY_BUTTON_12,     DANCE_BUTTON_UP,         true ),
-		AutoMappingEntry( 0, JOY_BUTTON_13,     DANCE_BUTTON_RIGHT,      true ),
-		AutoMappingEntry( 0, JOY_BUTTON_14,     GAME_BUTTON_MENULEFT,    true ),
-		AutoMappingEntry( 0, JOY_BUTTON_15,     GAME_BUTTON_MENUDOWN,    true ),
-		AutoMappingEntry( 0, JOY_BUTTON_16,     GAME_BUTTON_MENUUP,      true ),
-		AutoMappingEntry( 0, JOY_BUTTON_17,     GAME_BUTTON_MENURIGHT,   true ),
-		AutoMappingEntry( 0, JOY_BUTTON_18,     GAME_BUTTON_START,       true ),
-		AutoMappingEntry( 0, JOY_BUTTON_19,     GAME_BUTTON_OPERATOR,    false ),
-		AutoMappingEntry( 0, JOY_BUTTON_20,     GAME_BUTTON_SELECT,      false ),
-		AutoMappingEntry( 0, JOY_BUTTON_21,     GAME_BUTTON_COIN,        false ),
-		AutoMappingEntry( 0, JOY_BUTTON_22,     GAME_BUTTON_COIN,        false ),
-		AutoMappingEntry( 0, JOY_BUTTON_23,     GAME_BUTTON_EFFECT_DOWN, false ),
-		AutoMappingEntry( 0, JOY_BUTTON_24,     GAME_BUTTON_EFFECT_UP,   false )
-       ),
-	   AutoMappings(
-	       "dance",
-	       "ddrio",
-	       "ddrio",
-	       AutoMappingEntry(0, JOY_BUTTON_1, GAME_BUTTON_MENUUP, false),
-	       AutoMappingEntry(0, JOY_BUTTON_2, GAME_BUTTON_MENUDOWN, false),
-	       AutoMappingEntry(0, JOY_BUTTON_3, GAME_BUTTON_MENUUP, true),
-	       AutoMappingEntry(0, JOY_BUTTON_4, GAME_BUTTON_MENUDOWN, true),
-	       AutoMappingEntry(0, JOY_BUTTON_5, GAME_BUTTON_OPERATOR, false),
-	       AutoMappingEntry(0, JOY_BUTTON_6, GAME_BUTTON_COIN, false),
-	       AutoMappingEntry(0, JOY_BUTTON_7, GAME_BUTTON_OPERATOR, false),
-	       //AutoMappingEntry(0, JOY_BUTTON_8, GameButton_Invalid, false),
-	       AutoMappingEntry(0, JOY_BUTTON_9, GAME_BUTTON_START, true),
-	       AutoMappingEntry(0, JOY_BUTTON_10, DANCE_BUTTON_UP, true),
-	       AutoMappingEntry(0, JOY_BUTTON_11, DANCE_BUTTON_DOWN, true),
-	       AutoMappingEntry(0, JOY_BUTTON_12, DANCE_BUTTON_LEFT, true),
-	       AutoMappingEntry(0, JOY_BUTTON_13, DANCE_BUTTON_RIGHT, true),
-	       //AutoMappingEntry(0, JOY_BUTTON_14, GameButton_Invalid, true),
-	       AutoMappingEntry(0, JOY_BUTTON_15, GAME_BUTTON_MENULEFT, true),
-	       AutoMappingEntry(0, JOY_BUTTON_16, GAME_BUTTON_MENURIGHT, true),
-	       AutoMappingEntry(0, JOY_BUTTON_17, GAME_BUTTON_START, false),
-	       AutoMappingEntry(0, JOY_BUTTON_18, DANCE_BUTTON_UP, false),
-	       AutoMappingEntry(0, JOY_BUTTON_19, DANCE_BUTTON_DOWN, false),
-	       AutoMappingEntry(0, JOY_BUTTON_20, DANCE_BUTTON_LEFT, false),
-	       AutoMappingEntry(0, JOY_BUTTON_21, DANCE_BUTTON_RIGHT, false),
-	       //AutoMappingEntry(0, JOY_BUTTON_22, GameButton_Invalid, false),
-	       AutoMappingEntry(0, JOY_BUTTON_23, GAME_BUTTON_MENULEFT, false),
-	       AutoMappingEntry(0, JOY_BUTTON_24, GAME_BUTTON_MENURIGHT, false)
-	   ),
-	   AutoMappings(
 		"pump",
 		"Pump USB",
 		"Pump USB pad",
@@ -603,13 +542,13 @@ void InputMapper::Unmap( InputDevice id )
 	UpdateTempDItoGI();
 }
 
-void InputMapper::ApplyMapping( const std::vector<AutoMappingEntry> &vMmaps, GameController gc, InputDevice id )
+void InputMapper::ApplyMapping( const vector<AutoMappingEntry> &vMmaps, GameController gc, InputDevice id )
 {
-	std::map<GameInput, int> MappedButtons;
-	for (AutoMappingEntry const &iter : vMmaps)
+	map<GameInput, int> MappedButtons;
+	FOREACH_CONST( AutoMappingEntry, vMmaps, iter )
 	{
 		GameController map_gc = gc;
-		if( iter.m_bSecondController )
+		if( iter->m_bSecondController )
 		{
 			map_gc = (GameController)(map_gc+1);
 
@@ -620,8 +559,8 @@ void InputMapper::ApplyMapping( const std::vector<AutoMappingEntry> &vMmaps, Gam
 				continue;
 		}
 
-		DeviceInput di( id, iter.m_deviceButton );
-		GameInput gi( map_gc, iter.m_gb );
+		DeviceInput di( id, iter->m_deviceButton );
+		GameInput gi( map_gc, iter->m_gb );
 		int iSlot = MappedButtons[gi];
 		++MappedButtons[gi];
 		SetInputMap( di, gi, iSlot );//maps[k].iSlotIndex );
@@ -630,19 +569,19 @@ void InputMapper::ApplyMapping( const std::vector<AutoMappingEntry> &vMmaps, Gam
 
 void InputMapper::AutoMapJoysticksForCurrentGame()
 {
-	std::vector<InputDeviceInfo> vDevices;
+	vector<InputDeviceInfo> vDevices;
 	INPUTMAN->GetDevicesAndDescriptions(vDevices);
 
 	// fill vector with all auto mappings
-	std::vector<AutoMappings> vAutoMappings;
+	vector<AutoMappings> vAutoMappings;
 	{
 		// file automaps - Add these first so that they can match before the hard-coded mappings
-		std::vector<RString> vs;
+		vector<RString> vs;
 		GetDirListing( AUTOMAPPINGS_DIR "*.ini", vs, false, true );
-		for (RString const &sFilePath : vs)
+		FOREACH_CONST( RString, vs, sFilePath )
 		{
 			InputMappings km;
-			km.ReadMappings( m_pInputScheme, sFilePath, true );
+			km.ReadMappings( m_pInputScheme, *sFilePath, true );
 
 			AutoMappings mapping( m_pInputScheme->m_szName, km.m_sDeviceRegex, km.m_sDescription );
 
@@ -677,13 +616,13 @@ void InputMapper::AutoMapJoysticksForCurrentGame()
 
 	// apply auto mappings
 	int iNumJoysticksMapped = 0;
-	for (InputDeviceInfo const &device : vDevices)
+	FOREACH_CONST( InputDeviceInfo, vDevices, device )
 	{
-		InputDevice id = device.id;
-		const RString &sDescription = device.sDesc;
-		for (AutoMappings const &mapping : vAutoMappings)
+		InputDevice id = device->id;
+		const RString &sDescription = device->sDesc;
+		FOREACH_CONST( AutoMappings, vAutoMappings, mapping )
 		{
-			Regex regex( mapping.m_sDriverRegex );
+			Regex regex( mapping->m_sDriverRegex );
 			if( !regex.Compare(sDescription) )
 				continue;	// driver names don't match
 
@@ -693,10 +632,10 @@ void InputMapper::AutoMapJoysticksForCurrentGame()
 				break;	// stop mapping.  We already mapped one device for each game controller.
 
 			LOG->Info( "Applying default joystick mapping #%d for device '%s' (%s)",
-				iNumJoysticksMapped+1, mapping.m_sDriverRegex.c_str(), mapping.m_sControllerName.c_str() );
+				iNumJoysticksMapped+1, mapping->m_sDriverRegex.c_str(), mapping->m_sControllerName.c_str() );
 
 			Unmap( id );
-			ApplyMapping( mapping.m_vMaps, gc, id );
+			ApplyMapping( mapping->m_vMaps, gc, id );
 
 			iNumJoysticksMapped++;
 		}
@@ -737,26 +676,26 @@ void InputMapper::ResetMappingsToDefault()
 	AddDefaultMappingsForCurrentGameIfUnmapped();
 }
 
-void InputMapper::CheckButtonAndAddToReason(GameButton menu, std::vector<RString>& full_reason, RString const& sub_reason)
+void InputMapper::CheckButtonAndAddToReason(GameButton menu, vector<RString>& full_reason, RString const& sub_reason)
 {
-	std::vector<GameInput> inputs;
+	vector<GameInput> inputs;
 	bool exists= false;
 	// Only player 1 is checked because the player 2 buttons are rarely
 	// unmapped and do not exist on some keyboard models. -Kyz
 	GetInputScheme()->MenuButtonToGameInputs(menu, PLAYER_1, inputs);
 	if(!inputs.empty())
 	{
-		std::vector<DeviceInput> device_inputs;
-		for(GameInput &inp : inputs)
+		vector<DeviceInput> device_inputs;
+		FOREACH(GameInput, inputs, inp)
 		{
 			for(int slot= 0; slot < NUM_GAME_TO_DEVICE_SLOTS; ++slot)
 			{
-				device_inputs.push_back(m_mappings.m_GItoDI[inp.controller][inp.button][slot]);
+				device_inputs.push_back(m_mappings.m_GItoDI[inp->controller][inp->button][slot]);
 			}
 		}
-		for(DeviceInput &inp : device_inputs)
+		FOREACH(DeviceInput, device_inputs, inp)
 		{
-			if(!inp.IsValid())
+			if(!inp->IsValid())
 			{
 				continue;
 			}
@@ -767,7 +706,7 @@ void InputMapper::CheckButtonAndAddToReason(GameButton menu, std::vector<RString
 				{
 					for(int slot= 0; slot < NUM_GAME_TO_DEVICE_SLOTS; ++slot)
 					{
-						use_count+= (inp == m_mappings.m_GItoDI[cont][gb][slot]);
+						use_count+= ((*inp) == m_mappings.m_GItoDI[cont][gb][slot]);
 					}
 				}
 			}
@@ -785,7 +724,7 @@ void InputMapper::CheckButtonAndAddToReason(GameButton menu, std::vector<RString
 	}
 }
 
-void InputMapper::SanityCheckMappings(std::vector<RString>& reason)
+void InputMapper::SanityCheckMappings(vector<RString>& reason)
 {
 	// This is just to check whether the current mapping has the minimum
 	// necessary to navigate the menus so the user can reach the config screen.
@@ -806,17 +745,17 @@ bool InputMapper::CheckForChangedInputDevicesAndRemap( RString &sMessageOut )
 	// Only check for changes in joysticks since that's all we know how to remap.
 
 	// update last seen joysticks
-	std::vector<InputDeviceInfo> vDevices;
+	vector<InputDeviceInfo> vDevices;
 	INPUTMAN->GetDevicesAndDescriptions( vDevices );
 
 	// Strip non-joysticks.
-	std::vector<RString> vsLastSeenJoysticks;
+	vector<RString> vsLastSeenJoysticks;
 	// Don't use "," since some vendors have a name like "company Ltd., etc".
 	// For now, use a pipe character. -aj, fix from Mordae.
 	split( g_sLastSeenInputDevices, "|", vsLastSeenJoysticks );
 
-	std::vector<RString> vsCurrent;
-	std::vector<RString> vsCurrentJoysticks;
+	vector<RString> vsCurrent;
+	vector<RString> vsCurrentJoysticks;
 	for( int i=vDevices.size()-1; i>=0; i-- )
 	{
 		vsCurrent.push_back( vDevices[i].sDesc );
@@ -826,7 +765,7 @@ bool InputMapper::CheckForChangedInputDevicesAndRemap( RString &sMessageOut )
 		}
 		else
 		{
-			std::vector<RString>::iterator iter = find( vsLastSeenJoysticks.begin(), vsLastSeenJoysticks.end(), vDevices[i].sDesc );
+			vector<RString>::iterator iter = find( vsLastSeenJoysticks.begin(), vsLastSeenJoysticks.end(), vDevices[i].sDesc );
 			if( iter != vsLastSeenJoysticks.end() )
 				vsLastSeenJoysticks.erase( iter );
 		}
@@ -836,7 +775,7 @@ bool InputMapper::CheckForChangedInputDevicesAndRemap( RString &sMessageOut )
 	if( !bJoysticksChanged )
 		return false;
 
-	std::vector<RString> vsConnects, vsDisconnects;
+	vector<RString> vsConnects, vsDisconnects;
 	GetConnectsDisconnects( vsLastSeenJoysticks, vsCurrentJoysticks, vsDisconnects, vsConnects );
 
 	sMessageOut = RString();
@@ -872,7 +811,7 @@ void InputMapper::SetInputMap( const DeviceInput &DeviceI, const GameInput &Game
 void InputMapper::ClearFromInputMap( const DeviceInput &DeviceI )
 {
 	m_mappings.ClearFromInputMap( DeviceI );
-
+	
 	UpdateTempDItoGI();
 }
 
@@ -948,7 +887,7 @@ void InputMapper::SetJoinControllers( PlayerNumber pn )
 }
 
 
-void InputMapper::MenuToGame( GameButton MenuI, PlayerNumber pn, std::vector<GameInput> &GameIout ) const
+void InputMapper::MenuToGame( GameButton MenuI, PlayerNumber pn, vector<GameInput> &GameIout ) const
 {
 	if( g_JoinControllers != PLAYER_INVALID )
 		pn = PLAYER_INVALID;
@@ -985,19 +924,19 @@ bool InputMapper::IsBeingPressed( GameButton MenuI, PlayerNumber pn ) const
 	{
 		return false;
 	}
-	std::vector<GameInput> GameI;
+	vector<GameInput> GameI;
 	MenuToGame( MenuI, pn, GameI );
-	for( std::size_t i=0; i<GameI.size(); i++ )
+	for( size_t i=0; i<GameI.size(); i++ )
 		if( IsBeingPressed(GameI[i]) )
 			return true;
 
 	return false;
 }
 
-bool InputMapper::IsBeingPressed(const std::vector<GameInput>& GameI, MultiPlayer mp, const DeviceInputList *pButtonState ) const
+bool InputMapper::IsBeingPressed(const vector<GameInput>& GameI, MultiPlayer mp, const DeviceInputList *pButtonState ) const
 {
 	bool pressed= false;
-	for(std::size_t i= 0; i < GameI.size(); ++i)
+	for(size_t i= 0; i < GameI.size(); ++i)
 	{
 		pressed |= IsBeingPressed(GameI[i], mp, pButtonState);
 	}
@@ -1025,9 +964,9 @@ void InputMapper::RepeatStopKey( GameButton MenuI, PlayerNumber pn )
 	{
 		return;
 	}
-	std::vector<GameInput> GameI;
+	vector<GameInput> GameI;
 	MenuToGame( MenuI, pn, GameI );
-	for( std::size_t i=0; i<GameI.size(); i++ )
+	for( size_t i=0; i<GameI.size(); i++ )
 		RepeatStopKey( GameI[i] );
 }
 
@@ -1046,7 +985,7 @@ float InputMapper::GetSecsHeld( const GameInput &GameI, MultiPlayer mp ) const
 		{
 			if( mp != MultiPlayer_Invalid )
 				DeviceI.device = MultiPlayerToInputDevice(mp);
-			fMaxSecsHeld = std::max( fMaxSecsHeld, INPUTFILTER->GetSecsHeld(DeviceI) );
+			fMaxSecsHeld = max( fMaxSecsHeld, INPUTFILTER->GetSecsHeld(DeviceI) );
 		}
 	}
 
@@ -1061,10 +1000,10 @@ float InputMapper::GetSecsHeld( GameButton MenuI, PlayerNumber pn ) const
 	}
 	float fMaxSecsHeld = 0;
 
-	std::vector<GameInput> GameI;
+	vector<GameInput> GameI;
 	MenuToGame( MenuI, pn, GameI );
-	for( std::size_t i=0; i<GameI.size(); i++ )
-		fMaxSecsHeld = std::max( fMaxSecsHeld, GetSecsHeld(GameI[i]) );
+	for( size_t i=0; i<GameI.size(); i++ )
+		fMaxSecsHeld = max( fMaxSecsHeld, GetSecsHeld(GameI[i]) );
 
 	return fMaxSecsHeld;
 }
@@ -1089,9 +1028,9 @@ void InputMapper::ResetKeyRepeat( GameButton MenuI, PlayerNumber pn )
 	{
 		return;
 	}
-	std::vector<GameInput> GameI;
+	vector<GameInput> GameI;
 	MenuToGame( MenuI, pn, GameI );
-	for( std::size_t i=0; i<GameI.size(); i++ )
+	for( size_t i=0; i<GameI.size(); i++ )
 		ResetKeyRepeat( GameI[i] );
 }
 
@@ -1107,7 +1046,7 @@ float InputMapper::GetLevel( const GameInput &GameI ) const
 		DeviceInput DeviceI;
 
 		if( GameToDevice( GameI, i, DeviceI ) )
-			fLevel = std::max( fLevel, INPUTFILTER->GetLevel(DeviceI) );
+			fLevel = max( fLevel, INPUTFILTER->GetLevel(DeviceI) );
 	}
 	return fLevel;
 }
@@ -1118,12 +1057,12 @@ float InputMapper::GetLevel( GameButton MenuI, PlayerNumber pn ) const
 	{
 		return 0.f;
 	}
-	std::vector<GameInput> GameI;
+	vector<GameInput> GameI;
 	MenuToGame( MenuI, pn, GameI );
 
 	float fLevel = 0;
-	for( std::size_t i=0; i<GameI.size(); i++ )
-		fLevel = std::max( fLevel, GetLevel(GameI[i]) );
+	for( size_t i=0; i<GameI.size(); i++ )
+		fLevel = max( fLevel, GetLevel(GameI[i]) );
 
 	return fLevel;
 }
@@ -1144,34 +1083,34 @@ MultiPlayer InputMapper::InputDeviceToMultiPlayer( InputDevice id )
 
 GameButton InputScheme::ButtonNameToIndex( const RString &sButtonName ) const
 {
-	for( GameButton gb=(GameButton) 0; gb<m_iButtonsPerController; gb=(GameButton)(gb+1) )
+	for( GameButton gb=(GameButton) 0; gb<m_iButtonsPerController; gb=(GameButton)(gb+1) ) 
 		if( strcasecmp(GetGameButtonName(gb), sButtonName) == 0 )
 			return gb;
 
 	return GameButton_Invalid;
 }
 
-void InputScheme::MenuButtonToGameInputs( GameButton MenuI, PlayerNumber pn, std::vector<GameInput> &GameIout ) const
+void InputScheme::MenuButtonToGameInputs( GameButton MenuI, PlayerNumber pn, vector<GameInput> &GameIout ) const
 {
 	ASSERT( MenuI != GameButton_Invalid );
 
-	std::vector<GameButton> aGameButtons;
+	vector<GameButton> aGameButtons;
 	MenuButtonToGameButtons( MenuI, aGameButtons );
-	for (GameButton const &gb : aGameButtons)
+	FOREACH( GameButton, aGameButtons, gb )
 	{
 		if( pn == PLAYER_INVALID )
 		{
-			GameIout.push_back( GameInput(GameController_1, gb) );
-			GameIout.push_back( GameInput(GameController_2, gb) );
+			GameIout.push_back( GameInput(GameController_1, *gb) );
+			GameIout.push_back( GameInput(GameController_2, *gb) );
 		}
 		else
 		{
-			GameIout.push_back( GameInput((GameController)pn, gb) );
+			GameIout.push_back( GameInput((GameController)pn, *gb) );
 		}
 	}
 }
 
-void InputScheme::MenuButtonToGameButtons( GameButton MenuI, std::vector<GameButton> &aGameButtons ) const
+void InputScheme::MenuButtonToGameButtons( GameButton MenuI, vector<GameButton> &aGameButtons ) const
 {
 	ASSERT( MenuI != GameButton_Invalid );
 
@@ -1208,7 +1147,6 @@ static const InputScheme::GameButtonInfo g_CommonGameButtonInfo[] =
 	{ "Start",	GAME_BUTTON_START },
 	{ "Select",	GAME_BUTTON_SELECT },
 	{ "Back",	GAME_BUTTON_BACK },
-	{ "Restart",	GAME_BUTTON_RESTART },
 	{ "Coin",	GAME_BUTTON_COIN },
 	{ "Operator",	GAME_BUTTON_OPERATOR },
 	{ "EffectUp",	GAME_BUTTON_EFFECT_UP },
@@ -1217,7 +1155,7 @@ static const InputScheme::GameButtonInfo g_CommonGameButtonInfo[] =
 
 const InputScheme::GameButtonInfo *InputScheme::GetGameButtonInfo( GameButton gb ) const
 {
-	static_assert( GAME_BUTTON_NEXT == ARRAYLEN(g_CommonGameButtonInfo) );
+	COMPILE_ASSERT( GAME_BUTTON_NEXT == ARRAYLEN(g_CommonGameButtonInfo) );
 	if( gb < GAME_BUTTON_NEXT )
 		return &g_CommonGameButtonInfo[gb];
 	else
@@ -1288,7 +1226,7 @@ void InputMappings::ReadMappings( const InputScheme *pInputScheme, RString sFile
 			if( !GameI.IsValid() )
 				continue;
 
-			std::vector<RString> sDeviceInputStrings;
+			vector<RString> sDeviceInputStrings;
 			split( value, DEVICE_INPUT_SEPARATOR, sDeviceInputStrings, false );
 
 			for( unsigned j=0; j<sDeviceInputStrings.size() && j<unsigned(NUM_GAME_TO_DEVICE_SLOTS); j++ )
@@ -1306,12 +1244,12 @@ void InputMappings::WriteMappings( const InputScheme *pInputScheme, RString sFil
 {
 	IniFile ini;
 	ini.ReadFile( sFilePath );
-
+	
 	// erase the key so that we overwrite everything for this game
 	ini.DeleteKey( pInputScheme->m_szName );
 
 	XNode *pKey = ini.GetChild( pInputScheme->m_szName );
-	if( pKey != nullptr )
+	if( pKey != NULL )
 		ini.RemoveChild( pKey );
 	pKey = ini.AppendChild( pInputScheme->m_szName );
 
@@ -1322,14 +1260,14 @@ void InputMappings::WriteMappings( const InputScheme *pInputScheme, RString sFil
 		{
 			GameInput GameI( i, j );
 			RString sNameString = GameI.ToString( pInputScheme );
-
-			std::vector<RString> asValues;
+			
+			vector<RString> asValues;
 			for( int slot = 0; slot < NUM_USER_GAME_TO_DEVICE_SLOTS; ++slot )	// don't save data from the last (keyboard automap) slot
 				asValues.push_back( m_GItoDI[i][j][slot].ToString() );
-
+		
 			while( asValues.size() && asValues.back() == "" )
 				asValues.erase( asValues.begin()+asValues.size()-1 );
-
+			
 			RString sValueString = join( DEVICE_INPUT_SEPARATOR, asValues );
 
 			pKey->AppendAttr( sNameString, sValueString );
@@ -1344,7 +1282,7 @@ void InputMappings::SetInputMap( const DeviceInput &DeviceI, const GameInput &Ga
 	// remove the old input
 	ClearFromInputMap( DeviceI );
 	ClearFromInputMap( GameI, iSlotIndex );
-
+	
 	ASSERT_M( GameI.controller < NUM_GameController,
 		  ssprintf("controller: %u >= %u", GameI.controller, NUM_GameController) );
 	ASSERT_M( GameI.button < NUM_GameButton,
@@ -1388,7 +1326,7 @@ bool InputMappings::ClearFromInputMap( const GameInput &GameI, int iSlotIndex )
 /*
  * (c) 2001-2003 Chris Danford
  * All rights reserved.
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -1398,7 +1336,7 @@ bool InputMappings::ClearFromInputMap( const GameInput &GameI, int iSlotIndex )
  * copyright notice(s) and this permission notice appear in all copies of
  * the Software and that both the above copyright notice(s) and this
  * permission notice appear in supporting documentation.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF

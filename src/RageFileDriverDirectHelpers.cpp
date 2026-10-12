@@ -2,20 +2,21 @@
 #include "RageFileDriverDirectHelpers.h"
 #include "RageUtil.h"
 #include "RageLog.h"
+#include "Foreach.h"
 
 #include <cerrno>
-#include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#if defined(_WIN32)
-    #define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
-    #include <io.h>
+#if !defined(WIN32)
+
+#if defined(HAVE_DIRENT_H)
+#include <dirent.h>
+#endif
+
 #else
-    #if defined(HAVE_DIRENT_H)
-        #include <dirent.h>
-    #endif
+#include <windows.h>
+#include <io.h>
 #endif
 
 RString DoPathReplace(const RString &sPath)
@@ -25,42 +26,34 @@ RString DoPathReplace(const RString &sPath)
 }
 
 
-#if defined(_WIN32)
+#if defined(WIN32)
 static bool WinMoveFileInternal( const RString &sOldPath, const RString &sNewPath )
 {
-	if( MoveFileEx( sOldPath, sNewPath, MOVEFILE_REPLACE_EXISTING ) )
+	static bool Win9x = false;
+
+	/* Windows botches rename: it returns error if the file exists. In NT,
+	 * we can use MoveFileEx( new, old, MOVEFILE_REPLACE_EXISTING ) (though I
+	 * don't know if it has similar atomicity guarantees to rename). In
+	 * 9x, we're screwed, so just delete any existing file (we aren't going
+	 * to be robust on 9x anyway). */
+	if( !Win9x )
+	{
+		if( MoveFileEx( sOldPath, sNewPath, MOVEFILE_REPLACE_EXISTING ) )
+			return true;
+
+		// On Win9x, MoveFileEx is expected to fail (returns ERROR_CALL_NOT_IMPLEMENTED).
+		DWORD err = GetLastError();
+		if( err == ERROR_CALL_NOT_IMPLEMENTED )
+			Win9x = true;
+		else
+			return false;
+	}
+
+	if( MoveFile( sOldPath, sNewPath ) )
 		return true;
 
-	DWORD err = GetLastError();
-	// Possible error values stored by GetLastError():
-	//
-	// - ERROR_PATH_NOT_FOUND - 3 
-	//  - implies something in the file path does not exist
-	//
-	// - ERROR_SHARING_VIOLATION - 32 
-	//  - implies a need to use a temporary name somewhere
-	//
-	// - ERROR_FILE_EXISTS, ERROR_ALREADY_EXISTS - 80 
-	//  - implies MOVEFILE_REPLACE_EXISTING flag is not set,
-	//    but it is usually expected behavior when this occurs
-	//
-	// - ERROR_INVALID_PARAMETER - 87 
-	//  - implies the file paths are invalid
-	//
-	// - ERROR_NOT_SAME_DEVICE - 17 
-	//  - implies the file paths are on different devices
-
-	if( err )
-	{
-		// Log the error with the specific error code
-		WARN(ssprintf("MoveFileEx(%s, %s) failed: %lu", sOldPath.c_str(), sNewPath.c_str(), err));
-    
-		// Check if the error is related to the file not existing
-		if (err != ERROR_FILE_EXISTS && err != ERROR_ALREADY_EXISTS)
-		{
-			return false;
-		}
-	}
+	if( GetLastError() != ERROR_ALREADY_EXISTS )
+		return false;
 
 	if( !DeleteFile( sNewPath ) )
 		return false;
@@ -85,7 +78,7 @@ bool WinMoveFile( RString sOldPath, RString sNewPath )
 bool CreateDirectories( RString Path )
 {
 	// XXX: handle "//foo/bar" paths in Windows
-	std::vector<RString> parts;
+	vector<RString> parts;
 	RString curpath;
 
 	// If Path is absolute, add the initial slash ("ignore empty" will remove it).
@@ -101,10 +94,17 @@ bool CreateDirectories( RString Path )
 			curpath += "/";
 		curpath += parts[i];
 
-#if defined(_WIN32)
+#if defined(WIN32)
 		if( curpath.size() == 2 && curpath[1] == ':' )  /* C: */
 		{
 			/* Don't try to create the drive letter alone. */
+			continue;
+		}
+#endif
+#if defined(VITA)
+		if( curpath == "ux0:data" )
+		{
+			/* Device root on Vita; sceIoMkdir rejects it, and it always exists. */
 			continue;
 		}
 #endif
@@ -112,7 +112,7 @@ bool CreateDirectories( RString Path )
 		if( DoMkdir(curpath, 0777) == 0 )
 			continue;
 
-#if defined(_WIN32)
+#if defined(WIN32)
 		/* When creating a directory that already exists over Samba, Windows is
 		 * returning ENOENT instead of EEXIST. */
 		/* I can't reproduce this anymore.  If we get ENOENT, log it but keep
@@ -168,18 +168,17 @@ void DirectFilenameDB::CacheFile( const RString &sPath )
 	CHECKPOINT_M( root+sPath );
 	RString sDir = Dirname( sPath );
 	FileSet *pFileSet = GetFileSet( sDir, false );
-	if( pFileSet == nullptr )
+	if( pFileSet == NULL )
 	{
 		// This directory isn't cached so do nothing.
 		m_Mutex.Unlock(); // Locked by GetFileSet()
 		return;
 	}
 	while( !pFileSet->m_bFilled )
-	{
 		m_Mutex.Wait();
-	}
 
-#if defined(_WIN32)
+#if defined(WIN32)
+	// There is almost surely a better way to do this
 	WIN32_FIND_DATA fd;
 	HANDLE hFind = DoFindFirstFile( root+sPath, &fd );
 	if( hFind == INVALID_HANDLE_VALUE )
@@ -189,8 +188,8 @@ void DirectFilenameDB::CacheFile( const RString &sPath )
 	}
 	File f( fd.cFileName );
 	f.dir = !!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
-	f.size = static_cast<int64_t>(fd.nFileSizeHigh) << 32 | fd.nFileSizeLow;
-	f.hash = static_cast<int64_t>(fd.ftLastWriteTime.dwHighDateTime) << 32 | fd.ftLastWriteTime.dwLowDateTime;
+	f.size = fd.nFileSizeLow;
+	f.hash = fd.ftLastWriteTime.dwLowDateTime;
 
 	pFileSet->files.insert( f );
 	FindClose( hFind );
@@ -200,18 +199,22 @@ void DirectFilenameDB::CacheFile( const RString &sPath )
 	struct stat st;
 	if( DoStat(root+sPath, &st) == -1 )
 	{
-		WARN(ssprintf("File '%s' is gone! (%s)", sPath.c_str(), strerror(errno)));
+		int iError = errno;
+		// If it's a broken symlink, ignore it.  Otherwise, warn.
+		// Huh?
+		WARN( ssprintf("File '%s' is gone! (%s)",
+				sPath.c_str(), strerror(iError)) );
 	}
 	else
 	{
-		f.dir = S_ISDIR(st.st_mode);
-		f.size = static_cast<int>(st.st_size);
+		f.dir = (st.st_mode & S_IFDIR);
+		f.size = (int)st.st_size;
 		f.hash = st.st_mtime;
 	}
-
+	
 	pFileSet->files.insert(f);
 #endif
-	m_Mutex.Unlock(); // Locked by GetFileSet()
+	m_Mutex.Unlock(); // Locked by GetFileSet()	
 }
 
 void DirectFilenameDB::PopulateFileSet( FileSet &fs, const RString &path )
@@ -224,7 +227,7 @@ void DirectFilenameDB::PopulateFileSet( FileSet &fs, const RString &path )
 	fs.age.GetDeltaTime(); // reset
 	fs.files.clear();
 
-#if defined(_WIN32)
+#if defined(WIN32)
 	WIN32_FIND_DATA fd;
 
 	if ( sPath.size() > 0  && sPath.Right(1) == "/" )
@@ -256,9 +259,9 @@ void DirectFilenameDB::PopulateFileSet( FileSet &fs, const RString &path )
 	 * use absolute paths, which forces the system to re-parse the directory
 	 * for each file.  This isn't a major issue, since most large directory
 	 * scans are I/O-bound. */
-
+	 
 	DIR *pDir = opendir(root+sPath);
-	if( pDir == nullptr )
+	if( pDir == NULL )
 		return;
 
 	while( struct dirent *pEnt = readdir(pDir) )
@@ -267,7 +270,7 @@ void DirectFilenameDB::PopulateFileSet( FileSet &fs, const RString &path )
 			continue;
 		if( !strcmp(pEnt->d_name, "..") )
 			continue;
-
+		
 		File f( pEnt->d_name );
 
 		struct stat st;
@@ -277,7 +280,7 @@ void DirectFilenameDB::PopulateFileSet( FileSet &fs, const RString &path )
 			/* If it's a broken symlink, ignore it.  Otherwise, warn. */
 			if( lstat(root+sPath + "/" + pEnt->d_name, &st) == 0 )
 				continue;
-
+			
 			/* Huh? */
 			WARN( ssprintf("Got file '%s' in '%s' from list, but can't stat? (%s)",
 					pEnt->d_name, sPath.c_str(), strerror(iError)) );
@@ -292,24 +295,24 @@ void DirectFilenameDB::PopulateFileSet( FileSet &fs, const RString &path )
 
 		fs.files.insert(f);
 	}
-
+	       
 	closedir( pDir );
 #endif
 
 	/*
-	 * Check for any ".ignore" markers.  If a marker exists, hide the marker and its
+	 * Check for any ".ignore" markers.  If a marker exists, hide the marker and its 
 	 * corresponding file.
-	 * For example, if "file.xml.ignore" exists, hide both it and "file.xml" by
+	 * For example, if "file.xml.ignore" exists, hide both it and "file.xml" by 
 	 * removing them from the file set.
-	 * Ignore markers are used for convenience during build staging and are not used in
-	 * performance-critical situations.  To avoid incurring some of the overheard
+	 * Ignore markers are used for convenience during build staging and are not used in 
+	 * performance-critical situations.  To avoid incurring some of the overheard 
 	 * due to ignore markers, delete the file instead instead of using an ignore marker.
 	 */
 	static const RString IGNORE_MARKER_BEGINNING = "ignore-";
 
-	std::vector<RString> vsFilesToRemove;
-	for( std::set<File>::iterator iter = fs.files.lower_bound(IGNORE_MARKER_BEGINNING);
-		 iter != fs.files.end();
+	vector<RString> vsFilesToRemove;
+	for( set<File>::iterator iter = fs.files.lower_bound(IGNORE_MARKER_BEGINNING); 
+		 iter != fs.files.end(); 
 		 ++iter )
 	{
 		if( !BeginsWith( iter->lname, IGNORE_MARKER_BEGINNING ) )
@@ -318,13 +321,13 @@ void DirectFilenameDB::PopulateFileSet( FileSet &fs, const RString &path )
 		vsFilesToRemove.push_back( iter->name );
 		vsFilesToRemove.push_back( sFileLNameToIgnore );
 	}
-
-	for (RString const &iter : vsFilesToRemove)
+	
+	FOREACH_CONST( RString, vsFilesToRemove, iter )
 	{
 		// Erase the file corresponding to the ignore marker
 		File fileToDelete;
-		fileToDelete.SetName( iter );
-		std::set<File>::iterator iter2 = fs.files.find( fileToDelete );
+		fileToDelete.SetName( *iter );
+		set<File>::iterator iter2 = fs.files.find( fileToDelete );
 		if( iter2 != fs.files.end() )
 			fs.files.erase( iter2 );
 	}
