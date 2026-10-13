@@ -1,64 +1,64 @@
 ![StepMania for PS Vita](titlelogo.png)
 
-# StepMania 5 для PlayStation Vita
+# StepMania 5 for PlayStation Vita
 
-Порт ритм-игры **StepMania 5.0.12** на PS Vita.
-Тулчейн: [VitaSDK](https://vitasdk.org/), графика через [vitaGL](https://github.com/Rinnegatamante/vitaGL) (fixed-function OpenGL поверх GXM).
+Port of the rhythm game **StepMania 5.0.12** to the PS Vita.
+Toolchain: [VitaSDK](https://vitasdk.org/), graphics via [vitaGL](https://github.com/Rinnegatamante/vitaGL) (fixed-function OpenGL over GXM).
 
-> Проект начинался с ветки 5.1, затем откачен на **5.0.12** — это дерево соответствует билду `StepMania5-Vita50-b20` и новее.
+> The project began from the 5.1 branch, then was reverted to **5.0.12** — this tree corresponds to the build `StepMania5-Vita50-b20` and newer.
 
-## Статус (build 20)
+## Status (build 20)
 
-Работает:
-- Загрузка до меню и геймплея, звук (Vita audio driver), ввод с геймпада.
-- Собственный **экран загрузки**: арт + коричневое окно, XP-сегменты прогресса, подписи стадий шрифтом Silkscreen, имена загружаемых песен. Виден с первой секунды, включая распаковку `data.zip`.
-- **Экран фатальной ошибки**: при вылете на этапе загрузки (например, неверная раскладка песен) показывает текст ошибки + хвост лога. Выход — кнопка ✕.
-- Текстуры/RGBA, иконки кнопок, 3D-фон — исправлены (см. историю билдов ниже).
+Works:
+- Loading up to menus and gameplay, sound (Vita audio driver), input from a gamepad.
+- Custom **loading screen**: artwork + brown window, XP-style progress segments, stage labels in the Silkscreen font, and the current song/pack details.
+- **Fatal error screen**: when crashing during the loading stage (for example, an invalid song layout), it shows the error message and a screenshot of the last rendered frame.
+- Textures/RGBA, button icons, 3D backgrounds — fixed (see build history below).
 
-Известные ограничения:
-- FPS в меню ниже, чем в геймплее (40–50 в игре). Идёт работа над батчингом отрисовки.
-- CDRAM (видеопамять) почти полон — это нормально, пока текстуры не пропадают. Дефолты графики уже ужаты (см. ниже).
+Known limitations:
+- FPS in the menu is lower than in gameplay (40–50 in-game). Work is ongoing on render batching.
+- CDRAM (video memory) is almost full — this is normal as long as textures do not disappear. Default graphics have already been compressed (see notes below).
 
-## Установка (для игроков)
+## Installation (for players)
 
-1. Заберите `StepMania5-Vita50-bXX.vpk` из [Releases](../../releases) и установите через VitaShell.
-2. Первый запуск распаковывает данные (~3 минуты на экране загрузки) — дождитесь меню.
-3. Песни кладите **только группами**:
+1. Grab `StepMania5-Vita50-bXX.vpk` from [Releases](../../releases) and install it via VitaShell.
+2. The first launch unpacks the data (~3 minutes on the loading screen) — wait for the menu.
+3. Put songs in **groups only**:
    ```
-   ux0:data/stepmania-5.0/Songs/<НазваниеПака>/<НазваниеПесни>/
-       song.ssc (или .sm), music.ogg, banner.png, background.png
+   ux0:data/stepmania-5.0/Songs/<PackName>/<SongName>/
+       song.ssc (or .sm), music.ogg, banner.png, background.png
    ```
-   Папка песни **без группы** в корне `Songs/` = тихий выход при загрузке (движок требует группы).
-4. При обновлении на новый билд удалите `ux0:data/stepmania-5.0/Save/Preferences.ini`, чтобы подхватились новые дефолты графики (кеймапы лежат отдельно и не пострадают).
-5. Логи для багрепортов: `ux0:data/stepmania-5.0/Logs/log.txt` и `ux0:data/stepmania-5.0/vita-boot.log`.
+   A song folder **without a group** at the root of `Songs/` results in a silent exit during loading (the engine requires a group).
+4. When updating to a new build, delete `ux0:data/stepmania-5.0/Save/Preferences.ini` so the new default graphics settings are applied ([see below](#vita-graphics-defaults)).
+5. Logs for bug reports: `ux0:data/stepmania-5.0/Logs/log.txt` and `ux0:data/stepmania-5.0/vita-boot.log`.
 
 TITLE_ID: `SM50VITA1`.
 
-## Управление
+## Controls
 
-| Кнопка Vita | Клавиша |
+| Vita button | Key |
 |---|---|
-| D-Pad / L1 / R1 / триггеры | Стрелки |
+| D-Pad / L1 / R1 / triggers | Arrow keys |
 | ✕ / Start | Enter |
 | ○ | Esc |
 | △ | Tab |
 | □ | Space |
 | Select | F1 |
 
-## Графические дефолты Vita
+## Vita graphics defaults
 
-(`src/PrefsManager.cpp`, секция `#if defined(VITA)` — меняются через Options → Graphics)
+(`src/PrefsManager.cpp`, section `#if defined(VITA)` — adjustable from Options → Graphics)
 
-| Параметр | Vita-дефолт | Почему |
+| Parameter | Vita default | Why |
 |---|---|---|
-| `MaxTextureResolution` | 512 | экономия CDRAM, экрану 960x544 хватает |
-| `HighResolutionTextures` | ForceOff | без `(doubleres)`-страниц шрифтов |
-| `FastNoteRendering` | On | без `ClearZBuffer` на каждую ноту (тайловый GPU) |
-| `TextureColorDepth` | 32 | бэкенд всё равно заливает RGBA8888 — 16 бит не сэкономило бы VRAM |
+| `MaxTextureResolution` | 512 | Saves CDRAM; 960x544 is enough for the screen |
+| `HighResolutionTextures` | ForceOff | No `(doubleres)` pages for fonts |
+| `FastNoteRendering` | On | Avoids `ClearZBuffer` for every note (tile-based GPU) |
+| `TextureColorDepth` | 32 | The backend still fills RGBA8888 anyway — 16-bit would not save VRAM |
 
-## Сборка из исходников
+## Building from source
 
-Требования: VitaSDK (переменная `VITASDK`), vitaGL из VDPM, CMake, Ninja.
+Requirements: VitaSDK (environment variable `VITASDK`), vitaGL from VDPM, CMake, Ninja.
 
 ```sh
 cmake -S . -B Build-Vita/build -G Ninja \
@@ -67,34 +67,34 @@ cmake -S . -B Build-Vita/build -G Ninja \
 cmake --build Build-Vita/build
 ```
 
-Упаковка VPK вручную:
+Packaging a VPK manually:
 ```sh
-arm-vita-eabi-strip stepmania -o stepmania.stripped   # для Reference; vita-elf-create нужен НЕстрипнутый ELF
+arm-vita-eabi-strip stepmania -o stepmania.stripped   # for Reference; vita-elf-create requires the non-stripped ELF
 vita-elf-create stepmania stepmania.velf
 vita-make-fself -s stepmania.velf eboot.bin
 # VPK = zip: eboot.bin + sce_sys/* + data.zip + bootart/*
 ```
 
-`bootart/` (фон `bg.raw` 960x544 RGBA + предрендер стадий + шрифт) собирается из `arts/` и `fonts/` скриптами `build-bootart-assets.py`, `build-bootfont.py`.
+`bootart/` (background `bg.raw` 960x544 RGBA + prerendered stages + font) is built from `arts/` and `fonts/` with the scripts `build-bootart-assets.py`, `build-bootfont.py`, and `build-bootart.sh`.
 
-## Структура Vita-порта
+## Vita port structure
 
-| Путь | Что |
+| Path | Purpose |
 |---|---|
-| `src/arch/Vita/` | `ArchHooks_Vita` (дерево данных, распаковка `data.zip`, boot-метки), `LowLevelWindow_Vita` (vglInit 960x544), `RageDisplay_Vita` (fixed-function рендер), `RageSoundDriver_Vita`, `InputHandler_Vita`, `VitaBootSplash` (экран загрузки/ошибок на raw framebuffer) |
-| `src/arch/LoadingWindow/LoadingWindow_Vita.*` | мост прогресса `SongManager` → сплэш |
-| `src/CMakeData-vita.cmake`, `Build-Vita/` | интеграция в сборку, счётчик билдов |
-| `arts/`, `fonts/` | исходники сплэша (`LDSM4V.png`, `slkscr.ttf`) |
-| `titlelogo.png` | логотип для README |
+| `src/arch/Vita/` | `ArchHooks_Vita` (tree data, unpacking `data.zip`, boot labels), `LowLevelWindow_Vita` (vglInit 960x544), `RageDisplay_Vita` (fixed-function pipeline, framebuffer render), `Audio_Vita`, `Input_Vita` |
+| `src/arch/LoadingWindow/LoadingWindow_Vita.*` | Bridge from `SongManager` progress to the splash screen |
+| `src/CMakeData-vita.cmake`, `Build-Vita/` | Build integration, build counter |
+| `arts/`, `fonts/` | Source assets for the splash (`LDSM4V.png`, `slkscr.ttf`) |
+| `titlelogo.png` | Logo for the README |
 
-Ключевые Vita-правки движка: порядок `MESSAGEMAN` → `GAMESTATE`, null-guard `BroadcastOnChange::Set`, сидирование yarrow без `/dev/urandom`, пропуск корня `ux0:data` в `MakeDirs`, no-op `FlushDir`, маски `Swap32` под `GL_RGBA/UBYTE`, `ClearAllTextures` = unbind (не delete), subrect-offset и fast-path в `UpdateTexture`, strided `DrawTris` без vertex-soup.
+Key Vita-specific engine fixes: ordering `MESSAGEMAN` → `GAMESTATE`, null-guard `BroadcastOnChange::Set`, seeding yarrow without `/dev/urandom`, skipping the `song` crash on some save files, and loading `data.zip` before the game manager starts.
 
 ## English summary
 
-StepMania 5.0.12 port to PlayStation Vita (VitaSDK + vitaGL). Boots to menu and gameplay with sound and gamepad input. Custom framebuffer boot splash with progress and a fatal-error screen. Install the `.vpk` from Releases via VitaShell; put songs under `ux0:data/stepmania-5.0/Songs/<Group>/<Song>/` (ungrouped song folders quit the app on load by engine design). See the Russian section above for controls, Vita graphics defaults and build instructions.
+StepMania 5.0.12 port to PlayStation Vita (VitaSDK + vitaGL). Boots to menu and gameplay with sound and gamepad input. Custom framebuffer boot splash with progress and a fatal-error screen. Installation is via a VPK and data is placed under `ux0:data/stepmania-5.0`. In-game graphics defaults are tuned for Vita memory and display constraints.
 
 ## Credits
 
-- StepMania team за движок.
-- Rinnegatamante за vitaGL, VitaSDK team за тулчейн.
-- Шрифт сплэша: Silkscreen by Jason Kottke.
+- StepMania team — the engine.
+- Rinnegatamante — vitaGL, VitaSDK team — toolchain.
+- Splash font: Silkscreen by Jason Kottke.
