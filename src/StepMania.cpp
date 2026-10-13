@@ -36,6 +36,7 @@
 #include "arch/Vita/RageDisplay_Vita.h"
 #include "arch/Vita/ArchHooks_Vita.h" // VitaBootMark
 #include "arch/Vita/VitaBootSplash.h" // VitaBootSplash
+#include "arch/Vita/RageDisplay_Vita.h" // ShowBootSplash (VITA-only use)
 #elif !defined(SUPPORT_OPENGL) && !defined(SUPPORT_D3D)
 #define SUPPORT_OPENGL
 #endif
@@ -1322,6 +1323,10 @@ int sm_main(int argc, char* argv[])
 	LOG->Info( "%s", GetActualGraphicOptionsString().c_str() );
 #if defined(VITA)
 	VitaBootMark("sm:display-done");
+	/* Present the boot art through the engine: the screen loads below are
+	 * synchronous (no frames pump), so this frame persists on-screen
+	 * instead of black. Re-presented at each load chunk. */
+	static_cast<RageDisplay_Vita*>(DISPLAY)->ShowBootSplash();
 #endif
 
 	SONGMAN->PreloadSongImages();
@@ -1338,7 +1343,13 @@ int sm_main(int argc, char* argv[])
 
 	/* Now that GAMESTATE is reset, tell SCREENMAN to update the theme (load
 	 * overlay screens and global sounds), and load the initial screen. */
+#if defined(VITA)
+	static_cast<RageDisplay_Vita*>(DISPLAY)->ShowBootSplash();
+#endif
 	SCREENMAN->ThemeChanged();
+#if defined(VITA)
+	static_cast<RageDisplay_Vita*>(DISPLAY)->ShowBootSplash();
+#endif
 	SCREENMAN->SetNewScreen( StepMania::GetInitialScreen() );
 #if defined(VITA)
 	VitaBootMark("sm:first-screen");

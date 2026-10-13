@@ -20,6 +20,7 @@
 #include <vitaGL.h>
 #endif
 #include <psp2/display.h>
+#include <psp2/io/fcntl.h>
 #endif
 #if defined(VITA) && __has_include("vita_build_number.h")
 #include "vita_build_number.h"
@@ -129,7 +130,11 @@ RString RageDisplay_Vita::Init(const VideoModeParams &p, bool bAllowUnaccelerate
 	glDisable(GL_LIGHTING);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
+#if !defined(VITA)
+	/* GLES2 has no alpha test; vitaGL reports GL_INVALID_ENUM (0x500) for
+	 * it. Cutout textures are handled by alpha blending instead. */
 	glDisable(GL_ALPHA_TEST);
+#endif
 	glEnable(GL_BLEND);
 	glEnable(GL_TEXTURE_2D);
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -466,6 +471,10 @@ void RageDisplay_Vita::SetCullMode(CullMode mode)
 
 void RageDisplay_Vita::SetAlphaTest(bool b)
 {
+#if defined(VITA)
+	/* No alpha test in GLES2 (see Init); alpha blending covers cutouts. */
+	(void)b;
+#else
 	if (b)
 	{
 		glEnable(GL_ALPHA_TEST);
@@ -475,6 +484,7 @@ void RageDisplay_Vita::SetAlphaTest(bool b)
 	{
 		glDisable(GL_ALPHA_TEST);
 	}
+#endif
 }
 
 void RageDisplay_Vita::SetMaterial(
@@ -522,10 +532,15 @@ void RageDisplay_Vita::SetLineWidth(float fWidth)
 
 void RageDisplay_Vita::SetPolygonMode(PolygonMode pm)
 {
+#if defined(VITA)
+	/* glPolygonMode does not exist in GLES2; filled rendering only. */
+	(void)pm;
+#else
 	if (pm == POLYGON_FILL)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#endif
 }
 
 RageCompiledGeometry *RageDisplay_Vita::CreateCompiledGeometry()
@@ -559,6 +574,81 @@ RageSurface *RageDisplay_Vita::CreateScreenshot()
 }
 
 // --- draw helpers ---
+
+void RageDisplay_Vita::ShowBootSplash()
+{
+#ifdef VITA
+	/* Upload once (2 MB VRAM, kept for re-presents). */
+	static unsigned s_bootTex = 0;
+	if( s_bootTex == 0 )
+	{
+		SceUID fd = sceIoOpen( "app0:bootart/bg.raw", SCE_O_RDONLY, 0 );
+		if( fd >= 0 )
+		{
+			RageSurface *img = CreateSurface(960, 544, 32,
+				VITA_TEX_RMASK, VITA_TEX_GMASK, VITA_TEX_BMASK, VITA_TEX_AMASK);
+			uint8_t *p = img->pixels;
+			int left = 960 * 544 * 4;
+			while( left > 0 )
+			{
+				int n = sceIoRead( fd, p, (SceSize)left );
+				if( n <= 0 )
+					break;
+				p += n;
+				left -= n;
+			}
+			sceIoClose( fd );
+			if( left == 0 )
+				s_bootTex = CreateTexture( RagePixelFormat_RGBA8, img, false );
+			delete img;
+		}
+		if( s_bootTex == 0 )
+			return;
+	}
+
+	VideoModeParams avmp = m_pWind->GetActualVideoModeParams();
+	glViewport(0, 0, avmp.width, avmp.height);
+	glClearColor(0, 0, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	/* Direct pixel-space ortho (engine matrix stacks untouched; the next
+	 * engine draw reloads GL matrices via SendCurrentMatrices). */
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0, 960, 544, 0, -1, 1);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glMatrixMode(GL_TEXTURE);
+	glLoadIdentity();
+
+	/* Fullscreen quad: y-down mapping, v=0 samples the image top row. */
+	static const float pos[6 * 3] = {
+		0,0,0,  960,0,0,  960,544,0,
+		0,0,0,  960,544,0,  0,544,0
+	};
+	static const float tex[6 * 2] = {
+		0,0,  1,0,  1,1,
+		0,0,  1,1,  0,1
+	};
+	glDisable(GL_BLEND);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glColor4f(1, 1, 1, 1);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, (GLuint)s_bootTex);
+	glVertexPointer(3, GL_FLOAT, 0, pos);
+	glTexCoordPointer(2, GL_FLOAT, 0, tex);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	/* Restore Init state for subsequent engine draws (each of which sets
+	 * the pointers it needs itself). */
+	glEnable(GL_BLEND);
+	glEnableClientState(GL_COLOR_ARRAY);
+
+	glFlush();
+	m_pWind->SwapBuffers();
+	m_pWind->Update();
+#endif
+}
 
 void RageDisplay_Vita::DrawTris(const RageSpriteVertex v[], const uint16_t *indices, int iNumIndices)
 {

@@ -81,6 +81,13 @@ public:
 
 	virtual RageSurface *CreateScreenshot();
 
+	/* Present the boot art (app0:bootart/bg.raw) as a fullscreen engine
+	 * frame. Used to cover the synchronous post-display screen loads
+	 * (ScreenSystemLayer etc.), during which no frames pump and the
+	 * display would otherwise sit black for ~a minute. The texture is
+	 * uploaded once and kept (2 MB VRAM) for re-presents. */
+	void ShowBootSplash();
+
 protected:
 	virtual void DrawQuadsInternal(const RageSpriteVertex v[], int iNumVerts);
 	virtual void DrawQuadStripInternal(const RageSpriteVertex v[], int iNumVerts);

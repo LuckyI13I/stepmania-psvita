@@ -3,17 +3,6 @@
 *.obj
 *.a
 
-# PS Vita port: build tree, packages, crash dumps (regenerated locally)
-Build-Vita/build/
-Build-Vita/tools/
-*.vpk
-*.velf
-*.self
-*.sfo
-Dumps/
-.vs/
-Desktop.ini
-
 # CMake Files/Directories
 CMakeFiles/
 CMakeCache.txt
