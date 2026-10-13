@@ -10,9 +10,10 @@ import sys
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path(__file__).resolve().parents[2]
+TREE = ROOT / "stepmania-5.0.12" if (ROOT / "stepmania-5.0.12").is_dir() else ROOT
 TTF = ROOT / "fonts" / "slkscr.ttf"
 OUTDIR = ROOT / "vpk" / "bootart"
-SRC = ROOT / "src" / "arch" / "Vita"
+SRC = TREE / "src" / "arch" / "Vita"
 
 CELL = 16
 FIRST, LAST = 32, 126

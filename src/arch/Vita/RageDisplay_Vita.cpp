@@ -839,6 +839,12 @@ void RageDisplay_Vita::ShowBootSplash()
 	glFlush();
 	m_pWind->SwapBuffers();
 	m_pWind->Update();
+
+	/* Prove every present in the log: if the screen freezes, the last
+	 * line here tells exactly which present ran and what GL said. */
+	LOG->Info("VitaBootSplash: present stage=%d (%s) %d/%d bg=%u glGetError=0x%x",
+		stage, VITA_BOOT_STAGE_ARTS[stage].id, done, total,
+		s_bootTex, (unsigned)glGetError());
 #endif
 }
 

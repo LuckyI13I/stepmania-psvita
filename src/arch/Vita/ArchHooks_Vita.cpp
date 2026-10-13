@@ -38,6 +38,7 @@ static void VitaEnsureDataTree()
 		"ux0:data/stepmania-5.0/CDTitles",
 		"ux0:data/stepmania-5.0/Characters",
 		"ux0:data/stepmania-5.0/Courses",
+		"ux0:data/stepmania-5.0/Data",
 		"ux0:data/stepmania-5.0/Downloads",
 		"ux0:data/stepmania-5.0/Logs",
 		"ux0:data/stepmania-5.0/NoteSkins",
@@ -298,6 +299,9 @@ void ArchHooks::MountUserFilesystems(const RString &/*sDirOfExecutable*/)
 	FILEMAN->Mount("dir", ssprintf("%s/CDTitles", sUserDataPath), "/CDTitles");
 	FILEMAN->Mount("dir", ssprintf("%s/Characters", sUserDataPath), "/Characters");
 	FILEMAN->Mount("dir", ssprintf("%s/Courses", sUserDataPath), "/Courses");
+	/* /Data was missing here (only app0:Data, which ships nothing): prefs
+	 * defaults, translations and AI settings never loaded. ux0 shadows it. */
+	FILEMAN->Mount("dir", ssprintf("%s/Data", sUserDataPath), "/Data");
 	FILEMAN->Mount("dir", ssprintf("%s/Downloads", sUserDataPath), "/Downloads");
 	FILEMAN->Mount("dir", ssprintf("%s/Logs", sUserDataPath), "/Logs");
 	FILEMAN->Mount("dir", ssprintf("%s/NoteSkins", sUserDataPath), "/NoteSkins");

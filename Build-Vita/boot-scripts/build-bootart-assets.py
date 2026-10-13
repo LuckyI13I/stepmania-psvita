@@ -12,10 +12,11 @@ import sys
 from PIL import Image, ImageFont, ImageDraw
 
 ROOT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path(__file__).resolve().parents[2]
+TREE = ROOT / "stepmania-5.0.12" if (ROOT / "stepmania-5.0.12").is_dir() else ROOT
 ART = ROOT / "arts" / "LDSM4V.png"
 TTF = ROOT / "fonts" / "slkscr.ttf"
 OUTDIR = ROOT / "vpk" / "bootart"
-SRC = ROOT / "src" / "arch" / "Vita"
+SRC = TREE / "src" / "arch" / "Vita"
 
 # (stage id, label) - ids must match VitaBootStage enum in VitaBootSplash.h
 STAGES = [
