@@ -16,6 +16,7 @@
 
 #include <cstring>
 #include <cstddef>
+#include <ctime>
 #include <vector>
 
 #ifdef VITA
@@ -198,16 +199,24 @@ void RageDisplay_Vita::EndFrame()
 #if defined(VITA)
 	{
 		static int s_nFrames = 0;
+		static clock_t s_last = 0;
 		++s_nFrames;
 		if (s_nFrames == 1 || s_nFrames % 600 == 0)
 		{
+			/* Avg wall ms per presented frame over the last window: honest
+			 * before/after metric for perf work (draws/tris alone lie). */
+			clock_t now = clock();
+			int ms = 0;
+			if (s_last != 0)
+				ms = (int)((now - s_last) * 1000 / CLOCKS_PER_SEC / 600);
+			s_last = now;
 			GLenum e = glGetError();
 #ifdef VITA_BUILD_NUMBER
-			LOG->Info("Vita: build %d frame %d, %d draws %d tris, glGetError=0x%x",
-				VITA_BUILD_NUMBER, s_nFrames, m_DrawCalls / 600, m_DrawTris / 600, (unsigned)e);
+			LOG->Info("Vita: build %d frame %d, %d draws %d tris %dms, glGetError=0x%x",
+				VITA_BUILD_NUMBER, s_nFrames, m_DrawCalls / 600, m_DrawTris / 600, ms, (unsigned)e);
 #else
-			LOG->Info("Vita: frame %d, %d draws %d tris, glGetError=0x%x",
-				s_nFrames, m_DrawCalls / 600, m_DrawTris / 600, (unsigned)e);
+			LOG->Info("Vita: frame %d, %d draws %d tris %dms, glGetError=0x%x",
+				s_nFrames, m_DrawCalls / 600, m_DrawTris / 600, ms, (unsigned)e);
 #endif
 			m_DrawCalls = 0;
 			m_DrawTris = 0;

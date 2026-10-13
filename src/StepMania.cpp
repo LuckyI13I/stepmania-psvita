@@ -1325,7 +1325,10 @@ int sm_main(int argc, char* argv[])
 	VitaBootMark("sm:display-done");
 	/* Present the boot art through the engine: the screen loads below are
 	 * synchronous (no frames pump), so this frame persists on-screen
-	 * instead of black. Re-presented at each load chunk. */
+	 * instead of black. Re-presented at each load chunk with staged
+	 * progress (1/4, 2/4, 3/4). */
+	VitaBootSplash::SetStage( BOOTSTAGE_DISPLAY );
+	VitaBootSplash::SetProgress( 1, 4 );
 	static_cast<RageDisplay_Vita*>(DISPLAY)->ShowBootSplash();
 #endif
 
@@ -1344,10 +1347,14 @@ int sm_main(int argc, char* argv[])
 	/* Now that GAMESTATE is reset, tell SCREENMAN to update the theme (load
 	 * overlay screens and global sounds), and load the initial screen. */
 #if defined(VITA)
+	VitaBootSplash::SetStage( BOOTSTAGE_SCREENS );
+	VitaBootSplash::SetProgress( 2, 4 );
 	static_cast<RageDisplay_Vita*>(DISPLAY)->ShowBootSplash();
 #endif
 	SCREENMAN->ThemeChanged();
 #if defined(VITA)
+	VitaBootSplash::SetStage( BOOTSTAGE_MENU );
+	VitaBootSplash::SetProgress( 3, 4 );
 	static_cast<RageDisplay_Vita*>(DISPLAY)->ShowBootSplash();
 #endif
 	SCREENMAN->SetNewScreen( StepMania::GetInitialScreen() );

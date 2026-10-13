@@ -14,8 +14,10 @@ static const VitaBootStageArt VITA_BOOT_STAGE_ARTS[] = {
 	{ "courses", "app0:bootart/stage_05.raw", 354, 27 },
 	{ "profiles", "app0:bootart/stage_06.raw", 358, 27 },
 	{ "display", "app0:bootart/stage_07.raw", 366, 27 },
-	{ "error", "app0:bootart/stage_08.raw", 119, 27 },
+	{ "screens", "app0:bootart/stage_08.raw", 354, 27 },
+	{ "menu", "app0:bootart/stage_09.raw", 312, 27 },
+	{ "error", "app0:bootart/stage_10.raw", 119, 27 },
 };
 
-static const int VITA_BOOT_STAGE_COUNT = 9;
+static const int VITA_BOOT_STAGE_COUNT = 11;
 #endif
