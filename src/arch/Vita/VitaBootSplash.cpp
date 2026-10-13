@@ -464,6 +464,9 @@ void VitaBootSplash::Shutdown()
 	if( !s_active )
 		return;
 	s_active = false;
+	s_done = 0;
+	s_total = 0;
+	s_sub[0] = '\0';
 	for( int i = 0; i < 2; ++i )
 	{
 		free( s_fb[i] );
@@ -568,5 +571,41 @@ void VitaBootSplash::ShowFatal( const char *message )
 		}
 		sceKernelDelayThread( 50 * 1000 );
 	}
+#endif
+}
+
+int VitaBootSplash::GetStage()
+{
+#ifdef VITA
+	return (int)s_stage;
+#else
+	return 0;
+#endif
+}
+
+int VitaBootSplash::GetDone()
+{
+#ifdef VITA
+	return s_done;
+#else
+	return 0;
+#endif
+}
+
+int VitaBootSplash::GetTotal()
+{
+#ifdef VITA
+	return s_total;
+#else
+	return 0;
+#endif
+}
+
+const char *VitaBootSplash::GetSubLine()
+{
+#ifdef VITA
+	return s_sub;
+#else
+	return "";
 #endif
 }

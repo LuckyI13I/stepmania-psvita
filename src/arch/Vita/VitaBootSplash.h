@@ -33,6 +33,12 @@ public:
 	static void SetProgress( int done, int total ); /* total<=0: indeterminate */
 	static void SetSubLine( const char *text );	/* small line under bar */
 	static void ShowFatal( const char *message );	/* error screen, waits X/Start */
+
+	/* Read-only state for the post-display engine splash path. */
+	static int GetStage();
+	static int GetDone();
+	static int GetTotal();
+	static const char *GetSubLine();
 };
 
 #endif

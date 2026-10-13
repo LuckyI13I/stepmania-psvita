@@ -1,5 +1,8 @@
 #include "global.h"
 #include "RageDisplay_Vita.h"
+#include "VitaBootSplash.h"
+#include "vita_bootstages.h"
+#include "vita_bootfont.h"
 #include "RageDisplay.h"
 #include "RageLog.h"
 #include "RageSurface.h"
@@ -578,10 +581,14 @@ RageSurface *RageDisplay_Vita::CreateScreenshot()
 void RageDisplay_Vita::ShowBootSplash()
 {
 #ifdef VITA
-	/* Upload once (2 MB VRAM, kept for re-presents). */
+	/* Upload once (textures kept for re-presents; ~2.2 MB VRAM total). */
 	static unsigned s_bootTex = 0;
-	if( s_bootTex == 0 )
+	static unsigned s_stageTex[BOOTSTAGE_COUNT] = { 0 };
+	static unsigned s_fontTex = 0;
+	static bool s_tried = false;
+	if( !s_tried )
 	{
+		s_tried = true;
 		SceUID fd = sceIoOpen( "app0:bootart/bg.raw", SCE_O_RDONLY, 0 );
 		if( fd >= 0 )
 		{
@@ -602,17 +609,67 @@ void RageDisplay_Vita::ShowBootSplash()
 				s_bootTex = CreateTexture( RagePixelFormat_RGBA8, img, false );
 			delete img;
 		}
-		if( s_bootTex == 0 )
-			return;
+		for( int i = 0; i < VITA_BOOT_STAGE_COUNT && i < BOOTSTAGE_COUNT; ++i )
+		{
+			int w = VITA_BOOT_STAGE_ARTS[i].w, h = VITA_BOOT_STAGE_ARTS[i].h;
+			SceUID fd2 = sceIoOpen( VITA_BOOT_STAGE_ARTS[i].file, SCE_O_RDONLY, 0 );
+			if( fd2 < 0 )
+				continue;
+			RageSurface *img = CreateSurface(w, h, 32,
+				VITA_TEX_RMASK, VITA_TEX_GMASK, VITA_TEX_BMASK, VITA_TEX_AMASK);
+			uint8_t *p = img->pixels;
+			int left = w * h * 4;
+			while( left > 0 )
+			{
+				int n = sceIoRead( fd2, p, (SceSize)left );
+				if( n <= 0 )
+					break;
+				p += n;
+				left -= n;
+			}
+			sceIoClose( fd2 );
+			if( left == 0 )
+				s_stageTex[i] = CreateTexture( RagePixelFormat_RGBA8, img, false );
+			delete img;
+		}
+		/* Font atlas: 95 cells of 16x16 in one 1520x16 texture. */
+		SceUID fd3 = sceIoOpen( "app0:bootart/font16.raw", SCE_O_RDONLY, 0 );
+		if( fd3 >= 0 )
+		{
+			RageSurface *img = CreateSurface(95 * 16, 16, 32,
+				VITA_TEX_RMASK, VITA_TEX_GMASK, VITA_TEX_BMASK, VITA_TEX_AMASK);
+			bool ok = true;
+			for( int ch = 0; ch < 95 && ok; ++ch )
+			{
+				for( int r = 0; r < 16 && ok; ++r )
+				{
+					uint8_t *d = img->pixels + ((size_t)r * 95 * 16 + (size_t)ch * 16) * 4;
+					int left = 16 * 4;
+					while( left > 0 )
+					{
+						int n = sceIoRead( fd3, d, (SceSize)left );
+						if( n <= 0 ) { ok = false; break; }
+						d += n;
+						left -= n;
+					}
+				}
+			}
+			sceIoClose( fd3 );
+			if( ok )
+				s_fontTex = CreateTexture( RagePixelFormat_RGBA8, img, false );
+			delete img;
+		}
 	}
+	if( s_bootTex == 0 )
+		return;
 
 	VideoModeParams avmp = m_pWind->GetActualVideoModeParams();
 	glViewport(0, 0, avmp.width, avmp.height);
 	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	/* Direct pixel-space ortho (engine matrix stacks untouched; the next
-	 * engine draw reloads GL matrices via SendCurrentMatrices). */
+	/* Direct pixel-space ortho, y-down (engine matrix stacks untouched;
+	 * the next engine draw reloads GL matrices via SendCurrentMatrices). */
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0, 960, 544, 0, -1, 1);
@@ -621,26 +678,152 @@ void RageDisplay_Vita::ShowBootSplash()
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
 
-	/* Fullscreen quad: y-down mapping, v=0 samples the image top row. */
-	static const float pos[6 * 3] = {
-		0,0,0,  960,0,0,  960,544,0,
-		0,0,0,  960,544,0,  0,544,0
-	};
-	static const float tex[6 * 2] = {
-		0,0,  1,0,  1,1,
-		0,0,  1,1,  0,1
-	};
-	glDisable(GL_BLEND);
-	glDisableClientState(GL_COLOR_ARRAY);
-	glColor4f(1, 1, 1, 1);
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, (GLuint)s_bootTex);
-	glVertexPointer(3, GL_FLOAT, 0, pos);
-	glTexCoordPointer(2, GL_FLOAT, 0, tex);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+	int stage = VitaBootSplash::GetStage();
+	if( stage < 0 || stage >= BOOTSTAGE_COUNT )
+		stage = 0;
+	int done = VitaBootSplash::GetDone();
+	int total = VitaBootSplash::GetTotal();
+	const char *sub = VitaBootSplash::GetSubLine();
 
-	/* Restore Init state for subsequent engine draws (each of which sets
-	 * the pointers it needs itself). */
+	/* --- background --- */
+	{
+		static const float pos[6 * 3] = {
+			0,0,0,  960,0,0,  960,544,0,
+			0,0,0,  960,544,0,  0,544,0
+		};
+		static const float tex[6 * 2] = {
+			0,0,  1,0,  1,1,
+			0,0,  1,1,  0,1
+		};
+		glDisable(GL_BLEND);
+		glDisableClientState(GL_COLOR_ARRAY);
+		glColor4f(1, 1, 1, 1);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, (GLuint)s_bootTex);
+		glVertexPointer(3, GL_FLOAT, 0, pos);
+		glTexCoordPointer(2, GL_FLOAT, 0, tex);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+	}
+
+	/* --- flat UI: brown box + edges + bar slot + XP blocks, one batch --- */
+	{
+		/* Same layout as the framebuffer splash: box y216..328 full
+		 * width, bar x230..730 y284..306, 20 blocks (+highlights). */
+		float P[44 * 6 * 3];
+		uint8_t C[44 * 6 * 4];
+		int nq = 0;
+		struct Q { float x0, y0, x1, y1; uint8_t r, g, b; };
+		Q qs[44];
+		qs[nq++] = { 0, 216, 960, 328, 110, 66, 28 };   /* box */
+		qs[nq++] = { 0, 216, 960, 219, 58, 33, 12 };    /* edge top */
+		qs[nq++] = { 0, 325, 960, 328, 58, 33, 12 };    /* edge bottom */
+		qs[nq++] = { 230, 284, 730, 306, 40, 22, 8 };    /* slot */
+		int filled = 0;
+		if( total > 0 )
+		{
+			if( done < 0 ) done = 0;
+			if( done > total ) done = total;
+			filled = (int)((long long)done * 20 / total);
+		}
+		int avail = 500 - 19 * 4;
+		int bw = avail / 20;
+		int x = 230 + (avail - bw * 20) / 2;
+		for( int i = 0; i < 20 && nq + 2 <= 44; ++i )
+		{
+			if( i < filled )
+			{
+				qs[nq++] = { (float)x, 286, (float)(x + bw), 304, 255, 138, 0 };
+				qs[nq++] = { (float)x, 286, (float)(x + bw), 289, 255, 190, 90 };
+			}
+			x += bw + 4;
+		}
+		int nv = 0;
+		for( int q = 0; q < nq; ++q )
+		{
+			float *pp = &P[nv * 3];
+			uint8_t *cc = &C[nv * 4];
+			float xs[6] = { qs[q].x0, qs[q].x1, qs[q].x1, qs[q].x0, qs[q].x1, qs[q].x0 };
+			float ys[6] = { qs[q].y0, qs[q].y0, qs[q].y1, qs[q].y0, qs[q].y1, qs[q].y1 };
+			for( int k = 0; k < 6; ++k )
+			{
+				pp[k * 3 + 0] = xs[k]; pp[k * 3 + 1] = ys[k]; pp[k * 3 + 2] = 0;
+				cc[k * 4 + 0] = qs[q].r; cc[k * 4 + 1] = qs[q].g; cc[k * 4 + 2] = qs[q].b; cc[k * 4 + 3] = 255;
+			}
+			nv += 6;
+		}
+		glDisable(GL_TEXTURE_2D);
+		glEnableClientState(GL_COLOR_ARRAY);
+		glVertexPointer(3, GL_FLOAT, 0, P);
+		glColorPointer(4, GL_UNSIGNED_BYTE, 0, C);
+		glDrawArrays(GL_TRIANGLES, 0, nv);
+	}
+
+	/* --- stage label sprite --- */
+	if( s_stageTex[stage] != 0 )
+	{
+		int w = VITA_BOOT_STAGE_ARTS[stage].w, h = VITA_BOOT_STAGE_ARTS[stage].h;
+		float x0 = (960 - w) / 2.0f, y0 = 255 - h;
+		float pos[6 * 3] = { x0,y0,0,  x0+w,y0,0,  x0+w,y0+h,0,  x0,y0,0,  x0+w,y0+h,0,  x0,y0+h,0 };
+		static const float tex[6 * 2] = { 0,0, 1,0, 1,1, 0,0, 1,1, 0,1 };
+		glDisable(GL_BLEND);
+		glDisableClientState(GL_COLOR_ARRAY);
+		glColor4f(1, 1, 1, 1);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, (GLuint)s_stageTex[stage]);
+		glVertexPointer(3, GL_FLOAT, 0, pos);
+		glTexCoordPointer(2, GL_FLOAT, 0, tex);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+	}
+
+	/* --- sub-line via font atlas, one batch --- */
+	if( s_fontTex != 0 && sub != NULL && sub[0] != '\0' )
+	{
+		float P[70 * 6 * 3];
+		float T[70 * 6 * 2];
+		int nv = 0;
+		int totalW = 0;
+		const char *t = sub;
+		int count = 0;
+		while( *t && count < 69 )
+		{
+			unsigned char c = (unsigned char)*t++;
+			if( c < 32 || c > 126 ) c = '?';
+			totalW += VITA_BOOTFONT_ADV[c - 32];
+			++count;
+		}
+		float x = (960 - totalW) / 2.0f;
+		t = sub;
+		count = 0;
+		while( *t && count < 69 )
+		{
+			unsigned char c = (unsigned char)*t++;
+			if( c < 32 || c > 126 ) c = '?';
+			int adv = VITA_BOOTFONT_ADV[c - 32];
+			float u0 = ((c - 32) * 16) / 1520.0f, u1 = ((c - 32) * 16 + 16) / 1520.0f;
+			float xs[6] = { x, x + 16, x + 16, x, x + 16, x };
+			float ys[6] = { 309, 309, 325, 309, 325, 325 };
+			float us[6] = { u0, u1, u1, u0, u1, u0 };
+			float vs[6] = { 0, 0, 1, 0, 1, 1 };
+			for( int k = 0; k < 6; ++k )
+			{
+				P[(nv + k) * 3 + 0] = xs[k]; P[(nv + k) * 3 + 1] = ys[k]; P[(nv + k) * 3 + 2] = 0;
+				T[(nv + k) * 2 + 0] = us[k]; T[(nv + k) * 2 + 1] = vs[k];
+			}
+			nv += 6;
+			x += adv;
+			++count;
+		}
+		glDisable(GL_BLEND);
+		glDisableClientState(GL_COLOR_ARRAY);
+		glColor4f(1, 1, 1, 1);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, (GLuint)s_fontTex);
+		glVertexPointer(3, GL_FLOAT, 0, P);
+		glTexCoordPointer(2, GL_FLOAT, 0, T);
+		glDrawArrays(GL_TRIANGLES, 0, nv);
+	}
+
+	/* Restore Init state for subsequent engine draws. */
 	glEnable(GL_BLEND);
 	glEnableClientState(GL_COLOR_ARRAY);
 
