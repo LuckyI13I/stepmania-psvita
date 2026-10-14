@@ -271,6 +271,14 @@ unsigned RageDisplay_Vita::CreateTexture(
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, conv->w, conv->h, 0,
 		GL_RGBA, GL_UNSIGNED_BYTE, conv->pixels);
+	{
+		/* Pinpoint texture-upload GL errors (e.g. the intermittent
+		 * GL_INVALID_ENUM seen on busy screens) with dimensions. */
+		GLenum e = glGetError();
+		if( e != GL_NO_ERROR )
+			LOG->Info("RageDisplay_Vita: CreateTexture %dx%d glGetError=0x%x",
+				conv->w, conv->h, (unsigned)e);
+	}
 	delete conv;
 
 	m_Textures.insert(tex);
@@ -329,6 +337,12 @@ void RageDisplay_Vita::UpdateTexture(
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height,
 		GL_RGBA, GL_UNSIGNED_BYTE, &m_UploadBuf[0]);
+	{
+		GLenum e = glGetError();
+		if( e != GL_NO_ERROR )
+			LOG->Info("RageDisplay_Vita: UpdateTexture %dx%d+%d+%d glGetError=0x%x",
+				width, height, xoffset, yoffset, (unsigned)e);
+	}
 	delete conv;
 }
 

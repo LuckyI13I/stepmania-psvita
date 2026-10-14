@@ -4,6 +4,7 @@ Sources (all paths absolute, repo-friendly):
   stepmania-5.0.12/Build-Vita/sce_sys/  <- icon/livearea/param.sfo (STITLE locked)
   StepMania5-Vita50.vpk:data.zip       <- game data (static until data rebuild)
   vpk/bootart/*                        <- boot splash art (build-bootart-assets.py)
+  data.zip                             <- fresh game data (Build-Vita/boot-scripts/build_data_zip.py)
 Usage: python repack_vpk.py b21
 """
 import shutil, sys, zipfile, pathlib
@@ -18,8 +19,7 @@ tmp.mkdir(parents=True)
 
 shutil.copyfile(root / "eboot50.bin", tmp / "eboot.bin")
 shutil.copytree(root / "stepmania-5.0.12" / "Build-Vita" / "sce_sys", tmp / "sce_sys")
-with zipfile.ZipFile(root / "StepMania5-Vita50.vpk") as z:
-    z.extract("data.zip", tmp)
+shutil.copyfile(root / "data.zip", tmp / "data.zip")
 
 out = root / ("StepMania5-Vita50-%s.vpk" % tag)
 if out.exists():

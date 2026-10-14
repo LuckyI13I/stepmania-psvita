@@ -487,11 +487,13 @@ void VitaBootSplash::Shutdown()
 void VitaBootSplash::SetStage( VitaBootStage s )
 {
 #ifdef VITA
-	if( !s_active )
-		return;
 	if( s < 0 || s >= BOOTSTAGE_COUNT )
 		s = BOOTSTAGE_LOADING;
 	s_stage = s;
+	/* State first: the post-display engine path reads these after
+	 * Shutdown (s_active false), so never return before updating. */
+	if( !s_active )
+		return;
 	Redraw();
 #endif
 }
@@ -499,10 +501,10 @@ void VitaBootSplash::SetStage( VitaBootStage s )
 void VitaBootSplash::SetProgress( int done, int total )
 {
 #ifdef VITA
-	if( !s_active )
-		return;
 	s_done = done;
 	s_total = total;
+	if( !s_active )
+		return;
 	Redraw();
 #endif
 }
@@ -510,8 +512,6 @@ void VitaBootSplash::SetProgress( int done, int total )
 void VitaBootSplash::SetSubLine( const char *text )
 {
 #ifdef VITA
-	if( !s_active )
-		return;
 	if( text == NULL )
 		text = "";
 	snprintf( s_sub, sizeof(s_sub), "%s", text );
@@ -519,6 +519,8 @@ void VitaBootSplash::SetSubLine( const char *text )
 	size_t len = strlen( s_sub );
 	if( len >= 70 )
 		memmove( s_sub, s_sub + len - 69, 70 );
+	if( !s_active )
+		return;
 	Redraw();
 #endif
 }
