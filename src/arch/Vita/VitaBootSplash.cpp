@@ -126,6 +126,14 @@ namespace
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img->w, img->h, 0,
 			GL_RGBA, GL_UNSIGNED_BYTE, img->pixels);
 		delete img;
+		/* A failed upload must not cache its handle: incomplete textures
+		 * sample as garbage/black forever with no error later. Return 0
+		 * so the next Present retries (e.g. GXM still busy at boot). */
+		if( glGetError() != GL_NO_ERROR )
+		{
+			glDeleteTextures(1, &tex);
+			return 0;
+		}
 		return (unsigned)tex;
 	}
 
@@ -454,8 +462,6 @@ void VitaBootSplash::Present()
 	if( !s_active || !s_glUp )
 		return;
 	UploadAll();
-	if( s_bgTex == 0 )
-		return;
 
 	int stage = (int)s_stage;
 	if( stage < 0 || stage >= BOOTSTAGE_COUNT )
@@ -463,8 +469,10 @@ void VitaBootSplash::Present()
 
 	SetupOrtho();
 
-	/* Background (opaque). */
-	DrawTexQuad( s_bgTex, 0, 0, BOOT_W, BOOT_H, false );
+	/* Background (opaque). Skipped if the upload is still failing, but
+	 * the flat dialog below draws regardless. */
+	if( s_bgTex != 0 )
+		DrawTexQuad( s_bgTex, 0, 0, BOOT_W, BOOT_H, false );
 
 	/* Brown dialog + bar slot + XP blocks, one flat batch. */
 	{
@@ -560,9 +568,20 @@ void VitaBootSplash::Present()
 	vglSwapBuffers(GL_TRUE);
 
 	if( LOG )
-		LOG->Info("VitaBootSplash: present stage=%d (%s) %d/%d bg=%u glGetError=0x%x",
+	{
+		/* vitaGL logo-splash state (extern internal): 1 while the logo
+		 * owns the display queue (our swaps are swallowed), 0 after our
+		 * first draw kills it. If early presents stay black, this tells
+		 * whether the logo is the swallower. */
+		extern GLboolean is_splashscreen_active;
+		int st = 0;
+		for( int i = 0; i < BOOTSTAGE_COUNT; ++i )
+			if( s_stageTex[i] != 0 )
+				++st;
+		LOG->Info("VitaBootSplash: present stage=%d (%s) %d/%d bg=%u st=%d font=%u logo=%d glGetError=0x%x",
 			stage, VITA_BOOT_STAGE_ARTS[stage].id, s_done, s_total,
-			s_bgTex, (unsigned)glGetError());
+			s_bgTex, st, s_fontTex, (int)is_splashscreen_active, (unsigned)glGetError());
+	}
 #endif
 }
 
