@@ -781,14 +781,16 @@ void RageDisplay_Vita::ShowBootSplash()
 		glDrawArrays(GL_TRIANGLES, 0, nv);
 	}
 
-	/* --- stage label sprite --- */
+	/* --- stage label sprite (alpha-blended; the sprite has transparent
+	 * margins + shadow, opaque without blending) --- */
 	if( s_stageTex[stage] != 0 )
 	{
 		int w = VITA_BOOT_STAGE_ARTS[stage].w, h = VITA_BOOT_STAGE_ARTS[stage].h;
 		float x0 = (960 - w) / 2.0f, y0 = 255 - h;
 		float pos[6 * 3] = { x0,y0,0,  x0+w,y0,0,  x0+w,y0+h,0,  x0,y0,0,  x0+w,y0+h,0,  x0,y0+h,0 };
 		static const float tex[6 * 2] = { 0,0, 1,0, 1,1, 0,0, 1,1, 0,1 };
-		glDisable(GL_BLEND);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glDisableClientState(GL_COLOR_ARRAY);
 		glColor4f(1, 1, 1, 1);
 		glEnable(GL_TEXTURE_2D);
@@ -836,7 +838,8 @@ void RageDisplay_Vita::ShowBootSplash()
 			x += adv;
 			++count;
 		}
-		glDisable(GL_BLEND);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glDisableClientState(GL_COLOR_ARRAY);
 		glColor4f(1, 1, 1, 1);
 		glEnable(GL_TEXTURE_2D);
@@ -848,6 +851,7 @@ void RageDisplay_Vita::ShowBootSplash()
 
 	/* Restore Init state for subsequent engine draws. */
 	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnableClientState(GL_COLOR_ARRAY);
 
 	glFlush();

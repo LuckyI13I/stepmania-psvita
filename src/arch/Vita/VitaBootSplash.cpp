@@ -6,6 +6,7 @@
 #include <psp2/display.h>
 #include <psp2/ctrl.h>
 #include <psp2/kernel/threadmgr.h>
+#include <psp2/kernel/sysmem.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
 #endif
@@ -62,6 +63,7 @@ namespace
 
 	bool s_active = false;
 	uint8_t *s_fb[2] = { NULL, NULL };
+	SceUID s_fbBlock[2] = { -1, -1 };
 	int s_back = 0;
 	uint8_t *s_bg = NULL; /* 960x544 RGBA */
 	struct Sprite { uint8_t *px; int w, h; };
@@ -407,15 +409,35 @@ bool VitaBootSplash::Init()
 #ifdef VITA
 	if( s_active )
 		return true;
+	/* Framebuffers MUST be uncached: the display controller reads RAM
+	 * directly, bypassing CPU cache, so malloc'd (cached) buffers stay
+	 * black on real hardware (they appear fine on Vita2K/Vita3K). */
 	for( int i = 0; i < 2; ++i )
 	{
-		s_fb[i] = (uint8_t *)malloc( (size_t)BOOT_W * BOOT_H * 4 );
-		if( s_fb[i] == NULL )
+		SceUID blk = sceKernelAllocMemBlock( "bootsplash-fb",
+			SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE, (SceSize)BOOT_W * BOOT_H * 4, NULL );
+		void *base = NULL;
+		if( blk < 0 || sceKernelGetMemBlockBase( blk, &base ) < 0 || base == NULL )
 		{
-			for( int j = 0; j < i; ++j )
-				free( s_fb[j] );
-			return false;
+			if( blk >= 0 )
+				sceKernelFreeMemBlock( blk );
+			/* Fall back to cached RAM (splash may stay invisible on HW). */
+			base = malloc( (size_t)BOOT_W * BOOT_H * 4 );
+			blk = -1;
+			if( base == NULL )
+			{
+				for( int j = 0; j < i; ++j )
+				{
+					if( s_fbBlock[j] >= 0 )
+						sceKernelFreeMemBlock( s_fbBlock[j] );
+					else
+						free( s_fb[j] );
+				}
+				return false;
+			}
 		}
+		s_fbBlock[i] = blk;
+		s_fb[i] = (uint8_t *)base;
 		memset( s_fb[i], 0, (size_t)BOOT_W * BOOT_H * 4 );
 	}
 
@@ -469,7 +491,11 @@ void VitaBootSplash::Shutdown()
 	s_sub[0] = '\0';
 	for( int i = 0; i < 2; ++i )
 	{
-		free( s_fb[i] );
+		if( s_fbBlock[i] >= 0 )
+			sceKernelFreeMemBlock( s_fbBlock[i] );
+		else if( s_fb[i] != NULL )
+			free( s_fb[i] );
+		s_fbBlock[i] = -1;
 		s_fb[i] = NULL;
 	}
 	free( s_bg );
