@@ -36,7 +36,6 @@
 #include "arch/Vita/RageDisplay_Vita.h"
 #include "arch/Vita/ArchHooks_Vita.h" // VitaBootMark
 #include "arch/Vita/VitaBootSplash.h" // VitaBootSplash
-#include "arch/Vita/RageDisplay_Vita.h" // ShowBootSplash (VITA-only use)
 #elif !defined(SUPPORT_OPENGL) && !defined(SUPPORT_D3D)
 #define SUPPORT_OPENGL
 #endif
@@ -339,10 +338,9 @@ static void HandleException( const RString &sError )
 		oneLine.Replace( "\n", " " );
 		oneLine.Replace( "\r", " " );
 		VitaBootMark( ("sm:exception " + oneLine.Left(200)).c_str() );
-		/* Pre-display errors get a full-screen fatal screen (needs no GL);
-		 * post-display errors keep the old path (already logged above). */
-		if( DISPLAY == NULL )
-			VitaBootSplash::ShowFatal( sError.c_str() );
+		/* Full-screen fatal screen over GL (works at any boot stage:
+		 * GXM is up from ArchHooks::Init). Blocks on X/Start. */
+		VitaBootSplash::ShowFatal( sError.c_str() );
 	}
 #endif
 
@@ -1323,13 +1321,12 @@ int sm_main(int argc, char* argv[])
 	LOG->Info( "%s", GetActualGraphicOptionsString().c_str() );
 #if defined(VITA)
 	VitaBootMark("sm:display-done");
-	/* Present the boot art through the engine: the screen loads below are
-	 * synchronous (no frames pump), so this frame persists on-screen
-	 * instead of black. Re-presented at each load chunk with staged
-	 * progress (1/4, 2/4, 3/4). */
+	/* Present the boot art: the screen loads below are synchronous (no
+	 * frames pump), so this frame persists on-screen instead of black.
+	 * Re-presented at each load chunk with staged progress. */
 	VitaBootSplash::SetStage( BOOTSTAGE_DISPLAY );
 	VitaBootSplash::SetProgress( 1, 4 );
-	static_cast<RageDisplay_Vita*>(DISPLAY)->ShowBootSplash();
+	VitaBootSplash::Present();
 #endif
 
 	SONGMAN->PreloadSongImages();
@@ -1349,13 +1346,13 @@ int sm_main(int argc, char* argv[])
 #if defined(VITA)
 	VitaBootSplash::SetStage( BOOTSTAGE_SCREENS );
 	VitaBootSplash::SetProgress( 2, 4 );
-	static_cast<RageDisplay_Vita*>(DISPLAY)->ShowBootSplash();
+	VitaBootSplash::Present();
 #endif
 	SCREENMAN->ThemeChanged();
 #if defined(VITA)
 	VitaBootSplash::SetStage( BOOTSTAGE_MENU );
 	VitaBootSplash::SetProgress( 3, 4 );
-	static_cast<RageDisplay_Vita*>(DISPLAY)->ShowBootSplash();
+	VitaBootSplash::Present();
 #endif
 	SCREENMAN->SetNewScreen( StepMania::GetInitialScreen() );
 #if defined(VITA)
@@ -1375,6 +1372,9 @@ int sm_main(int argc, char* argv[])
 	// Run the main loop.
 #if defined(VITA)
 	VitaBootMark("sm:main-loop");
+	/* Boot splash no longer needed: menu frames take over from here.
+	 * (Fatal errors later re-arm it on demand via ShowFatal.) */
+	VitaBootSplash::Shutdown();
 #endif
 	GameLoop::RunGameLoop();
 

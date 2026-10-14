@@ -37,14 +37,15 @@ RString LowLevelWindow_Vita::TryVideoMode(const VideoModeParams &p, bool &bNewDe
 {
 #ifdef VITA
 	if (!m_bInited) {
-		/* Hand the display over from the boot splash (raw framebuffer) to
-		 * vitaGL/GXM before initializing the GL context. Must run on the
-		 * main thread.
-		 * NOTE: vglInit() defaults to 4xMSAA, which quadruples fill cost
-		 * on an already fill-bound game. Use the extended init with MSAA
-		 * explicitly off (jaggies instead of slideshow). */
-		VitaBootSplash::Shutdown();
-		vglInitExtended(0x1000000, 960, 544, 0x1000000, SCE_GXM_MULTISAMPLE_NONE);
+		/* Display first: GXM normally comes up in VitaBootSplash::Init
+		 * (ArchHooks::Init), long before StartDisplay. Only init here as
+		 * a last resort (e.g. splash disabled); never twice. */
+		if (!VitaBootSplash::IsGlUp())
+		{
+			VitaBootSplash::Shutdown();
+			vglInitExtended(0x1000000, 960, 544, 0x1000000, SCE_GXM_MULTISAMPLE_NONE);
+		}
+		vglWaitVblankStart(GL_TRUE);
 		vglWaitVblankStart(GL_TRUE);
 		m_bInited = true;
 		bNewDeviceOut = true;

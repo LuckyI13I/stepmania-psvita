@@ -1,12 +1,16 @@
 #ifndef VITA_BOOTSPLASH_H
 #define VITA_BOOTSPLASH_H
 
-/* PS Vita pre-display boot splash + fatal error screen.
+/* PS Vita boot splash + fatal error screen, rendered through vitaGL.
  *
- * Raw sceDisplay framebuffer output: needs no GL, no FILEMAN, no LOG, so it
- * works from ArchHooks::Init() (data.zip extraction) through SONGMAN loading
- * and in the top-level exception handler. Art + pre-rendered stage labels are
- * plain raw-RGBA files on app0: (see build-bootart-assets.py).
+ * vitaGL is initialized here at ArchHooks::Init time (the very first
+ * thing the app does), so this splash covers the ENTIRE boot: data.zip
+ * extraction, engine init, song loading and the synchronous screen
+ * loads. Raw framebuffer output is deliberately NOT used (invisible on
+ * real hardware due to CPU cache vs display controller).
+ *
+ * Needs no FILEMAN/LOG/TEXTUREMAN (raw sceIo reads + raw GL), so it
+ * works from HOOKS->Init through the top-level exception handler.
  */
 
 enum VitaBootStage
@@ -28,15 +32,17 @@ enum VitaBootStage
 class VitaBootSplash
 {
 public:
-	static bool Init();		/* set up framebuffer, load art; safe twice */
-	static void Shutdown();		/* release buffers; call before vglInit */
+	static bool Init();		/* vglInit + upload art; safe twice */
+	static void Shutdown();		/* release splash textures (GXM stays) */
 	static bool IsActive();
+	static bool IsGlUp();		/* true once vglInit ran */
 	static void SetStage( VitaBootStage s );
 	static void SetProgress( int done, int total ); /* total<=0: indeterminate */
 	static void SetSubLine( const char *text );	/* small line under bar */
+	static void Present();		/* redraw current state now */
 	static void ShowFatal( const char *message );	/* error screen, waits X/Start */
 
-	/* Read-only state for the post-display engine splash path. */
+	/* Read-only state (used internally). */
 	static int GetStage();
 	static int GetDone();
 	static int GetTotal();
