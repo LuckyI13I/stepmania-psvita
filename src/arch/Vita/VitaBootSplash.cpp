@@ -183,6 +183,17 @@ namespace
 		glViewport(0, 0, BOOT_W, BOOT_H);
 		glClearColor(0, 0, 0, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		/* Full fixed-function baseline: early presents run before
+		 * RageDisplay_Vita::Init, so nothing can be assumed about GL
+		 * state here. In particular the vertex array enables (without
+		 * them glDrawArrays silently draws nothing) and lighting/depth. */
+		glDisable(GL_LIGHTING);
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glEnableClientState(GL_COLOR_ARRAY);
+		glDisableClientState(GL_NORMAL_ARRAY);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glOrtho(0, BOOT_W, BOOT_H, 0, -1, 1);
