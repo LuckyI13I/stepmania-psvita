@@ -266,6 +266,7 @@ unsigned RageDisplay_Vita::CreateTexture(
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glGetError(); /* clear stale flag: attribute only fresh errors */
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, conv->w, conv->h, 0,
 		GL_RGBA, GL_UNSIGNED_BYTE, conv->pixels);
 	{
@@ -332,6 +333,7 @@ void RageDisplay_Vita::UpdateTexture(
 
 	glBindTexture(GL_TEXTURE_2D, (GLuint)iTexHandle);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glGetError(); /* clear stale flag: attribute only fresh errors */
 	glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height,
 		GL_RGBA, GL_UNSIGNED_BYTE, &m_UploadBuf[0]);
 	{

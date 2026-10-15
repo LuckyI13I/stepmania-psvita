@@ -123,15 +123,24 @@ namespace
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		/* The GL error flag is sticky: clear it first so only fresh
+		 * errors from THIS upload are attributed (a stale flag would
+		 * delete a perfectly good texture below). */
+		glGetError();
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img->w, img->h, 0,
 			GL_RGBA, GL_UNSIGNED_BYTE, img->pixels);
+		GLenum upErr = glGetError();
+		int upW = img->w, upH = img->h;
 		delete img;
 		/* A failed upload must not cache its handle: incomplete textures
 		 * sample as garbage/black forever with no error later. Return 0
 		 * so the next Present retries (e.g. GXM still busy at boot). */
-		if( glGetError() != GL_NO_ERROR )
+		if( upErr != GL_NO_ERROR )
 		{
 			glDeleteTextures(1, &tex);
+			if( LOG )
+				LOG->Info("VitaBootSplash: upload %dx%d failed, glGetError=0x%x",
+					upW, upH, (unsigned)upErr);
 			return 0;
 		}
 		return (unsigned)tex;
