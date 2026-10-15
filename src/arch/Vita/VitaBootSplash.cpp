@@ -397,6 +397,20 @@ bool VitaBootSplash::Init()
 	vglInitExtended(0x1000000, BOOT_W, BOOT_H, 0x1000000, SCE_GXM_MULTISAMPLE_NONE);
 	vglWaitVblankStart(GL_TRUE);
 	s_glUp = true;
+	/* POST-style diagnostic: solid fullscreen flashes prove the GL swap
+	 * path presents this early, before any texture upload runs.
+	 * Seen red->green->blue = swaps work (look at uploads next).
+	 * Still black = swaps themselves are swallowed this early. */
+	static const uint8_t flash[3][3] = { {255,0,0}, {0,255,0}, {0,0,255} };
+	for( int i = 0; i < 3; ++i )
+	{
+		glViewport(0, 0, BOOT_W, BOOT_H);
+		glClearColor(flash[i][0] / 255.0f, flash[i][1] / 255.0f, flash[i][2] / 255.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glFlush();
+		vglSwapBuffers(GL_TRUE);
+		sceKernelDelayThread(200 * 1000);
+	}
 	UploadAll();
 	s_active = true;
 	Present();
