@@ -53,11 +53,17 @@
 #define STAGE_BOTTOM 255 /* stage sprite bottom edge (bar sits below it) */
 #define SUB_Y 309	 /* dynamic sub-line (song names), 16px font */
 
-#define ERR_BOX_TOP 96
-#define ERR_BOX_BOT 448
-#define ERR_BODY_Y 150
-#define ERR_LINE_STEP 20
-#define ERR_MAX_BODY 13
+/* Fatal error screen: bordered panel with a title strip, left-aligned body. */
+#define ERR_PANEL_X0 70
+#define ERR_PANEL_X1 890
+#define ERR_PANEL_Y0 86
+#define ERR_PANEL_Y1 458
+#define ERR_TITLE_Y1 120	  /* title strip bottom edge */
+#define ERR_BODY_X 96
+#define ERR_BODY_Y 128
+#define ERR_LINE_STEP 18
+#define ERR_MAX_MSG 4
+#define ERR_MAX_LOG 12
 
 namespace
 {
@@ -269,6 +275,52 @@ namespace
 		return w;
 	}
 
+	/* Batched, left-aligned text block via the font atlas (blended), tinted.
+	 * lines[] are pre-baked strings; line i sits at y = y0 + i*step. */
+	void DrawTextLines( const char lines[][128], int n, int x, int y0, int step,
+		float cr, float cg, float cb )
+	{
+		for( int i = 0; i < n; ++i )
+		{
+			float P[130 * 3];
+			float T[130 * 2];
+			int nv = 0;
+			float px = (float)x;
+			for( const char *t = lines[i]; *t && nv + 6 <= 130; ++t )
+			{
+				unsigned char c = (unsigned char)*t;
+				if( c < VITA_BOOTFONT_FIRST || c > VITA_BOOTFONT_LAST )
+					c = '?';
+				int adv = VITA_BOOTFONT_ADV[c - VITA_BOOTFONT_FIRST];
+				float u0 = ((c - VITA_BOOTFONT_FIRST) * 16) / 1520.0f;
+				float u1 = ((c - VITA_BOOTFONT_FIRST) * 16 + 16) / 1520.0f;
+				float y = (float)(y0 + i * step);
+				float xs[6] = { px, px + 16, px + 16, px, px + 16, px };
+				float ys[6] = { y, y, y + 16, y, y + 16, y + 16 };
+				float us[6] = { u0, u1, u1, u0, u1, u0 };
+				float vs[6] = { 0, 0, 1, 0, 1, 1 };
+				for( int k = 0; k < 6; ++k )
+				{
+					P[(nv + k) * 3 + 0] = xs[k]; P[(nv + k) * 3 + 1] = ys[k]; P[(nv + k) * 3 + 2] = 0;
+					T[(nv + k) * 2 + 0] = us[k]; T[(nv + k) * 2 + 1] = vs[k];
+				}
+				nv += 6;
+				px += adv;
+			}
+			if( nv == 0 )
+				continue;
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glDisableClientState(GL_COLOR_ARRAY);
+			glColor4f(cr, cg, cb, 1);
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, (GLuint)s_fontTex);
+			glVertexPointer(3, GL_FLOAT, 0, P);
+			glTexCoordPointer(2, GL_FLOAT, 0, T);
+			glDrawArrays(GL_TRIANGLES, 0, nv);
+		}
+	}
+
 	/* One batched white-text line via the font atlas (blended). */
 	void RestoreState()
 	{
@@ -408,20 +460,6 @@ bool VitaBootSplash::Init()
 	vglInitExtended(0x1000000, BOOT_W, BOOT_H, 0x1000000, SCE_GXM_MULTISAMPLE_NONE);
 	vglWaitVblankStart(GL_TRUE);
 	s_glUp = true;
-	/* POST-style diagnostic: solid fullscreen flashes prove the GL swap
-	 * path presents this early, before any texture upload runs.
-	 * Seen red->green->blue = swaps work (look at uploads next).
-	 * Still black = swaps themselves are swallowed this early. */
-	static const uint8_t flash[3][3] = { {255,0,0}, {0,255,0}, {0,0,255} };
-	for( int i = 0; i < 3; ++i )
-	{
-		glViewport(0, 0, BOOT_W, BOOT_H);
-		glClearColor(flash[i][0] / 255.0f, flash[i][1] / 255.0f, flash[i][2] / 255.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glFlush();
-		vglSwapBuffers(GL_TRUE);
-		sceKernelDelayThread(200 * 1000);
-	}
 	UploadAll();
 	s_active = true;
 	Present();
@@ -635,6 +673,8 @@ void VitaBootSplash::ShowFatal( const char *message )
 		message = "unknown error";
 
 	SetupOrtho();
+
+	/* Backdrop: dimmed boot art, or flat dark if the art never loaded. */
 	if( s_bgTex != 0 )
 		DrawTexQuad( s_bgTex, 0, 0, BOOT_W, BOOT_H, false );
 	else
@@ -643,119 +683,54 @@ void VitaBootSplash::ShowFatal( const char *message )
 		DrawFlats( &q, 1 );
 	}
 
+	/* Panel: light border frame, dark body, title strip + orange accent. */
 	{
-		FlatQ box[3] = {
-			{ 0, ERR_BOX_TOP, BOOT_W, ERR_BOX_BOT, 110, 66, 28 },
-			{ 0, ERR_BOX_TOP, BOOT_W, ERR_BOX_TOP + 3, 58, 33, 12 },
-			{ 0, ERR_BOX_BOT - 3, BOOT_W, ERR_BOX_BOT, 58, 33, 12 },
+		const float px0 = (float)ERR_PANEL_X0, py0 = (float)ERR_PANEL_Y0;
+		const float px1 = (float)ERR_PANEL_X1, py1 = (float)ERR_PANEL_Y1;
+		FlatQ frame[4] = {
+			{ px0, py0, px1, py1, 148, 96, 46 },
+			{ px0 + 3, py0 + 3, px1 - 3, py1 - 3, 32, 21, 12 },
+			{ px0 + 3, py0 + 3, px1 - 3, (float)ERR_TITLE_Y1, 74, 44, 20 },
+			{ px0 + 3, (float)ERR_TITLE_Y1, px1 - 3, (float)(ERR_TITLE_Y1 + 2), 255, 138, 0 },
 		};
-		DrawFlats( box, 3 );
+		DrawFlats( frame, 4 );
 	}
 
+	/* Title strip: "error" label art centered. */
 	if( s_stageTex[BOOTSTAGE_ERROR] != 0 && BOOTSTAGE_ERROR < VITA_BOOT_STAGE_COUNT )
 	{
 		int w = VITA_BOOT_STAGE_ARTS[BOOTSTAGE_ERROR].w, h = VITA_BOOT_STAGE_ARTS[BOOTSTAGE_ERROR].h;
-		DrawTexQuad( s_stageTex[BOOTSTAGE_ERROR], (BOOT_W - w) / 2.0f, (float)(ERR_BOX_TOP + 12), (float)w, (float)h, true );
+		float ty = (float)(ERR_PANEL_Y0 + 3) + ((ERR_TITLE_Y1 - ERR_PANEL_Y0 - 3) - h) / 2.0f;
+		DrawTexQuad( s_stageTex[BOOTSTAGE_ERROR], (BOOT_W - w) / 2.0f, ty, (float)w, (float)h, true );
 	}
 
-	char lines[ERR_MAX_BODY + 2][128];
-	int count = WrapLines( message, lines, 4, BOOT_W - 80 );
-	ReadLogTail( lines, count, ERR_MAX_BODY );
-	for( int i = 0; i < count; ++i )
+	/* Message (bright) then recent log tail (dim), left-aligned. */
 	{
-		int w = 0;
-		const char *t = lines[i];
-		while( *t )
+		char msg[ERR_MAX_MSG + 1][128];
+		char log[ERR_MAX_LOG + 1][128];
+		int nmsg = WrapLines( message, msg, ERR_MAX_MSG, ERR_PANEL_X1 - ERR_BODY_X - 24 );
+		int nlog = 0;
+		ReadLogTail( log, nlog, ERR_MAX_LOG );
+		int maxRows = (ERR_PANEL_Y1 - 30 - ERR_BODY_Y) / ERR_LINE_STEP;
+		if( nmsg + nlog > maxRows )
+			nlog = maxRows - nmsg;
+		if( nlog < 0 )
+			nlog = 0;
+		if( s_fontTex != 0 )
 		{
-			unsigned char c = (unsigned char)*t++;
-			if( c < 32 || c > 126 ) c = '?';
-			w += VITA_BOOTFONT_ADV[c - 32];
+			DrawTextLines( msg, nmsg, ERR_BODY_X, ERR_BODY_Y, ERR_LINE_STEP, 1.0f, 1.0f, 1.0f );
+			DrawTextLines( log, nlog, ERR_BODY_X, ERR_BODY_Y + nmsg * ERR_LINE_STEP + 8,
+				ERR_LINE_STEP, 0.62f, 0.61f, 0.59f );
 		}
-		float P[120 * 3];
-		float T[120 * 2];
-		int nv = 0;
-		float x = (BOOT_W - w) / 2.0f;
-		t = lines[i];
-		while( *t && nv + 6 <= 120 )
-		{
-			unsigned char c = (unsigned char)*t++;
-			if( c < 32 || c > 126 ) c = '?';
-			int adv = VITA_BOOTFONT_ADV[c - 32];
-			float u0 = ((c - 32) * 16) / 1520.0f, u1 = ((c - 32) * 16 + 16) / 1520.0f;
-			P[nv * 3 + 0] = x; P[nv * 3 + 1] = (float)(ERR_BODY_Y + i * ERR_LINE_STEP); P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u0; T[nv * 2 + 1] = 0;
-			++nv;
-			P[nv * 3 + 0] = x + 16; P[nv * 3 + 1] = (float)(ERR_BODY_Y + i * ERR_LINE_STEP); P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u1; T[nv * 2 + 1] = 0;
-			++nv;
-			P[nv * 3 + 0] = x + 16; P[nv * 3 + 1] = (float)(ERR_BODY_Y + i * ERR_LINE_STEP + 16); P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u1; T[nv * 2 + 1] = 1;
-			++nv;
-			P[nv * 3 + 0] = x; P[nv * 3 + 1] = (float)(ERR_BODY_Y + i * ERR_LINE_STEP); P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u0; T[nv * 2 + 1] = 0;
-			++nv;
-			P[nv * 3 + 0] = x + 16; P[nv * 3 + 1] = (float)(ERR_BODY_Y + i * ERR_LINE_STEP + 16); P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u1; T[nv * 2 + 1] = 1;
-			++nv;
-			P[nv * 3 + 0] = x; P[nv * 3 + 1] = (float)(ERR_BODY_Y + i * ERR_LINE_STEP + 16); P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u0; T[nv * 2 + 1] = 1;
-			++nv;
-			x += adv;
-		}
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glDisableClientState(GL_COLOR_ARRAY);
-		glColor4f(1, 1, 1, 1);
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, (GLuint)s_fontTex);
-		glVertexPointer(3, GL_FLOAT, 0, P);
-		glTexCoordPointer(2, GL_FLOAT, 0, T);
-		glDrawArrays(GL_TRIANGLES, 0, nv);
 	}
+	/* Footer hint, centered near the panel bottom. */
+	if( s_fontTex != 0 )
 	{
-		const char *hint = "press X to exit";
-		int w = 0;
-		for( const char *t = hint; *t; ++t )
-			w += VITA_BOOTFONT_ADV[(unsigned char)*t - 32];
-		float P[120 * 3];
-		float T[120 * 2];
-		int nv = 0;
-		float x = (BOOT_W - w) / 2.0f;
-		for( const char *t = hint; *t && nv + 6 <= 120; ++t )
-		{
-			unsigned char c = (unsigned char)*t;
-			int adv = VITA_BOOTFONT_ADV[c - 32];
-			float u0 = ((c - 32) * 16) / 1520.0f, u1 = ((c - 32) * 16 + 16) / 1520.0f;
-			float y = (float)(ERR_BOX_BOT - 30);
-			P[nv * 3 + 0] = x; P[nv * 3 + 1] = y; P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u0; T[nv * 2 + 1] = 0;
-			++nv;
-			P[nv * 3 + 0] = x + 16; P[nv * 3 + 1] = y; P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u1; T[nv * 2 + 1] = 0;
-			++nv;
-			P[nv * 3 + 0] = x + 16; P[nv * 3 + 1] = y + 16; P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u1; T[nv * 2 + 1] = 1;
-			++nv;
-			P[nv * 3 + 0] = x; P[nv * 3 + 1] = y; P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u0; T[nv * 2 + 1] = 0;
-			++nv;
-			P[nv * 3 + 0] = x + 16; P[nv * 3 + 1] = y + 16; P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u1; T[nv * 2 + 1] = 1;
-			++nv;
-			P[nv * 3 + 0] = x; P[nv * 3 + 1] = y + 16; P[nv * 3 + 2] = 0;
-			T[nv * 2 + 0] = u0; T[nv * 2 + 1] = 1;
-			++nv;
-			x += adv;
-		}
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glDisableClientState(GL_COLOR_ARRAY);
-		glColor4f(1, 0.55f, 0.15f, 1);
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, (GLuint)s_fontTex);
-		glVertexPointer(3, GL_FLOAT, 0, P);
-		glTexCoordPointer(2, GL_FLOAT, 0, T);
-		glDrawArrays(GL_TRIANGLES, 0, nv);
+		static const char hint[] = "PRESS  X  OR  START  TO  EXIT";
+		char one[2][128];
+		snprintf( one[0], 128, "%s", hint );
+		DrawTextLines( one, 1, (BOOT_W - TextWidth( hint )) / 2,
+			ERR_PANEL_Y1 - 26, ERR_LINE_STEP, 1.0f, 0.55f, 0.15f );
 	}
 
 	RestoreState();
