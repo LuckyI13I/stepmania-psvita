@@ -5,18 +5,22 @@
 Port of the rhythm game **StepMania 5.0.12** to the PS Vita.
 Toolchain: [VitaSDK](https://vitasdk.org/), graphics via [vitaGL](https://github.com/Rinnegatamante/vitaGL) (fixed-function OpenGL over GXM).
 
-> The project began from the 5.1 branch, then was reverted to **5.0.12** — this tree corresponds to the build `StepMania5-Vita50-b20` and newer.
+> The project began from the 5.1 branch, then was reverted to **5.0.12** — this tree corresponds to the build `StepMania5-Vita50-b45` and newer.
 
-## Status (build 20)
+## Status (build 45)
 
 Works:
 - Loading up to menus and gameplay, sound (Vita audio driver), input from a gamepad.
+- **Performance:** menus and gameplay now hold a steady 60 FPS. Draw calls are batched — consecutive quads sharing a texture/blend/state are merged into a single GPU draw.
+- **Rendering fixes:** the old black/gradient panels and missing/incorrect textures are gone (texture-0 handling was wrong).
+- **Ready-to-play defaults:** 1 player centred, 2-player styles hidden, texture resolution capped for memory (see [Vita graphics defaults](#vita-graphics-defaults)).
+- **Button prompts** (arrows, Start/Select/Back) redrawn in PS Vita style.
 - Custom **loading screen**: artwork + brown window, XP-style progress segments, stage labels in the Silkscreen font, and the current song/pack details.
 - **Fatal error screen**: when crashing during the loading stage (for example, an invalid song layout), it shows the error message and a screenshot of the last rendered frame.
-- Textures/RGBA, button icons, 3D backgrounds — fixed (see build history below).
+- Redesigned **LiveArea** background with the StepMania logo.
 
 Known limitations:
-- FPS in the menu is lower than in gameplay (40–50 in-game). Work is ongoing on render batching.
+- Song wheels with very large packs can still dip below 60 FPS while scrolling.
 - CDRAM (video memory) is almost full — this is normal as long as textures do not disappear. Default graphics have already been compressed (see notes below).
 
 ## Installation (for players)
@@ -36,14 +40,14 @@ TITLE_ID: `SM50VITA1`.
 
 ## Controls
 
-| Vita button | Key |
+| Vita button | Action |
 |---|---|
-| D-Pad / L1 / R1 / triggers | Arrow keys |
-| ✕ / Start | Enter |
-| ○ | Esc |
-| △ | Tab |
-| □ | Space |
-| Select | F1 |
+| D-Pad | Navigate menus / arrow panels |
+| △ / ✕ / □ / ○ | Arrow panels: Up / Down / Left / Right |
+| START | Confirm (Enter) |
+| SELECT | Select |
+| L / L1 | Back |
+| R / R1 | *unbound* |
 
 ## Vita graphics defaults
 
@@ -81,7 +85,7 @@ vita-make-fself -s stepmania.velf eboot.bin
 
 | Path | Purpose |
 |---|---|
-| `src/arch/Vita/` | `ArchHooks_Vita` (tree data, unpacking `data.zip`, boot labels), `LowLevelWindow_Vita` (vglInit 960x544), `RageDisplay_Vita` (fixed-function pipeline, framebuffer render), `Audio_Vita`, `Input_Vita` |
+| `src/arch/Vita/` | `ArchHooks_Vita` (tree data, unpacking `data.zip`, boot labels), `LowLevelWindow_Vita` (vglInit 960x544), `RageDisplay_Vita` (fixed-function pipeline, batched draw, framebuffer render), `Audio_Vita`, `Input_Vita` |
 | `src/arch/LoadingWindow/LoadingWindow_Vita.*` | Bridge from `SongManager` progress to the splash screen |
 | `src/CMakeData-vita.cmake`, `Build-Vita/` | Build integration, build counter |
 | `arts/`, `fonts/` | Source assets for the splash (`LDSM4V.png`, `slkscr.ttf`) |
@@ -91,7 +95,7 @@ Key Vita-specific engine fixes: ordering `MESSAGEMAN` → `GAMESTATE`, null-guar
 
 ## English summary
 
-StepMania 5.0.12 port to PlayStation Vita (VitaSDK + vitaGL). Boots to menu and gameplay with sound and gamepad input. Custom framebuffer boot splash with progress and a fatal-error screen. Installation is via a VPK and data is placed under `ux0:data/stepmania-5.0`. In-game graphics defaults are tuned for Vita memory and display constraints.
+StepMania 5.0.12 port to PlayStation Vita (VitaSDK + vitaGL). Boots to menu and gameplay with sound and gamepad input; menus and gameplay run at a steady 60 FPS thanks to batched draw calls. Custom framebuffer boot splash with progress and a fatal-error screen. Installation is via a VPK and data is placed under `ux0:data/stepmania-5.0`. In-game graphics defaults are tuned for Vita memory and display constraints.
 
 ## Credits
 
