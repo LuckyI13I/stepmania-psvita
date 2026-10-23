@@ -1,0 +1,5 @@
+{
+  "_comment": "Song pack index for the StepMania 5 Vita downloader (LiveArea tile 'Download Song Packs'). Add entries under \"packs\", commit and push to main; the app reads this file on startup of the downloader.",
+  "_fields": "name = label in the list; url = direct HTTPS link to a .zip; size = archive size in bytes (optional, drives the progress bar); group = folder created under ux0:data/stepmania-5.0/Songs (optional, defaults to the zip file name).",
+  "packs": []
+}
