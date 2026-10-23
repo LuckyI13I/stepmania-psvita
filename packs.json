@@ -1,5 +1,212 @@
-{
-  "_comment": "Song pack index for the StepMania 5 Vita downloader (LiveArea tile 'Download Song Packs'). Add entries under \"packs\", commit and push to main; the app reads this file on startup of the downloader.",
-  "_fields": "name = label in the list; url = direct HTTPS link to a .zip; size = archive size in bytes (optional, drives the progress bar); group = folder created under ux0:data/stepmania-5.0/Songs (optional, defaults to the zip file name).",
-  "packs": []
-}
+[
+  {
+    "name": "Dance Dance Revolution (AC) (JP)",
+    "size": 18786312,
+    "sizeLabel": "17.9 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Dance%20Dance%20Revolution%20(AC)%20(JP).zip",
+    "group": "Dance Dance Revolution (AC) (JP)"
+  },
+  {
+    "name": "Dance Dance Revolution 2ndMIX (AC) (JP)",
+    "size": 34185342,
+    "sizeLabel": "32.6 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Dance%20Dance%20Revolution%202ndMIX%20(AC)%20(JP).zip",
+    "group": "Dance Dance Revolution 2ndMIX (AC) (JP)"
+  },
+  {
+    "name": "Dance Dance Revolution 3rdMIX (AC) (JP)",
+    "size": 55826766,
+    "sizeLabel": "53.2 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Dance%20Dance%20Revolution%203rdMIX%20(AC)%20(JP).zip",
+    "group": "Dance Dance Revolution 3rdMIX (AC) (JP)"
+  },
+  {
+    "name": "Dance Dance Revolution 4thMIX (AC) (JP)",
+    "size": 233638202,
+    "sizeLabel": "222.8 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Dance%20Dance%20Revolution%204thMIX%20(AC)%20(JP).zip",
+    "group": "Dance Dance Revolution 4thMIX (AC) (JP)"
+  },
+  {
+    "name": "Dance Dance Revolution 3rdMIX PLUS (AC) (JP)",
+    "size": 28635502,
+    "sizeLabel": "27.3 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Dance%20Dance%20Revolution%203rdMIX%20PLUS%20(AC)%20(JP).zip",
+    "group": "Dance Dance Revolution 3rdMIX PLUS (AC) (JP)"
+  },
+  {
+    "name": "Dance Dance Revolution 4thMIX PLUS (AC) (JP)",
+    "size": 40069300,
+    "sizeLabel": "38.2 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Dance%20Dance%20Revolution%204thMIX%20PLUS%20(AC)%20(JP).zip",
+    "group": "Dance Dance Revolution 4thMIX PLUS (AC) (JP)"
+  },
+  {
+    "name": "DDR 1st Mix to EXTREME",
+    "size": 751452627,
+    "sizeLabel": "716.6 MB",
+    "url": "https://mirror.reenigne.net/simfiles/DDR%201st%20Mix%20to%20EXTREME.zip",
+    "group": "DDR 1st Mix to EXTREME"
+  },
+  {
+    "name": "DDR Extreme 20th Anniversary",
+    "size": 489689919,
+    "sizeLabel": "467.0 MB",
+    "url": "https://mirror.reenigne.net/simfiles/DDR%20Extreme%2020th%20Anniversary.zip",
+    "group": "DDR Extreme 20th Anniversary"
+  },
+  {
+    "name": "In The Groove",
+    "size": 349129736,
+    "sizeLabel": "333.0 MB",
+    "url": "https://mirror.reenigne.net/simfiles/In%20The%20Groove.zip",
+    "group": "In The Groove"
+  },
+  {
+    "name": "In The Groove 2",
+    "size": 333307118,
+    "sizeLabel": "317.9 MB",
+    "url": "https://mirror.reenigne.net/simfiles/In%20The%20Groove%202.zip",
+    "group": "In The Groove 2"
+  },
+  {
+    "name": "In The Groove 3",
+    "size": 316289272,
+    "sizeLabel": "301.6 MB",
+    "url": "https://mirror.reenigne.net/simfiles/In%20The%20Groove%203.zip",
+    "group": "In The Groove 3"
+  },
+  {
+    "name": "In The Groove Rebirth",
+    "size": 320704817,
+    "sizeLabel": "305.8 MB",
+    "url": "https://mirror.reenigne.net/simfiles/In%20The%20Groove%20Rebirth.zip",
+    "group": "In The Groove Rebirth"
+  },
+  {
+    "name": "In The Groove Rebirth 2",
+    "size": 307096996,
+    "sizeLabel": "292.9 MB",
+    "url": "https://mirror.reenigne.net/simfiles/In%20The%20Groove%20Rebirth%202.zip",
+    "group": "In The Groove Rebirth 2"
+  },
+  {
+    "name": "In The Groove 3 Unlocks",
+    "size": 93660070,
+    "sizeLabel": "89.3 MB",
+    "url": "https://mirror.reenigne.net/simfiles/In%20The%20Groove%203%20Unlocks.zip",
+    "group": "In The Groove 3 Unlocks"
+  },
+  {
+    "name": "Anime Toshokan - DDR Anime 1st Mix",
+    "size": 85278624,
+    "sizeLabel": "81.3 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Anime%20Toshokan%20-%20DDR%20Anime%201st%20Mix.zip",
+    "group": "Anime Toshokan - DDR Anime 1st Mix"
+  },
+  {
+    "name": "Anime Toshokan - DDR Anime 2nd Mix",
+    "size": 91930911,
+    "sizeLabel": "87.7 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Anime%20Toshokan%20-%20DDR%20Anime%202nd%20Mix.zip",
+    "group": "Anime Toshokan - DDR Anime 2nd Mix"
+  },
+  {
+    "name": "Anime Toshokan - DDR Anime 3rd Mix",
+    "size": 84293125,
+    "sizeLabel": "80.4 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Anime%20Toshokan%20-%20DDR%20Anime%203rd%20Mix.zip",
+    "group": "Anime Toshokan - DDR Anime 3rd Mix"
+  },
+  {
+    "name": "Anime Toshokan - DDR Anime 4th Mix",
+    "size": 75991597,
+    "sizeLabel": "72.5 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Anime%20Toshokan%20-%20DDR%20Anime%204th%20Mix.zip",
+    "group": "Anime Toshokan - DDR Anime 4th Mix"
+  },
+  {
+    "name": "Anime Toshokan - DDR Anime 5th Mix",
+    "size": 59064931,
+    "sizeLabel": "56.3 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Anime%20Toshokan%20-%20DDR%20Anime%205th%20Mix.zip",
+    "group": "Anime Toshokan - DDR Anime 5th Mix"
+  },
+  {
+    "name": "Otaku's Dream 1st Touhou Mix",
+    "size": 216001279,
+    "sizeLabel": "206.0 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Otaku's%20Dream%201st%20Touhou%20Mix.zip",
+    "group": "Otaku's Dream 1st Touhou Mix"
+  },
+  {
+    "name": "Touhou 3",
+    "size": 224770647,
+    "sizeLabel": "214.4 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Touhou%203.zip",
+    "group": "Touhou 3"
+  },
+  {
+    "name": "MIKUFORCE (Perpetual Vocaloid Stamina Pack)",
+    "size": 158440979,
+    "sizeLabel": "151.1 MB",
+    "url": "https://mirror.reenigne.net/simfiles/MIKUFORCE%20(Perpetual%20Vocaloid%20Stamina%20Pack).zip",
+    "group": "MIKUFORCE (Perpetual Vocaloid Stamina Pack)"
+  },
+  {
+    "name": "Mister Green Bean's Anime, Vocaloid, and J-Pop Simfiles Set 001",
+    "size": 31124915,
+    "sizeLabel": "29.7 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Mister%20Green%20Bean's%20Anime,%20Vocaloid,%20and%20J-Pop%20Simfiles%20Set%20001.zip",
+    "group": "Mister Green Bean's Anime, Vocaloid, and J-Pop Simfiles Set 001"
+  },
+  {
+    "name": "Alrios's Vocaloid 1st",
+    "size": 54302159,
+    "sizeLabel": "51.8 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Alrios's%20Vocaloid%201st.zip",
+    "group": "Alrios's Vocaloid 1st"
+  },
+  {
+    "name": "Fraxtil's Arrow Arrangements",
+    "size": 78223898,
+    "sizeLabel": "74.6 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Fraxtil's%20Arrow%20Arrangements.zip",
+    "group": "Fraxtil's Arrow Arrangements"
+  },
+  {
+    "name": "Fraxtil's Beast Beats",
+    "size": 123172561,
+    "sizeLabel": "117.5 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Fraxtil's%20Beast%20Beats.zip",
+    "group": "Fraxtil's Beast Beats"
+  },
+  {
+    "name": "Fraxtil's Singles",
+    "size": 145344890,
+    "sizeLabel": "138.6 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Fraxtil's%20Singles.zip",
+    "group": "Fraxtil's Singles"
+  },
+  {
+    "name": "Valentine's Day",
+    "size": 26862173,
+    "sizeLabel": "25.6 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Valentine's%20Day.zip",
+    "group": "Valentine's Day"
+  },
+  {
+    "name": "StepMania 5 Officials",
+    "size": 11249102,
+    "sizeLabel": "10.7 MB",
+    "url": "https://mirror.reenigne.net/simfiles/StepMania%205%20Officials.zip",
+    "group": "StepMania 5 Officials"
+  },
+  {
+    "name": "Hatena Zubon Tournament Mix",
+    "size": 69669260,
+    "sizeLabel": "66.4 MB",
+    "url": "https://mirror.reenigne.net/simfiles/Hatena%20Zubon%20Tournament%20Mix.zip",
+    "group": "Hatena Zubon Tournament Mix"
+  }
+]
