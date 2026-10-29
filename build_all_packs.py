@@ -80,6 +80,7 @@ def parse_row(row):
         "id": int(href.group(1)),
         "name": clean_text(row[1]),
         "size": int(size.group(1)),
+        "date": clean_text(row[5]),
         "types": TYPE_RE.findall(row[4]),
     }
 
@@ -183,9 +184,11 @@ def build(args):
     for pack in packs:
         entries.append(
             {
+                "id": pack["id"],
                 "name": pack["label"],
                 "size": pack["size"],
                 "sizeLabel": human_size(pack["size"]),
+                "date": pack["date"],
                 "url": PACK_URL.format(pack_id=pack["id"]),
                 "group": make_group(pack["label"], pack["id"], used_groups),
             }

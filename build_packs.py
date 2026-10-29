@@ -7,6 +7,9 @@ reachable before writing the index.
 
 Usage:
     python build_packs.py [--output packs.json] [--no-verify]
+
+The generated index only has id/name/size/url/group. Run enrich_packs.py
+afterwards to add song counts, meter ranges and downscaled banner images.
 """
 
 import argparse
@@ -195,9 +198,11 @@ def build(verify):
         size = length or pack["size"]
         packs.append(
             {
+                "id": pack_id,
                 "name": pack["name"],
                 "size": size,
                 "sizeLabel": human_size(size),
+                "date": pack["date"],
                 "url": url,
                 "group": pack["name"],
             }
