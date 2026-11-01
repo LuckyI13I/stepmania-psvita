@@ -56,6 +56,10 @@ public:
 	void RefreshInstalledFor( const std::vector<int> &vView, bool bAll,
 		size_t iLimit = 500 );
 
+	/* Feeds extraction progress to the launcher UI. Public only because the
+	 * miniz write callback is a free function; not part of the pack API. */
+	bool TickUnpack( long long iDone, long long iTotal );
+
 private:
 	bool Pump( const char *szStage, float fProgress, long long iDone, long long iTotal );
 	bool Fetch( const std::string &sUrl, const char *szStage, std::vector<PackEntry> &vOut,

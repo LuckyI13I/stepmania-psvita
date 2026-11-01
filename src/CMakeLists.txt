@@ -458,20 +458,35 @@ elseif(VITA)
   list(APPEND SMDATA_LINK_LIB
     "vitaGL"
     "vitashark"
+    "vita2d"
+    "freetype"
     "mathneon"
+    "curl"
+    "mbedtls"
+    "mbedx509"
+    "mbedcrypto"
+    "z"
+    "zstd"
     "SceDisplay_stub"
     "SceGxm_stub"
     "SceCtrl_stub"
     "SceTouch_stub"
     "SceAudio_stub"
     "SceCommonDialog_stub"
+    "SceIme_stub"
     "SceAppMgr_stub"
     "SceAppUtil_stub"
     "ScePower_stub"
     "SceRtc_stub"
     "SceSysmodule_stub"
+    "SceLiveArea_stub"
     "SceShaccCg_stub"
     "SceKernelDmacMgr_stub"
+    "SceHttp_stub"
+    "SceSsl_stub"
+    "SceNetCtl_stub"
+    "SceNet_stub"
+    "ScePgf_stub"
     ${CMAKE_THREAD_LIBS_INIT}
     "m")
   list(REMOVE_DUPLICATES SMDATA_LINK_LIB)
@@ -585,7 +600,8 @@ if(VITA)
     "${SM_EXTERN_DIR}/newvorbis/include"
     "${SM_EXTERN_DIR}/newvorbis/lib"
     "${SM_EXTERN_DIR}/libjpeg"
-    "${SM_EXTERN_DIR}/zlib")
+    "${SM_EXTERN_DIR}/zlib"
+    "$ENV{VITASDK}/arm-vita-eabi/include/freetype2")
 elseif(NOT APPLE)
   list(APPEND SM_INCLUDE_DIRS
     "${SM_EXTERN_DIR}/glew-1.5.8/include"

@@ -434,6 +434,11 @@ void MusicWheel::GetSongList( vector<Song*> &arraySongs, SortOrder so )
 		break;
 	}
 
+	// Diagnostic: an empty wheel shows nothing but "- EMPTY -", which gives a
+	// tester nothing to report. Remember where the songs went.
+	const size_t iRawCount = apAllSongs.size();
+	const vector<Song*> apUnfiltered = apAllSongs;
+
 	// filter songs that we don't have enough stages to play
 	{
 		vector<Song*> vTempSongs;
@@ -443,6 +448,20 @@ void MusicWheel::GetSongList( vector<Song*> &arraySongs, SortOrder so )
 		apAllSongs = vTempSongs;
 	}
 
+	/* Having no songs at all is a dead end: the screen cannot be used and the
+	 * player has no way back. The stage filter is the only criterion here that
+	 * can drop every song, and stages-left is legitimately 0 when this screen is
+	 * reached outside the normal play flow. Show the unfiltered list instead. */
+	if( apAllSongs.empty() && iRawCount > 0 )
+	{
+		LOG->Warn( "MusicWheel: stage filter removed all %u songs (stages left %d); ignoring it",
+			(unsigned)iRawCount, GAMESTATE->GetSmallestNumStagesLeftForAnyHumanPlayer() );
+		apAllSongs = apUnfiltered;
+	}
+
+	const size_t iStageCount = apAllSongs.size();
+	int iLockedSkipped = 0, iNoStepsSkipped = 0;
+
 	// copy only songs that have at least one Steps for the current GameMode
 	for( unsigned i=0; i<apAllSongs.size(); i++ )
 	{
@@ -450,28 +469,42 @@ void MusicWheel::GetSongList( vector<Song*> &arraySongs, SortOrder so )
 
 		int iLocked = UNLOCKMAN->SongIsLocked( pSong );
 		if( iLocked & LOCKED_DISABLED )
+		{
+			++iLockedSkipped;
 			continue;
+		}
 
 		// If we're on an extra stage, and this song is selected, ignore #SELECTABLE.
 		if( pSong != GAMESTATE->m_pCurSong || !GAMESTATE->IsAnExtraStage() )
 		{
 			// Hide songs that asked to be hidden via #SELECTABLE.
 			if( iLocked & LOCKED_SELECTABLE )
+			{
+				++iLockedSkipped;
 				continue;
+			}
 			if( so != SORT_ROULETTE && iLocked & LOCKED_ROULETTE )
+			{
+				++iLockedSkipped;
 				continue;
+			}
 		}
 
 		/* Hide locked songs. If RANDOM_PICKS_LOCKED_SONGS, hide in Roulette
 		 * and Random, too. */
 		if( (so!=SORT_ROULETTE || !RANDOM_PICKS_LOCKED_SONGS) && iLocked )
+		{
+			++iLockedSkipped;
 			continue;
+		}
 
 		if( PREFSMAN->m_bOnlyPreferredDifficulties )
 		{
 			// if the song has steps that fit the preferred difficulty of the default player
 			if( pSong->HasStepsTypeAndDifficulty( GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType,GAMESTATE->m_PreferredDifficulty[GAMESTATE->GetFirstHumanPlayer()] ) )
 				arraySongs.push_back( pSong );
+			else
+				++iNoStepsSkipped;
 		}
 		else
 		{
@@ -489,20 +522,26 @@ void MusicWheel::GetSongList( vector<Song*> &arraySongs, SortOrder so )
 				set<StepsType> vStepsType;
 				SongUtil::GetPlayableStepsTypes( pSong, vStepsType );
 
+				bool bAdded = false;
 				FOREACHS( StepsType, vStepsType, st )
 				{
 					if(pSong->HasStepsType(*st))
 					{
 						arraySongs.push_back( pSong );
+						bAdded = true;
 						break;
 					}
 				}
+				if( !bAdded )
+					++iNoStepsSkipped;
 			}
 			else
 			{
 				// If the song has at least one steps, add it.
 				if( pSong->HasStepsType(GAMESTATE->GetCurrentStyle(PLAYER_INVALID)->m_StepsType) )
 					arraySongs.push_back( pSong );
+				else
+					++iNoStepsSkipped;
 			}
 		}
 	}
@@ -517,6 +556,18 @@ void MusicWheel::GetSongList( vector<Song*> &arraySongs, SortOrder so )
 
 		if( find( arraySongs.begin(), arraySongs.end(), pSong ) == arraySongs.end() )
 			arraySongs.push_back( pSong );
+	}
+
+	if( arraySongs.empty() )
+	{
+		LOG->Info( "MusicWheel: empty list for sort '%s': %u loaded, %u after stage filter, %d locked, %d no matching steps",
+			SortOrderToString(so).c_str(), (unsigned)iRawCount, (unsigned)iStageCount,
+			iLockedSkipped, iNoStepsSkipped );
+		LOG->Info( "MusicWheel: stages left=%d onlypref=%d autosetstyle=%d section='%s'",
+			GAMESTATE->GetSmallestNumStagesLeftForAnyHumanPlayer(),
+			PREFSMAN->m_bOnlyPreferredDifficulties ? 1 : 0,
+			CommonMetrics::AUTO_SET_STYLE ? 1 : 0,
+			GAMESTATE->m_sPreferredSongGroup.Get().c_str() );
 	}
 }
 

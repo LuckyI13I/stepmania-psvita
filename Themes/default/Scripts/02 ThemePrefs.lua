@@ -181,4 +181,65 @@ function OptionRowProTiming()
 	}
 end
 
+-- PS Vita touch controls. These live in the engine preferences (registered in
+-- arch/Vita/VitaTouch.cpp) instead of ThemePrefs.ini so the C++ side can read
+-- them every frame without parsing a file.
+local function VitaTouchOnOffRow(prefName)
+	return {
+		Name = prefName,
+		LayoutType = "ShowAllInRow",
+		SelectType = "SelectOne",
+		OneChoiceForAllPlayers = true,
+		ExportOnChange = false,
+		Choices = {
+			THEME:GetString('OptionNames','Off'),
+			THEME:GetString('OptionNames','On')
+		},
+		LoadSelections = function(self, list, pn)
+			if PREFSMAN:GetPreference(prefName) then
+				list[2] = true
+			else
+				list[1] = true
+			end
+		end,
+		SaveSelections = function(self, list, pn)
+			PREFSMAN:SetPreference(prefName, list[2] and true or false)
+		end
+	}
+end
+
+function OptionRowVitaTouchControls()
+	return VitaTouchOnOffRow('VitaTouchControls')
+end
+
+function OptionRowVitaTouchOverlay()
+	return VitaTouchOnOffRow('VitaTouchOverlay')
+end
+
+function OptionRowVitaTouchOpacity()
+	return {
+		Name = "VitaTouchOverlayOpacity",
+		LayoutType = "ShowAllInRow",
+		SelectType = "SelectOne",
+		OneChoiceForAllPlayers = true,
+		ExportOnChange = false,
+		Choices = { '0', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100' },
+		LoadSelections = function(self, list, pn)
+			local iOpacity = tonumber(PREFSMAN:GetPreference('VitaTouchOverlayOpacity')) or 40
+			local iIndex = math.floor(iOpacity / 10) + 1
+			if iIndex < 1 then iIndex = 1 end
+			if iIndex > #list then iIndex = #list end
+			list[iIndex] = true
+		end,
+		SaveSelections = function(self, list, pn)
+			for i = 1, #list do
+				if list[i] == true then
+					PREFSMAN:SetPreference('VitaTouchOverlayOpacity', (i - 1) * 10)
+					return
+				end
+			end
+		end
+	}
+end
+
 --[[ end option rows ]]

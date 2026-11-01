@@ -61,6 +61,9 @@
 #include "Song.h"
 #include "XmlFileUtil.h"
 #include "Profile.h" // for replay data stuff
+#ifdef VITA
+#include "arch/Vita/VitaTouch.h"
+#endif
 
 // Defines
 #define SHOW_LIFE_METER_FOR_DISABLED_PLAYERS	THEME->GetMetricB(m_sName,"ShowLifeMeterForDisabledPlayers")
@@ -91,7 +94,12 @@ AutoScreenMessage( SM_BattleTrickLevel1 );
 AutoScreenMessage( SM_BattleTrickLevel2 );
 AutoScreenMessage( SM_BattleTrickLevel3 );
 
+#ifdef VITA
+// Handheld, single-player: center the playfield instead of the arcade-side offset.
+static Preference<bool> g_bCenter1Player( "Center1Player", true );
+#else
 static Preference<bool> g_bCenter1Player( "Center1Player", false );
+#endif
 static Preference<bool> g_bShowLyrics( "ShowLyrics", true );
 static Preference<float> g_fNetStartOffset( "NetworkStartOffset", -3.0 );
 static Preference<bool> g_bEasterEggs( "EasterEggs", true );
@@ -1525,6 +1533,11 @@ void ScreenGameplay::PauseGame( bool bPause, GameController gc )
 	set_paused_internal(bPause);
 	m_PauseController = gc;
 
+#ifdef VITA
+	// Touching the overlays must not push the pause menu buttons around.
+	VitaTouch::SetPlayActive( !bPause );
+#endif
+
 	m_pSoundMusic->Pause( bPause );
 	if( bPause )
 		this->PlayCommand( "Pause" );
@@ -1619,6 +1632,19 @@ void ScreenGameplay::BeginScreen()
 	{
 		StartPlayingSong( MIN_SECONDS_TO_STEP, MIN_SECONDS_TO_MUSIC );
 	}
+
+#ifdef VITA
+	// Touch lanes may drive the notefield while this screen is up.
+	VitaTouch::SetPlayActive( true );
+#endif
+}
+
+void ScreenGameplay::EndScreen()
+{
+#ifdef VITA
+	VitaTouch::SetPlayActive( false );
+#endif
+	ScreenWithMenuElements::EndScreen();
 }
 
 bool ScreenGameplay::AllAreFailing()
@@ -1662,6 +1688,13 @@ void ScreenGameplay::GetMusicEndTiming( float &fSecondsToStartFadingOutMusic, fl
 
 void ScreenGameplay::Update( float fDeltaTime )
 {
+#ifdef VITA
+	/* Touch lanes live only while the chart is actually being played: not
+	 * during the pause menu and not over the fade into the evaluation screen. */
+	VitaTouch::SetPlayActive( !m_bPaused && m_DancingState != STATE_OUTRO &&
+		GAMESTATE->m_pCurSong != NULL );
+#endif
+
 	if( GAMESTATE->m_pCurSong == NULL  )
 	{
 		/* ScreenDemonstration will move us to the next screen.  We just need to

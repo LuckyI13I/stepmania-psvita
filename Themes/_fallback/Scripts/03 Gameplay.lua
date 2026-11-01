@@ -112,6 +112,13 @@ local function upper_first_letter(s)
 end
 
 -- No more having a metric for every style for every game mode. -Kyz
+-- Careful: this theme script is shared with PC builds. It hides the
+-- two-player modes so the handheld port is single-player only.
+local two_player_styles= { versus=true, couple=true, joint=true, routine=true }
+local two_player_types= {
+	StyleType_TwoPlayersTwoSides= true,
+	StyleType_TwoPlayersSharedSides= true,
+}
 function ScreenSelectStyleChoices()
 	local styles= GAMEMAN:GetStylesForGame(GAMESTATE:GetCurrentGame():GetName())
 	local choices= {}
@@ -120,7 +127,9 @@ function ScreenSelectStyleChoices()
 		local cap_name= upper_first_letter(name)
 		-- couple-edit and threepanel don't seem like they should actually be
 		-- selectable. -Kyz
-		if name ~= "couple-edit" and name ~= "threepanel" then
+		if name ~= "couple-edit" and name ~= "threepanel" and
+			not two_player_styles[string.lower(name)] and
+			not two_player_types[style:GetStyleType()] then
 			choices[#choices+1]= "name," .. cap_name .. ";style," .. name ..
 				";text," .. cap_name .. ";screen," .. Branch.AfterSelectStyle()
 		end

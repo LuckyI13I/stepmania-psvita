@@ -173,10 +173,13 @@ void SongManager::InitSongsFromDisk( LoadingWindow *ld )
 	LOG->Trace( "Found %d songs in %f seconds.", (int)m_pSongs.size(), tm.GetDeltaTime() );
 }
 
-static LocalizedString FOLDER_CONTAINS_MUSIC_FILES( "SongManager", "The folder \"%s\" appears to be a song folder.  All song folders must reside in a group folder.  For example, \"Songs/Originals/My Song\"." );
-void SongManager::SanityCheckGroupDir( RString sDir ) const
+// True if this folder holds music files directly: a simfile folder that was
+// put straight under Songs/ instead of inside a group folder.
+// This used to throw a fatal exception, which closed the game before it ever
+// started and left the player staring at an empty bubble; it is reported and
+// loaded instead (see LoadStepManiaSongDir).
+bool SongManager::IsSongFolder( RString sDir ) const
 {
-	// Check to see if they put a song directly inside the group folder.
 	vector<RString> arrayFiles;
 	GetDirListing( sDir + "/*", arrayFiles );
 	const vector<RString>& audio_exts= ActorUtil::GetTypeExtensionList(FT_Sound);
@@ -186,12 +189,10 @@ void SongManager::SanityCheckGroupDir( RString sDir ) const
 		FOREACH_CONST(RString, audio_exts, aud)
 		{
 			if(ext == *aud)
-			{
-				RageException::Throw(
-					FOLDER_CONTAINS_MUSIC_FILES.GetValue(), sDir.c_str());
-			}
+				return true;
 		}
 	}
+	return false;
 }
 
 void SongManager::AddGroup( RString sDir, RString sGroupDirName )
@@ -306,15 +307,27 @@ void SongManager::LoadStepManiaSongDir( RString sDir, LoadingWindow *ld )
 			ld->SetText(SANITY_CHECKING_GROUPS.GetValue() + ssprintf("\n%s",
 					Basename(sGroupDirName).c_str()));
 		}
-		// TODO: If this check fails, log a warning instead of crashing.
-		SanityCheckGroupDir(sDir+sGroupDirName);
-
 		// Find all Song folders in this group directory
 		vector<RString> arraySongDirs;
-		GetDirListing( sDir+sGroupDirName + "/*", arraySongDirs, true, true );
-		StripCvsAndSvn( arraySongDirs );
-		StripMacResourceForks( arraySongDirs );
-		SortRStringArray( arraySongDirs );
+		if( IsSongFolder(sDir+sGroupDirName) )
+		{
+			// Music sits directly in this folder: it is a song folder placed
+			// under Songs/ with no group folder around it.  Loading it as a
+			// one-song group keeps a stray folder from killing startup.
+			LOG->Warn( "Folder \"%s\" contains music files directly; loading it as a song folder.",
+				(sDir+sGroupDirName).c_str() );
+			RString sSongDir = sDir+sGroupDirName;
+			if( sSongDir.Left(1) != "/" )
+				sSongDir = "/" + sSongDir; // Song::LoadFromSongDir needs "/Songs/..."
+			arraySongDirs.push_back( sSongDir );
+		}
+		else
+		{
+			GetDirListing( sDir+sGroupDirName + "/*", arraySongDirs, true, true );
+			StripCvsAndSvn( arraySongDirs );
+			StripMacResourceForks( arraySongDirs );
+			SortRStringArray( arraySongDirs );
+		}
 
 		arrayGroupSongDirs.push_back(arraySongDirs);
 		songCount += arraySongDirs.size();
@@ -367,6 +380,9 @@ void SongManager::LoadStepManiaSongDir( RString sDir, LoadingWindow *ld )
 				delete pNewSong;
 				continue;
 			}
+			// A folder loaded without a group folder around it has no group in
+			// its path, so keep the group name matching the one on the wheel.
+			pNewSong->m_sGroupName = sGroupDirName;
 			AddSongToList(pNewSong);
 
 			index_entry.push_back( pNewSong );

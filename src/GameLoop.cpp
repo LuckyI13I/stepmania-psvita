@@ -22,6 +22,10 @@
 #include "RageTimer.h"
 #include "RageInput.h"
 
+#if defined(VITA)
+#include <psp2/kernel/threadmgr.h>
+#endif
+
 static RageTimer g_GameplayTimer;
 
 static Preference<bool> g_bNeverBoostAppPriority( "NeverBoostAppPriority", false );
@@ -280,16 +284,34 @@ void GameLoop::RunGameLoop()
 
 		CheckFocus();
 
+#if defined(VITA)
+		long long lpA = (long long)sceKernelGetSystemTimeWide();
+#endif
 		// Update SOUNDMAN early (before any RageSound::GetPosition calls), to flush position data.
 		SOUNDMAN->Update();
+#if defined(VITA)
+		long long lpB = (long long)sceKernelGetSystemTimeWide();
+#endif
 
 		/* Update song beat information -before- calling update on all the classes that
 		 * depend on it. If you don't do this first, the classes are all acting on old 
 		 * information and will lag. (but no longer fatally, due to timestamping -glenn) */
 		SOUND->Update( fDeltaTime );
+#if defined(VITA)
+		long long lpC = (long long)sceKernelGetSystemTimeWide();
+#endif
 		TEXTUREMAN->Update( fDeltaTime );
+#if defined(VITA)
+		long long lpD = (long long)sceKernelGetSystemTimeWide();
+#endif
 		GAMESTATE->Update( fDeltaTime );
+#if defined(VITA)
+		long long lpE = (long long)sceKernelGetSystemTimeWide();
+#endif
 		SCREENMAN->Update( fDeltaTime );
+#if defined(VITA)
+		long long lpF = (long long)sceKernelGetSystemTimeWide();
+#endif
 		MEMCARDMAN->Update();
 		NSMAN->Update( fDeltaTime );
 
@@ -307,9 +329,35 @@ void GameLoop::RunGameLoop()
 		}
 
 		LIGHTSMAN->Update( fDeltaTime );
+#if defined(VITA)
+		long long lpG = (long long)sceKernelGetSystemTimeWide();
+#endif
 
 		// Render
 		SCREENMAN->Draw();
+
+#if defined(VITA)
+		long long lpH = (long long)sceKernelGetSystemTimeWide();
+		{
+			static long long s_sndman=0, s_sound=0, s_tex=0, s_gstate=0, s_screen=0, s_input=0, s_draw=0;
+			static int s_n=0;
+			s_sndman += lpB-lpA;
+			s_sound  += lpC-lpB;
+			s_tex    += lpD-lpC;
+			s_gstate += lpE-lpD;
+			s_screen += lpF-lpE;
+			s_input  += lpG-lpF;
+			s_draw   += lpH-lpG;
+			if (++s_n >= 60)
+			{
+				long long total = (s_sndman+s_sound+s_tex+s_gstate+s_screen+s_input+s_draw)/s_n;
+				LOG->Info("Vita loop: sndman %lld sound %lld tex %lld gstate %lld screen %lld input %lld draw %lld (total %lld)",
+					s_sndman/s_n, s_sound/s_n, s_tex/s_n, s_gstate/s_n, s_screen/s_n, s_input/s_n, s_draw/s_n, total);
+				s_sndman=s_sound=s_tex=s_gstate=s_screen=s_input=s_draw=0;
+				s_n = 0;
+			}
+		}
+#endif
 	}
 
 	// If we ended mid-game, finish up.

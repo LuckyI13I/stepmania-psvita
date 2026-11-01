@@ -94,6 +94,9 @@ protected:
 private:
 	void SendCurrentMatrices();
 	void DrawTris(const RageSpriteVertex v[], const uint16_t *indices, int iNumIndices);
+	void ApplyTextureState(unsigned iTexture);
+	void EnsureGLMatrices(bool bReal);
+	void FlushBatch();
 
 	class LowLevelWindow *m_pWind;
 	bool m_bZWrite;
@@ -110,6 +113,84 @@ private:
 
 	int m_DrawCalls;
 	int m_DrawTris;
+
+	/* Perf instrumentation (Build 33): wall-clock frame breakdown plus
+	 * texture-upload / state-churn counters. Logged every 60 frames by
+	 * EndFrame; all reset on log. m_FrameStartUs is stamped in BeginFrame. */
+	long m_TexUploads;
+	long m_TexUploadBytes;
+	int m_TexBinds;
+	int m_TexToggles;   /* glEnable/Disable(GL_TEXTURE_2D) transitions */
+	bool m_TexOn;
+	/* "No texture" (iTexture==0) is rendered by disabling GL_TEXTURE_2D, but
+	 * lazily: ClearAllTextures() only sets m_TexOffPending, SetTexture()
+	 * clears it and applies the requested state, DrawTris() applies it when
+	 * still pending. A run of textured draws (each of which calls
+	 * ClearAllTextures first) therefore never toggles the texture stage. */
+	bool m_TexOffPending;
+	unsigned m_GlBoundTex; /* handle actually bound to GL_TEXTURE_2D */
+	int m_BatchFlushes;
+
+	/* Last matrices pushed to GL. 2D UI almost always repeats the same
+	 * projection/modelview/texture matrices, so skipping redundant
+	 * glLoadMatrixf calls removes several GL calls per draw. */
+	float m_LastProj[16];
+	float m_LastMV[16];
+	float m_LastTex[16];
+	bool m_MatValid;
+	bool m_MatDirty;   /* logical matrices changed since last GL upload */
+	bool m_ProjDirty;  /* projection changed since last GL upload */
+	int  m_GLMatReal;  /* -1 unknown, 0 = batch layout, 1 = real matrices */
+	bool m_LightingOn;
+
+	/* Vertex batching. DrawTris() bakes the modelview and texture transforms
+	 * on the CPU into one interleaved array and submits it with a single
+	 * glDrawArrays per state group. vitaGL's immediate mode costs roughly
+	 * 250us per draw call, so collapsing the hundreds of two-triangle UI
+	 * quads into a handful of calls is the main menu FPS win. While a batch
+	 * is open GL keeps the identity modelview/texture matrices and the real
+	 * projection (baked vertices are already in eye space). */
+	struct BatchVertex
+	{
+		float x, y, z;
+		float u, v;
+		unsigned char r, g, b, a;
+	};
+	std::vector<BatchVertex> m_Batch;
+
+	/* Bake one RageSpriteVertex into the batch: modelview and texture
+	 * transforms applied on the CPU (GL keeps identity for them). */
+	static void BakeVert(BatchVertex &dst, const RageSpriteVertex &sv,
+		const float *mv, const float *tm);
+
+	/* GL render-state cache. The engine re-issues the same states before
+	 * every draw (Sprite::DrawPrimitives -> Actor::SetTextureRenderStates ->
+	 * SetTextureWrapping/Filtering, plus SetTextureMode/SetBlendMode/Z*). On
+	 * vitaGL each redundant call is costly (texenv/texparam can re-patch the
+	 * patched shader), so only forward actual changes. Texture params are
+	 * remembered together with the texture they were applied to (m_WrapTex /
+	 * m_FiltTex): a skip is only valid while that same texture is bound. */
+	unsigned m_CurTex;
+	unsigned m_WrapTex; int m_WrapVal;
+	unsigned m_FiltTex; int m_FiltVal;
+	/* Actor::Draw re-issues SetTextureWrapping/Filtering for every actor, which
+	 * used to flush the batch and re-send four glTexParameteri calls per actor.
+	 * Remember what was applied to each texture object instead; indexed by
+	 * texture handle, 0 = unknown. Cleared on device reset/texture deletion. */
+	std::vector<uint8_t> m_TexWrapParam;
+	std::vector<uint8_t> m_TexFiltParam;
+	int m_EnvMode; bool m_EnvModeValid;
+	int m_BlendSrc, m_BlendDst, m_BlendEq; bool m_BlendValid;
+	int m_ZTestFunc; bool m_ZTestValid;
+	int m_ZWriteMask; bool m_ZWriteValid;
+	float m_ZBiasNear, m_ZBiasFar; bool m_ZBiasValid;
+	int m_CullMode; bool m_CullValid;
+	void ResetStateCache();
+	long long m_FrameStartUs;
+	long long m_DrawEmitUs;   /* BeginFrame -> start of present (CPU emit) */
+	long long m_PresentUs;    /* time inside EndFrame present path */
+	long long m_DrawSetupUs;  /* wall in DrawTris before glDrawElements */
+	long long m_DrawSubmitUs; /* wall inside glDrawElements (GPU back-pressure) */
 };
 
 #endif

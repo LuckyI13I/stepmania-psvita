@@ -30,6 +30,10 @@
 #include "ScoreKeeperNormal.h"
 #include "InputEventPlus.h"
 
+#ifdef VITA
+#include "arch/Vita/VitaLiveArea.h"
+#endif
+
 // metrics that are common to all ScreenEvaluation classes
 #define BANNER_WIDTH			THEME->GetMetricF(m_sName,"BannerWidth")
 #define BANNER_HEIGHT			THEME->GetMetricF(m_sName,"BannerHeight")
@@ -254,6 +258,12 @@ void ScreenEvaluation::Init()
 		else
 			grade[p] = Grade_Failed;
 	}
+
+#ifdef VITA
+	// Record this stage in the recent-songs history and refresh the LiveArea.
+	if( !SUMMARY )
+		VitaLiveAreaRecordStage( m_pStageStats );
+#endif
 
 	// load sounds
 	m_soundStart.Load( THEME->GetPathS(m_sName,"start") );

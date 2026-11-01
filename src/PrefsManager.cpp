@@ -423,6 +423,13 @@ void PrefsManager::ReadPrefsFromDisk()
 	ReadGamePrefsFromIni( SpecialFiles::PREFERENCES_INI_PATH );
 	ReadPrefsFromFile( SpecialFiles::STATIC_INI_PATH, GetPreferencesSection(), true );
 
+#if defined(VITA)
+	/* A Preferences.ini written by an older build can carry a larger value;
+	 * the handheld build caps texture memory at 512 regardless. */
+	if( m_iMaxTextureResolution > 512 )
+		m_iMaxTextureResolution.Set( 512 );
+#endif
+
 	if( !m_sCurrentGame.Get().empty() )
 		RestoreGamePrefs();
 }

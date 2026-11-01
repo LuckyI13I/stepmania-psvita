@@ -5,6 +5,8 @@
 #include "../miniz.h"
 #include "json/json.h"
 
+#include <psp2/io/fcntl.h>
+
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -59,6 +61,47 @@ namespace
 		if( iSlash == std::string::npos )
 			return std::string();
 		return sPath.substr( 0, iSlash );
+	}
+
+	/* Extraction sink for mz_zip_reader_extract_to_callback. Large songs pack
+	 * files worth tens of megabytes; writing them through this callback lets
+	 * the UI pump between 2 MB chunks instead of freezing for the whole file. */
+	struct UnpackCtx
+	{
+		SceUID iFd;
+		LauncherPacks *pOwner;
+		long long iFileDone;
+		long long iBase;
+		long long iTotal;
+		long long iPumpedAt;
+		bool bError;
+		bool bCancel;
+	};
+
+	size_t UnpackWrite( void *pOpaque, mz_uint64 iFileOfs, const void *pBuf, size_t iLen )
+	{
+		(void)iFileOfs;
+		UnpackCtx *pCtx = (UnpackCtx *)pOpaque;
+		if( iLen == 0 )
+			return 0;
+		if( sceIoWrite( pCtx->iFd, pBuf, (SceSize)iLen ) != (int)iLen )
+		{
+			pCtx->bError = true;
+			return 0;
+		}
+		pCtx->iFileDone += (long long)iLen;
+
+		const long long iDone = pCtx->iBase + pCtx->iFileDone;
+		if( iDone - pCtx->iPumpedAt >= 2 * 1024 * 1024 )
+		{
+			pCtx->iPumpedAt = iDone;
+			if( !pCtx->pOwner->TickUnpack( iDone, pCtx->iTotal ) )
+			{
+				pCtx->bCancel = true;
+				return 0;
+			}
+		}
+		return iLen;
 	}
 }
 
@@ -290,6 +333,7 @@ bool LauncherPacks::Extract( const std::string &sZip, const std::string &sGroup,
 
 	std::vector<int> viIndex;
 	std::vector<std::string> vsName;
+	long long iTotalBytes = 0;
 	const unsigned iCount = mz_zip_reader_get_num_files( &zip );
 	for( unsigned i = 0; i < iCount; ++i )
 	{
@@ -315,6 +359,7 @@ bool LauncherPacks::Extract( const std::string &sZip, const std::string &sGroup,
 
 		viIndex.push_back( (int)i );
 		vsName.push_back( sName );
+		iTotalBytes += (long long)st.m_uncomp_size;
 	}
 
 	if( viIndex.empty() )
@@ -355,6 +400,7 @@ bool LauncherPacks::Extract( const std::string &sZip, const std::string &sGroup,
 	}
 
 	int iDone = 0;
+	long long iBytesDone = 0;
 	bool bOk = true;
 	for( size_t i = 0; i < viIndex.size(); ++i )
 	{
@@ -367,22 +413,52 @@ bool LauncherPacks::Extract( const std::string &sZip, const std::string &sGroup,
 		const std::string sOut = sRoot + "/" + sRel;
 		LauncherUtil::Mkdirs( DirName( sOut ) );
 
-		if( !mz_zip_reader_extract_to_file( &zip, (mz_uint)viIndex[i], sOut.c_str(), 0 ) )
+		/* Extract through the callback so multi-megabyte files keep the
+		 * spinner alive instead of blocking the main thread. */
+		const SceUID iFd = sceIoOpen( sOut.c_str(),
+			SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0666 );
+		if( iFd < 0 )
 		{
-			LauncherUtil::Log( "packs: failed to extract %s", sRel.c_str() );
+			LauncherUtil::Log( "packs: cannot create %s", sRel.c_str() );
 			continue;
 		}
 
-		++iDone;
-		if( ( iDone & 15 ) == 0 )
+		UnpackCtx ctx;
+		memset( &ctx, 0, sizeof(ctx) );
+		ctx.iFd = iFd;
+		ctx.pOwner = this;
+		ctx.iBase = iBytesDone;
+		ctx.iTotal = iTotalBytes;
+		ctx.iPumpedAt = iBytesDone;
+
+		const bool bExtracted = mz_zip_reader_extract_to_callback( &zip,
+			(mz_uint)viIndex[i], UnpackWrite, &ctx, 0 ) != 0;
+		sceIoClose( iFd );
+
+		if( !bExtracted || ctx.bError )
 		{
-			const float f = (float)iDone / (float)viIndex.size();
-			if( !Pump( "Unpacking", f, iDone, (long long)viIndex.size() ) )
-			{
-				bOk = false;
-				sError = "cancelled";
-				break;
-			}
+			LauncherUtil::Log( "packs: failed to extract %s", sRel.c_str() );
+			LauncherUtil::RemoveFile( sOut );
+		}
+		else
+			iBytesDone += ctx.iFileDone;
+
+		if( ctx.bCancel )
+		{
+			bOk = false;
+			sError = "cancelled";
+			break;
+		}
+
+		++iDone;
+		const float f = iTotalBytes > 0
+			? (float)( (double)iBytesDone / (double)iTotalBytes )
+			: (float)iDone / (float)viIndex.size();
+		if( !Pump( "Unpacking", f, iBytesDone, iTotalBytes > 0 ? iTotalBytes : (long long)viIndex.size() ) )
+		{
+			bOk = false;
+			sError = "cancelled";
+			break;
 		}
 	}
 
@@ -390,8 +466,14 @@ bool LauncherPacks::Extract( const std::string &sZip, const std::string &sGroup,
 
 	if( bOk )
 	{
-		Pump( "Unpacking", 1.0f, iDone, (long long)viIndex.size() );
-		LauncherUtil::Log( "packs: extracted %d files", iDone );
+		Pump( "Unpacking", 1.0f, iBytesDone, iTotalBytes > 0 ? iTotalBytes : (long long)viIndex.size() );
+		LauncherUtil::Log( "packs: extracted %d files, %lld bytes", iDone, iBytesDone );
 	}
 	return bOk;
+}
+
+bool LauncherPacks::TickUnpack( long long iDone, long long iTotal )
+{
+	const float f = iTotal > 0 ? (float)( (double)iDone / (double)iTotal ) : -1.0f;
+	return Pump( "Unpacking", f, iDone, iTotal );
 }

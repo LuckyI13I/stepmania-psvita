@@ -33,6 +33,9 @@
 #include "RageInput.h"
 #include "OptionsList.h"
 #include "RageFileManager.h"
+#ifdef VITA
+#include "arch/Vita/VitaTouch.h"
+#endif
 
 static const char *SelectionStateNames[] = {
 	"SelectingSong",
@@ -294,6 +297,18 @@ void ScreenSelectMusic::BeginScreen()
 	SOUND->PlayOnceFromAnnouncer( "select music intro" );
 
 	ScreenWithMenuElements::BeginScreen();
+#ifdef VITA
+	// The touch panel scrolls the wheel with swipes here (the lanes are off).
+	VitaTouch::SetWheelActive( true );
+#endif
+}
+
+void ScreenSelectMusic::EndScreen()
+{
+#ifdef VITA
+	VitaTouch::SetWheelActive( false );
+#endif
+	ScreenWithMenuElements::EndScreen();
 }
 
 ScreenSelectMusic::~ScreenSelectMusic()
@@ -409,6 +424,32 @@ void ScreenSelectMusic::Update( float fDeltaTime )
 	}
 
 	ScreenWithMenuElements::Update( fDeltaTime );
+
+#ifdef VITA
+	// Swipes drive the wheel only while no options list is up (an open list
+	// reacts to the same up/down keys).
+	bool bTouchWheel = false;
+	{
+		bool bListOpen = false;
+		if( USE_OPTIONS_LIST )
+		{
+			FOREACH_PlayerNumber( pn )
+				if( m_OptionsList[pn].IsOpened() )
+					bListOpen = true;
+		}
+		bTouchWheel = !bListOpen;
+		VitaTouch::SetWheelActive( bTouchWheel );
+
+		const int iTaps = VitaTouch::ConsumeWheelTaps();
+		if( iTaps != 0 && bTouchWheel && CanChangeSong() && !m_MusicWheel.IsRouletting() )
+		{
+			const int iDir = (iTaps > 0) ? +1 : -1;
+			MESSAGEMAN->Broadcast( iDir > 0 ? "NextSong" : "PreviousSong" );
+			for( int i = 0; i < (iTaps < 0 ? -iTaps : iTaps); ++i )
+				m_MusicWheel.ChangeMusicUnlessLocked( iDir );
+		}
+	}
+#endif
 
 	CheckBackgroundRequests( false );
 }

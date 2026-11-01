@@ -7,6 +7,7 @@
 #include <psp2/net/net.h>
 #include <psp2/net/netctl.h>
 #include <psp2/io/fcntl.h>
+#include <psp2/kernel/threadmgr.h>
 
 #include <cstdio>
 #include <cstring>
@@ -109,8 +110,10 @@ namespace
 	}
 
 	/* Returns 0 on success, 1 when the request failed for another reason and 2
-	 * when TLS verification is the suspect. */
-	int RunTransfer( const std::string &sUrl, Sink &sink, bool bVerify, std::string &sError )
+	 * when TLS verification is the suspect. iAttempt > 0 forces a fresh TCP
+	 * connection so a retry does not land on the same broken socket. */
+	int RunTransfer( const std::string &sUrl, Sink &sink, bool bVerify, std::string &sError,
+		int iAttempt = 0, int *piCurlCode = NULL )
 	{
 		CURL *pHandle = curl_easy_init();
 		if( pHandle == NULL )
@@ -133,6 +136,11 @@ namespace
 		curl_easy_setopt( pHandle, CURLOPT_LOW_SPEED_TIME, 30L );
 		curl_easy_setopt( pHandle, CURLOPT_NOSIGNAL, 1L );
 		curl_easy_setopt( pHandle, CURLOPT_ERRORBUFFER, szCurlError );
+		if( iAttempt > 0 )
+		{
+			curl_easy_setopt( pHandle, CURLOPT_FRESH_CONNECT, 1L );
+			curl_easy_setopt( pHandle, CURLOPT_FORBID_REUSE, 1L );
+		}
 		curl_easy_setopt( pHandle, CURLOPT_WRITEFUNCTION,
 			sink.pStr != NULL ? WriteToString : WriteToFile );
 		curl_easy_setopt( pHandle, CURLOPT_WRITEDATA, &sink );
@@ -151,6 +159,8 @@ namespace
 		long iCode = 0;
 		curl_easy_getinfo( pHandle, CURLINFO_RESPONSE_CODE, &iCode );
 		curl_easy_cleanup( pHandle );
+		if( piCurlCode != NULL )
+			*piCurlCode = (int)rc;
 
 		if( sink.bCancel )
 		{
@@ -198,6 +208,28 @@ namespace
 		sink.iDone = 0;
 		sink.bCancel = false;
 		sink.bWriteError = false;
+	}
+
+	/* Transfer errors that usually clear up on a second attempt over a new
+	 * connection: 7 connect, 18 partial file, 26 read error, 28 timeout,
+	 * 35 TLS handshake, 52 empty reply, 55 send, 56 receive. Error 26 in
+	 * particular shows up on the Vita when the TLS layer reads a truncated
+	 * record from the socket; the same URL almost always succeeds again. */
+	bool IsTransient( int iCurl )
+	{
+		switch( iCurl )
+		{
+		case 7: case 18: case 26: case 28: case 35:
+		case 52: case 55: case 56:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	void RetryPause( int iAttempt )
+	{
+		sceKernelDelayThread( (SceUInt)( ( iAttempt + 1 ) * 350 * 1000 ) );
 	}
 }
 
@@ -297,13 +329,30 @@ bool LauncherHttp::GetToString( const std::string &sUrl, std::string &sOut, std:
 	sink.iTotal = -1;
 
 	sOut.clear();
-	int iRes = RunTransfer( sUrl, sink, true, sError );
-	if( iRes == 2 )
+	bool bVerify = true;
+	int iRes = 1;
+	int iCurl = 0;
+	int iAttempt = 0;
+	for( ;; )
 	{
-		LauncherUtil::Log( "http: retrying without certificate verification" );
-		sOut.clear();
 		ResetSink( sink );
-		iRes = RunTransfer( sUrl, sink, false, sError );
+		iRes = RunTransfer( sUrl, sink, bVerify, sError, iAttempt, &iCurl );
+		if( iRes == 0 )
+			break;
+		if( iRes == 2 && bVerify )
+		{
+			LauncherUtil::Log( "http: retrying without certificate verification" );
+			bVerify = false;
+			continue;
+		}
+		if( iRes == 1 && IsTransient( iCurl ) && iAttempt < 2 )
+		{
+			LauncherUtil::Log( "http: retry %d/2 after curl error %d", iAttempt + 1, iCurl );
+			RetryPause( iAttempt );
+			++iAttempt;
+			continue;
+		}
+		break;
 	}
 
 	if( iRes != 0 )
@@ -344,22 +393,45 @@ bool LauncherHttp::GetToFile( const std::string &sUrl, const std::string &sFile,
 	}
 	sink.iFd = fd;
 
-	int iRes = RunTransfer( sUrl, sink, true, sError );
-
-	if( iRes == 2 )
+	bool bVerify = true;
+	int iRes = 1;
+	int iCurl = 0;
+	int iAttempt = 0;
+	for( ;; )
 	{
-		LauncherUtil::Log( "http: retrying without certificate verification" );
-		sceIoClose( fd );
-		fd = openTarget();
-		if( fd < 0 )
+		if( iAttempt > 0 )
 		{
-			sError = "cannot create " + sFile;
-			return false;
+			/* A retry starts from an empty file, otherwise the new body is
+			 * appended to the broken one. */
+			sceIoClose( fd );
+			fd = openTarget();
+			if( fd < 0 )
+			{
+				sError = "cannot create " + sFile;
+				return false;
+			}
 		}
 		sink.iFd = fd;
 		sink.iTotal = iTotalHint;
 		ResetSink( sink );
-		iRes = RunTransfer( sUrl, sink, false, sError );
+		iRes = RunTransfer( sUrl, sink, bVerify, sError, iAttempt, &iCurl );
+		if( iRes == 0 )
+			break;
+		if( iRes == 2 && bVerify )
+		{
+			LauncherUtil::Log( "http: retrying without certificate verification" );
+			bVerify = false;
+			++iAttempt;
+			continue;
+		}
+		if( iRes == 1 && IsTransient( iCurl ) && iAttempt < 2 )
+		{
+			LauncherUtil::Log( "http: retry %d/2 after curl error %d", iAttempt + 1, iCurl );
+			RetryPause( iAttempt );
+			++iAttempt;
+			continue;
+		}
+		break;
 	}
 
 	sceIoClose( fd );

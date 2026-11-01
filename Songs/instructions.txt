@@ -6,8 +6,20 @@ Songs\							: root folder
 		MechaTribe Assault\		: song/simfile folder
 			*.png, *.mp3/*.ogg, *.sm/*.ssc/etc files
 
+[Folder names]
+Spaces, apostrophes and other usual characters are fine in folder names:
+
+Songs\
+	Rudy's Mix\
+		Some Song\
+			*.png, *.mp3/*.ogg, *.sm/*.ssc/etc files
+
+Nothing has to be renamed or escaped - the game reads these names as-is.
+
 [How NOT to install songs]
-This won't work because StepMania expects groups:
+This is not the documented layout, but it still loads: the song folder is
+picked up as its own group and the game logs a warning instead of refusing to
+start:
 
 Songs\
 	Some Song\

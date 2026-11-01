@@ -199,3 +199,6 @@ BuildLog.htm
 *.swp
 *.pc
 *.d
+
+# PS Vita LiveArea assets are sources: Contents/ above would swallow them.
+!Build-Vita/sce_sys/livearea/contents/
